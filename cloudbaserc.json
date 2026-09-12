@@ -1,0 +1,16 @@
+{
+  "$schema": "https://static.cloudbase.net/cli/cloudbaserc.schema.json",
+  "version": "2.1",
+  "hosting": [
+    {
+      "name": "campusdrop-web",
+      "root": ".",
+      "framework": "vite-react",
+      "installCommand": "npm install --include=dev",
+      "buildCommand": "npm run build",
+      "outputDir": "dist",
+      "deployPath": "/campusdrop"
+    }
+  ],
+  "envId": "campusdrop-d6gtd6i0x85f66d2b"
+}

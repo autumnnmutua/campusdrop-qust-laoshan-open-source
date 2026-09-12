@@ -1,0 +1,735 @@
+{
+  "version": "stage12",
+  "basePath": "/api/v1",
+  "note": "JSON Schema captures structural validation. Shared Zod refinements and server authorization are authoritative; do not infer ownership or business permission from schema acceptance.",
+  "schemas": {
+    "taskQuery": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "string",
+          "enum": [
+            "ALL",
+            "ACTIVE",
+            "AWAITING_RECEIPT",
+            "CLOSED"
+          ]
+        },
+        "cursor": {
+          "type": "string",
+          "maxLength": 1500
+        },
+        "pageSize": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "WAITING_PAYMENT",
+            "WAITING_PICKUP",
+            "PICKED_UP",
+            "OUT_FOR_DELIVERY",
+            "DELIVERED_DOWNSTAIRS",
+            "DELIVERED_TO_ROOM",
+            "COMPLETED",
+            "CANCELLED",
+            "FAILED_PICKUP",
+            "DELIVERY_EXCEPTION"
+          ]
+        },
+        "building": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "deliveryMode": {
+          "type": "string",
+          "enum": [
+            "DOWNSTAIRS",
+            "ROOM"
+          ]
+        },
+        "packageSize": {
+          "type": "string",
+          "enum": [
+            "SMALL",
+            "LARGE"
+          ]
+        },
+        "page": {
+          "default": 1,
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100000
+        }
+      },
+      "additionalProperties": false
+    },
+    "ticketCreate": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "orderId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "NOT_RECEIVED",
+            "DAMAGED",
+            "WRONG_DELIVERY",
+            "REFUND",
+            "OTHER"
+          ]
+        },
+        "subject": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "body": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        }
+      },
+      "required": [
+        "orderId",
+        "category",
+        "subject",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "ticketReply": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "body": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "body",
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "ticketState": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "IN_PROGRESS",
+            "RESOLVED",
+            "CLOSED",
+            "OPEN"
+          ]
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "confirmed": {
+          "type": "boolean",
+          "const": true
+        }
+      },
+      "required": [
+        "status",
+        "version",
+        "confirmed"
+      ],
+      "additionalProperties": false
+    },
+    "bulkCodes": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "orderIds": {
+          "minItems": 1,
+          "maxItems": 20,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "confirmed": {
+          "type": "boolean",
+          "const": true
+        }
+      },
+      "required": [
+        "orderIds",
+        "confirmed"
+      ],
+      "additionalProperties": false
+    },
+    "register": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32
+        },
+        "phone": {
+          "type": "string",
+          "pattern": "^1[3-9]\\d{9}$"
+        },
+        "username": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]{3,32}$"
+        },
+        "password": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "name",
+        "phone",
+        "username",
+        "password"
+      ],
+      "additionalProperties": false
+    },
+    "login": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]{3,32}$"
+        },
+        "password": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "username",
+        "password"
+      ],
+      "additionalProperties": false
+    },
+    "address": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "campusId": {
+          "type": "string",
+          "const": "QUST_LAOSHAN"
+        },
+        "zone": {
+          "type": "string",
+          "enum": [
+            "SOUTH",
+            "NORTH"
+          ]
+        },
+        "buildingCode": {
+          "type": "string",
+          "pattern": "^(SOUTH|NORTH)_\\d{2}$"
+        },
+        "roomNo": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32
+        }
+      },
+      "required": [
+        "campusId",
+        "zone",
+        "buildingCode",
+        "roomNo"
+      ],
+      "additionalProperties": false
+    },
+    "profile": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32
+        },
+        "phone": {
+          "type": "string",
+          "pattern": "^1[3-9]\\d{9}$"
+        }
+      },
+      "required": [
+        "name",
+        "phone"
+      ],
+      "additionalProperties": false
+    },
+    "adminContact": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "phone": {
+          "type": "string",
+          "pattern": "^1[3-9]\\d{9}$"
+        }
+      },
+      "required": [
+        "phone"
+      ],
+      "additionalProperties": false
+    },
+    "createAdmin": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]{3,32}$"
+        },
+        "password": {
+          "type": "string",
+          "minLength": 12,
+          "maxLength": 128
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "SUPER_ADMIN",
+            "ZONE_ADMIN",
+            "BUILDING_ADMIN",
+            "DELIVERY_STAFF"
+          ]
+        },
+        "scopes": {
+          "maxItems": 19,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "campusId": {
+                "type": "string",
+                "const": "QUST_LAOSHAN"
+              },
+              "zone": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "SOUTH",
+                      "NORTH"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "buildingCode": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^(SOUTH|NORTH)_\\d{2}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "campusId",
+              "zone",
+              "buildingCode"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "username",
+        "password",
+        "role",
+        "scopes"
+      ],
+      "additionalProperties": false
+    },
+    "parcel": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "pickupCode": {
+          "type": "string",
+          "pattern": "^\\d{1,3}-\\d-\\d{4}$"
+        },
+        "stationCode": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "packageSize": {
+          "type": "string",
+          "enum": [
+            "SMALL",
+            "LARGE"
+          ]
+        },
+        "carrier": {
+          "type": "string",
+          "enum": [
+            "申通",
+            "中通",
+            "圆通",
+            "韵达",
+            "顺丰",
+            "京东",
+            "邮政",
+            "极兔",
+            "其他"
+          ]
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 120
+        }
+      },
+      "required": [
+        "pickupCode",
+        "stationCode",
+        "packageSize"
+      ],
+      "additionalProperties": false
+    },
+    "quote": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "packageSize": {
+          "type": "string",
+          "enum": [
+            "SMALL",
+            "LARGE"
+          ]
+        },
+        "deliveryMode": {
+          "type": "string",
+          "enum": [
+            "DOWNSTAIRS",
+            "ROOM"
+          ]
+        }
+      },
+      "required": [
+        "packageSize",
+        "deliveryMode"
+      ]
+    },
+    "order": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "parcelId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "deliveryMode": {
+          "type": "string",
+          "enum": [
+            "DOWNSTAIRS",
+            "ROOM"
+          ]
+        }
+      },
+      "required": [
+        "parcelId",
+        "deliveryMode"
+      ]
+    },
+    "note": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "note": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "confirmed": {
+          "type": "boolean",
+          "const": true
+        }
+      },
+      "required": [
+        "note",
+        "version",
+        "confirmed"
+      ],
+      "additionalProperties": false
+    },
+    "confirmedVersion": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "confirmed": {
+          "type": "boolean",
+          "const": true
+        }
+      },
+      "required": [
+        "version",
+        "confirmed"
+      ],
+      "additionalProperties": false
+    },
+    "release": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "confirmed": {
+          "type": "boolean",
+          "const": true
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 240
+        }
+      },
+      "required": [
+        "version",
+        "confirmed",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "handoff": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "confirmed": {
+          "type": "boolean",
+          "const": true
+        },
+        "location": {
+          "type": "string",
+          "maxLength": 240
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 240
+        }
+      },
+      "required": [
+        "version",
+        "confirmed",
+        "location",
+        "note"
+      ],
+      "additionalProperties": false
+    },
+    "transition": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "WAITING_PAYMENT",
+            "WAITING_PICKUP",
+            "PICKED_UP",
+            "OUT_FOR_DELIVERY",
+            "DELIVERED_DOWNSTAIRS",
+            "DELIVERED_TO_ROOM",
+            "COMPLETED",
+            "CANCELLED",
+            "FAILED_PICKUP",
+            "DELIVERY_EXCEPTION"
+          ]
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "exceptionCode": {
+          "type": "string",
+          "enum": [
+            "CODE_INVALID",
+            "SIZE_MISMATCH",
+            "UNREACHABLE",
+            "OTHER"
+          ]
+        },
+        "exceptionNote": {
+          "type": "string",
+          "maxLength": 240
+        }
+      },
+      "required": [
+        "status",
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "batch": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "orderIds": {
+          "minItems": 1,
+          "maxItems": 20,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "assigneeAdminId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        }
+      },
+      "required": [
+        "orderIds",
+        "assigneeAdminId"
+      ],
+      "additionalProperties": false
+    },
+    "batchTransition": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "WAITING_PAYMENT",
+            "WAITING_PICKUP",
+            "PICKED_UP",
+            "OUT_FOR_DELIVERY",
+            "DELIVERED_DOWNSTAIRS",
+            "DELIVERED_TO_ROOM",
+            "COMPLETED",
+            "CANCELLED",
+            "FAILED_PICKUP",
+            "DELIVERY_EXCEPTION"
+          ]
+        },
+        "versions": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "exceptionCode": {
+          "type": "string",
+          "enum": [
+            "CODE_INVALID",
+            "SIZE_MISMATCH",
+            "UNREACHABLE",
+            "OTHER"
+          ]
+        },
+        "exceptionNote": {
+          "type": "string",
+          "maxLength": 240
+        }
+      },
+      "required": [
+        "status",
+        "versions"
+      ],
+      "additionalProperties": false
+    },
+    "tip": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "amountFen": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        }
+      },
+      "required": [
+        "amountFen",
+        "idempotencyKey"
+      ],
+      "additionalProperties": false
+    },
+    "listPage": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "cursor": {
+          "type": "string",
+          "maxLength": 1500
+        },
+        "page": {
+          "default": 1,
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100000
+        },
+        "pageSize": {
+          "default": 100,
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      }
+    }
+  }
+}

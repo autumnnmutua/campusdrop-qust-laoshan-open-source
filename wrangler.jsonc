@@ -1,0 +1,83 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "campusdrop-qust-laoshan",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-09-08",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "observability": {
+    "enabled": true,
+    "redact_query_string": true,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 0.01
+    }
+  },
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": [
+      "/api/*"
+    ]
+  },
+  "vars": {
+    "APP_ENV": "development",
+    "APP_ORIGIN": "http://127.0.0.1:5173"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "campusdrop-qust-laoshan",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "env": {
+    "production": {
+      "name": "campusdrop-qust-laoshan-production",
+      "vars": {
+        "APP_ENV": "production",
+        "APP_ORIGIN": "https://configure-production.invalid"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "campusdrop-qust-laoshan-production",
+          "database_id": "11111111-1111-1111-1111-111111111111",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "workers_dev": true,
+      "triggers": {
+        "crons": [
+          "17 3 * * *"
+        ]
+      }
+    },
+    "staging": {
+      "name": "campusdrop-qust-laoshan-staging",
+      "vars": {
+        "APP_ENV": "staging",
+        "APP_ORIGIN": "https://configure-staging.invalid"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "campusdrop-qust-laoshan-staging",
+          "database_id": "22222222-2222-2222-2222-222222222222",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "workers_dev": true,
+      "triggers": {
+        "crons": [
+          "17 3 * * *"
+        ]
+      }
+    }
+  }
+}

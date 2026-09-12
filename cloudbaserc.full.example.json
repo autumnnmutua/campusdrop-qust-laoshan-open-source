@@ -1,0 +1,45 @@
+{
+  "version": "2.1",
+  "envId": "{{env.TCB_ENV_ID}}",
+  "functionRoot": "./cloudbase/functions",
+  "functions": [
+    {
+      "name": "campusdrop-api",
+      "runtime": "Nodejs20.19",
+      "handler": "index.main",
+      "timeout": 30,
+      "memorySize": 256,
+      "envVariables": {
+        "APP_ORIGIN": "{{env.CAMPUSDROP_CLOUDBASE_ORIGIN}}",
+        "UPSTREAM_ORIGIN": "{{env.CAMPUSDROP_UPSTREAM_ORIGIN}}"
+      }
+    }
+  ],
+  "hosting": [
+    {
+      "name": "campusdrop-web",
+      "root": ".",
+      "framework": "vite-react",
+      "installCommand": "npm install --include=dev",
+      "buildCommand": "npm run build",
+      "outputDir": "dist",
+      "deployPath": "/"
+    }
+  ],
+  "gateway": {
+    "routes": [
+      {
+        "path": "/api",
+        "target": "function:campusdrop-api",
+        "enablePathTransmission": true,
+        "enableAuth": false
+      },
+      {
+        "path": "/",
+        "target": "hosting:campusdrop-web",
+        "enableAuth": false
+      }
+    ]
+  },
+  "$schema": "https://static.cloudbase.net/cli/cloudbaserc.schema.json"
+}
