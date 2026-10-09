@@ -1,0 +1,51 @@
+/* Motion layer. Every animation lives inside prefers-reduced-motion:no-preference and only touches opacity/transform.
+   Not animated on purpose: the blurred mobile tab bar, dialogs and their backdrops, backdrop-filter and box-shadow. */
+:root{--motion-fast:120ms;--motion-base:200ms;--motion-slow:280ms;--ease-out:cubic-bezier(.22,1,.36,1);--ease-in-out:cubic-bezier(.65,0,.35,1)}
+
+/* Skeletons render statically everywhere; only the shimmer below is motion. */
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.skeleton{display:grid;gap:12px;margin:16px 0;padding:20px;border-radius:14px;background:#f4f8ff;border:1px solid #e3edfb;overflow:hidden;position:relative}
+.skeleton-line{display:block;height:12px;border-radius:6px;background:#e1ebf8}
+.skeleton-line.wide{width:72%}.skeleton-line.mid{width:54%}.skeleton-line.short{width:34%}
+.skeleton-line.title{height:20px;width:42%}
+.skeleton-block{display:block;height:88px;border-radius:12px;background:#e8f0fb}
+
+@media (prefers-reduced-motion:no-preference){
+  /* Press feedback (the only motion on admin pages). */
+  button:not(:disabled):active,.button:active,.choice-options button:not(:disabled):active{transform:scale(.97);transition-duration:var(--motion-fast)}
+  .parcel-card{transition:transform var(--motion-base) var(--ease-out)}
+  /* Hover lift on student pages only, and only for pointers that can hover. */
+  @media (hover:hover){
+    body.student-view .parcel-card:hover{transform:translateY(-2px)}
+    body.student-view .choice-options button:not(:disabled):hover{transform:translateY(-1px)}
+  }
+  body.student-view .parcel-card:active{transform:scale(.99)}
+
+  /* Skeleton shimmer: a translucent band moved with transform only. */
+  .skeleton::after{content:'';position:absolute;inset:0;background:linear-gradient(100deg,transparent 20%,#ffffffa6 50%,transparent 80%);transform:translateX(-100%);animation:skeleton-shimmer 1.4s var(--ease-in-out) infinite}
+
+  /* Scroll reveal: only elements found below the fold are hidden, then faded in once. */
+  .reveal-pending{opacity:0;transform:translateY(14px)}
+  .reveal-in{animation:reveal-in var(--motion-slow) var(--ease-out) both}
+
+  /* Form feedback. */
+  p[role=alert]:not(:empty){animation:feedback-shake var(--motion-slow) var(--ease-out)}
+  p[role=status]:not(:empty),.success{animation:feedback-in var(--motion-base) var(--ease-out)}
+
+  /* Order progress: only steps that advanced while the page was open get .just-advanced. */
+  .compact-progress li.just-advanced span{animation:step-pop var(--motion-slow) var(--ease-out)}
+  .timeline li.just-advanced{animation:reveal-in var(--motion-slow) var(--ease-out) both}
+  .badge.just-advanced{display:inline-block;animation:step-pop var(--motion-slow) var(--ease-out)}
+
+  /* Desktop hero: a slow, one-off zoom of the scenery layer (transform on a pseudo-element). */
+  @media (min-width:721px){
+    .home-hero::before,.auth-scenery::before{content:'';position:absolute;inset:0;background:inherit;transform-origin:60% 50%;animation:hero-zoom 14s var(--ease-out) both;pointer-events:none}
+  }
+}
+
+@keyframes skeleton-shimmer{to{transform:translateX(100%)}}
+@keyframes reveal-in{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes feedback-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@keyframes feedback-shake{0%,100%{transform:none}25%{transform:translateX(-4px)}50%{transform:translateX(3px)}75%{transform:translateX(-2px)}}
+@keyframes step-pop{0%{transform:scale(.6);opacity:.4}70%{transform:scale(1.12);opacity:1}100%{transform:scale(1)}}
+@keyframes hero-zoom{from{transform:scale(1)}to{transform:scale(1.06)}}

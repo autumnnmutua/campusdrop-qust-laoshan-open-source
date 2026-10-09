@@ -1,14 +1,16 @@
 import {MessageLink} from './service-links';
 import {StudentSessionProvider,useStudentSession} from './session';
 import {CampusRail,ServicePages} from './campus-design';
-import { DormSelector } from './components';
-import { Component, StrictMode, Suspense, lazy, useEffect, useState, type ComponentType, type FormEvent, type ReactNode } from 'react';
+import { DormSelector, LoadingState } from './components';
+import { Component, StrictMode, Suspense, lazy, useEffect, useRef, useState, type ComponentType, type FormEvent, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, HashRouter, Link, NavLink, Route, Routes, useNavigate, useLocation } from 'react-router-dom';
 import { CAMPUS_ID, loginSchema, registerSchema, type Address, type Admin, type Building, type Student } from '../shared/contracts';
 import { api } from './api';
 import './styles.css';
 import './campus-rail.css';
+import './motion.css';
+import { usePageEnter, useScrollReveal } from './motion';
 import { Home,NewParcel,ParcelDetail,Orders,OrderDetail,TipPage } from './student-delivery';
 
 const CHUNK_RELOAD_KEY='campusdrop:chunk-reload';
@@ -41,7 +43,7 @@ class PageErrorBoundary extends Component<{ children: ReactNode; resetKey: strin
     return this.props.children;
   }
 }
-const pageFallback = <section><p role="status">正在加载页面…</p></section>;
+const pageFallback = <section><LoadingState label="正在加载页面…"/></section>;
 
 function Auth({ register = false, admin = false }: { register?: boolean; admin?: boolean }) {
   const navigate = useNavigate(); const {setSession}=useStudentSession(); const [error, setError] = useState(''); const [busy, setBusy] = useState(false); const [registered,setRegistered]=useState(false);
@@ -160,11 +162,12 @@ function AccountExit(){
   return <div className="account-exit"><button className="text-button" disabled={busy} onClick={async()=>{setBusy(true);try{await api('/auth/logout','POST');setSession('signed-out');navigate('/login',{replace:true});}catch(e){setError((e as Error).message);}finally{setBusy(false);}}}>退出登录 / 切换账号</button>{error&&<p role="alert">{error}</p>}</div>;
 }
 function App() {
-  const location=useLocation(); const admin=location.pathname.startsWith('/admin');
+  const location=useLocation(); const admin=location.pathname.startsWith('/admin'); const mainRef=useRef<HTMLElement>(null);
+  usePageEnter(mainRef,location.pathname,!admin); useScrollReveal(mainRef,location.pathname,!admin);
   useEffect(()=>{document.body.classList.toggle('student-view',!admin);},[admin]);
   useEffect(()=>{window.scrollTo(0,0);document.getElementById('main-content')?.focus({preventScroll:true});},[location.pathname]);
   return <div className="app-layout"><CampusRail/><div className="app-workspace"><a className="skip-link" href="#main-content">跳至主要内容</a><header className="topbar"><Link className="brand" to="/">青岛科技大学<span>崂山校区 · CampusDrop 校园快递</span></Link><nav><Link to="/">我的包裹</Link><Link to="/orders">订单</Link><Link to="/profile">寝室</Link>{!admin&&<MessageLink/>}<Link to="/tickets">售后</Link><Link to="/admin/login">管理入口</Link></nav></header>
-    <main id="main-content" tabIndex={-1}>{!admin&&!['/login','/register','/privacy'].includes(location.pathname)&&<AccountExit/>}<PageErrorBoundary resetKey={location.pathname}><Suspense fallback={pageFallback}><Routes><Route path="/" element={<Home />} /><Route path="/login" element={<Auth />} /><Route path="/register" element={<Auth register />} /><Route path="/profile" element={<Profile />} /><Route path="/admin/login" element={<Auth admin />} /><Route path="/admin" element={<AdminTasks />} /><Route path="/admin/account" element={<AdminHome />} />
+    <main id="main-content" ref={mainRef} tabIndex={-1}>{!admin&&!['/login','/register','/privacy'].includes(location.pathname)&&<AccountExit/>}<PageErrorBoundary resetKey={location.pathname}><Suspense fallback={pageFallback}><Routes><Route path="/" element={<Home />} /><Route path="/login" element={<Auth />} /><Route path="/register" element={<Auth register />} /><Route path="/profile" element={<Profile />} /><Route path="/admin/login" element={<Auth admin />} /><Route path="/admin" element={<AdminTasks />} /><Route path="/admin/account" element={<AdminHome />} />
       <Route path="/parcel/new" element={<NewParcel/>}/><Route path="/parcel/:id" element={<ParcelDetail/>}/><Route path="/orders" element={<Orders/>}/><Route path="/orders/:id" element={<OrderDetail/>}/><Route path="/checkout/:orderId" element={<OrderDetail checkout/>}/><Route path="/tip/:orderId" element={<TipPage/>}/>
       <Route path="/admin/orders/:id" element={<AdminOrderDetail/>}/><Route path="/admin/tasks" element={<AdminTasks/>}/><Route path="/admin/batches" element={<Batches/>}/><Route path="/admin/batches/:id" element={<BatchDetail/>}/><Route path="/admin/admins" element={<AdminAccounts/>}/><Route path="/admin/audit" element={<Audit/>}/>
       <Route path="/messages" element={<Inbox/>}/><Route path="/tickets" element={<TicketList/>}/><Route path="/tickets/new" element={<TicketNew/>}/><Route path="/tickets/:id" element={<TicketDetail/>}/><Route path="/admin/tickets" element={<TicketList admin/>}/><Route path="/admin/tickets/:id" element={<TicketDetail admin/>}/><Route path="/recover" element={<RecoveryPage/>}/><Route path="/admin/recovery" element={<RecoveryAdmin/>}/><Route path="/admin/errors" element={<ErrorMonitor/>}/><Route path="/guide" element={<ServicePages kind="guide"/>}/><Route path="/help" element={<ServicePages kind="help"/>}/><Route path="/contact" element={<ServicePages kind="contact"/>}/><Route path="/handoff-rules" element={<section><h1>包裹交接与退单规则</h1><p>未取件可说明原因后退回市场。已取件的包裹由当前配送员继续妥善保管，不得随意放置或交给身份未确认的人。</p><p>无法继续配送时，先标记配送异常，联系学生，并将包裹归还原取件站点；填写准确存放位置、包裹完整性和交接情况。另一位有权限的管理员核验实物后，才能退回接单市场或取消退款。</p><p>不得仅凭口头承诺点击核验。遗失、损坏、站点拒收或无法联系时，保持异常状态，联系负责该区域的管理员处理；未完成交接不得停用原配送账号。</p><p>核验记录只证明管理员作出了确认，不代表系统自动验证实物。当前资金操作为模拟，未发生真实扣款或退款。</p></section>}/><Route path="/privacy" element={<section><h1>资料用途</h1><p>姓名、联系电话及寝室资料用于校园配送联系与地址管理。你可以在个人页面移除当前寝室；修改前的地址与操作记录会保留用于业务追溯。</p><p>目前为开发版本，尚未开放真实配送。正式运营前将补充数据保留期限、账号删除渠道及运营联系方式。测试请使用虚构资料。</p><p>本项目非青岛科技大学或菜鸟官方产品，不绑定菜鸟账号。</p><Link to="/register">返回注册</Link></section>} />

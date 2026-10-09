@@ -41,7 +41,9 @@ export function PriceSummary({ amount }: { amount: number | null }) {
 }
 
 export function OrderTimeline({ events }: { events: OrderEvent[] }) {
-  return <ol className="timeline" aria-label="配送时间线">{events.map((e, index) => <li key={e.id} aria-current={index === events.length - 1 ? 'step' : undefined}><strong>{STATUS_LABELS[e.toStatus]}</strong>{e.detail&&<p>{e.detail}</p>}<time dateTime={new Date(e.createdAt * 1000).toISOString()}>{new Date(e.createdAt * 1000).toLocaleString('zh-CN')}</time></li>)}</ol>;
+  // Events present at first render are history; only ones arriving later (live refresh) animate in.
+  const [initialIds] = useState(() => new Set(events.map(e => e.id)));
+  return <ol className="timeline" aria-label="配送时间线">{events.map((e, index) => <li key={e.id} className={initialIds.has(e.id) ? undefined : 'just-advanced'} aria-current={index === events.length - 1 ? 'step' : undefined}><strong>{STATUS_LABELS[e.toStatus]}</strong>{e.detail&&<p>{e.detail}</p>}<time dateTime={new Date(e.createdAt * 1000).toISOString()}>{new Date(e.createdAt * 1000).toLocaleString('zh-CN')}</time></li>)}</ol>;
 }
 
 export function MockPaymentDialog({ amount, busy, onPay }: { amount: number; busy: boolean; onPay: () => Promise<void> }) {
@@ -78,4 +80,5 @@ export function ConfirmAction({label,title,children,busy,onConfirm,canConfirm=tr
   return <><button className="secondary" disabled={busy} onClick={()=>ref.current?.showModal()}>{label}</button><dialog ref={ref} aria-labelledby={id} onCancel={e=>{if(busy)e.preventDefault();}}><h2 id={id}>{title}</h2>{children}{!canConfirm&&validationMessage&&<p role="status">{validationMessage}</p>}<div className="actions"><button disabled={busy||!canConfirm} onClick={()=>void onConfirm().finally(()=>ref.current?.close())}>{busy?'正在处理…':'确认操作'}</button><button className="secondary" disabled={busy} onClick={()=>ref.current?.close()}>暂不操作</button></div></dialog></>;
 }
 export function EmptyState({ title, children }: { title: string; children?: ReactNode }) { return <div className="empty-state"><span aria-hidden="true">○</span><h3>{title}</h3>{children}</div>; }
-export function LoadingState() { return <div className="loading-state" role="status" aria-live="polite">正在加载，请稍候…</div>; }
+/** Skeleton placeholder; the status text stays available to screen readers. */
+export function LoadingState({ label = '正在加载，请稍候…' }: { label?: string }) { return <div className="skeleton" role="status" aria-live="polite"><span className="sr-only">{label}</span><span className="skeleton-line title" aria-hidden="true"/><span className="skeleton-line wide" aria-hidden="true"/><span className="skeleton-line mid" aria-hidden="true"/><span className="skeleton-block" aria-hidden="true"/></div>; }
