@@ -1,8 +1,7 @@
-import {Inbox,MessageLink,TicketList,TicketNew,TicketDetail} from './service-pages';
-import {RecoveryPage,RecoveryCode,RecoveryAdmin,ErrorMonitor} from './recovery-pages';
+import {MessageLink} from './service-links';
 import {CampusRail,ServicePages} from './campus-design';
 import { DormSelector } from './components';
-import { StrictMode, useEffect, useState, type FormEvent } from 'react';
+import { Component, StrictMode, Suspense, lazy, useEffect, useState, type ComponentType, type FormEvent, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, HashRouter, Link, NavLink, Route, Routes, useNavigate, useLocation } from 'react-router-dom';
 import { CAMPUS_ID, loginSchema, registerSchema, type Address, type Admin, type Building, type Student } from '../shared/contracts';
@@ -10,7 +9,38 @@ import { api } from './api';
 import './styles.css';
 import './campus-rail.css';
 import { Home,NewParcel,ParcelDetail,Orders,OrderDetail,TipPage } from './student-delivery';
-import { AdminOrderDetail,AdminTasks,Batches,BatchDetail,AdminAccounts,Audit } from './admin-delivery';
+
+const CHUNK_RELOAD_KEY='campusdrop:chunk-reload';
+/** Lazily load one named page export. After a redeploy an open tab may request a chunk that no longer exists; reload once to pick up the new build. */
+function lazyPage<M extends Record<string, unknown>, K extends keyof M & string>(load: () => Promise<M>, name: K) {
+  return lazy(async () => {
+    try {
+      const module = await load();
+      sessionStorage.removeItem(CHUNK_RELOAD_KEY);
+      return { default: module[name] as unknown as ComponentType<object> };
+    } catch (error) {
+      if (!sessionStorage.getItem(CHUNK_RELOAD_KEY)) { sessionStorage.setItem(CHUNK_RELOAD_KEY, '1'); window.location.reload(); return new Promise<never>(() => {}); }
+      throw error;
+    }
+  }) as unknown as M[K];
+}
+const loadAdmin = () => import('./admin-delivery');
+const AdminOrderDetail = lazyPage(loadAdmin, 'AdminOrderDetail'), AdminTasks = lazyPage(loadAdmin, 'AdminTasks'), Batches = lazyPage(loadAdmin, 'Batches'), BatchDetail = lazyPage(loadAdmin, 'BatchDetail'), AdminAccounts = lazyPage(loadAdmin, 'AdminAccounts'), Audit = lazyPage(loadAdmin, 'Audit');
+const loadRecovery = () => import('./recovery-pages');
+const RecoveryPage = lazyPage(loadRecovery, 'RecoveryPage'), RecoveryCode = lazyPage(loadRecovery, 'RecoveryCode'), RecoveryAdmin = lazyPage(loadRecovery, 'RecoveryAdmin'), ErrorMonitor = lazyPage(loadRecovery, 'ErrorMonitor');
+const loadService = () => import('./service-pages');
+const Inbox = lazyPage(loadService, 'Inbox'), TicketList = lazyPage(loadService, 'TicketList'), TicketNew = lazyPage(loadService, 'TicketNew'), TicketDetail = lazyPage(loadService, 'TicketDetail');
+
+class PageErrorBoundary extends Component<{ children: ReactNode; resetKey: string }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidUpdate(previous: { resetKey: string }) { if (previous.resetKey !== this.props.resetKey && this.state.failed) this.setState({ failed: false }); }
+  render() {
+    if (this.state.failed) return <section><h1>页面加载失败</h1><p role="alert">网络异常或网站刚刚更新，请刷新后重试。</p><button onClick={() => window.location.reload()}>刷新页面</button></section>;
+    return this.props.children;
+  }
+}
+const pageFallback = <section><p role="status">正在加载页面…</p></section>;
 
 function Auth({ register = false, admin = false }: { register?: boolean; admin?: boolean }) {
   const navigate = useNavigate(); const [error, setError] = useState(''); const [busy, setBusy] = useState(false); const [registered,setRegistered]=useState(false);
@@ -89,7 +119,7 @@ function Profile() {
   if (!loaded) return <section><p role="status">正在读取资料…</p></section>;
   if (!user) return <section><h1>请先登录</h1><p role="alert">{message}</p><Link to="/login">前往登录</Link></section>;
   return <section><p className="eyebrow">我的资料</p><h1>你好，{user.name}</h1><p className="muted">{user.phone}</p>
-    <RecoveryCode/><h2>你的寝室</h2><p>{address ? `${address.buildingName} · ${address.roomNo}` : '选择宿舍楼，填写房间号。'}</p>
+    <Suspense fallback={null}><RecoveryCode/></Suspense><h2>你的寝室</h2><p>{address ? `${address.buildingName} · ${address.roomNo}` : '选择宿舍楼，填写房间号。'}</p>
     <form onSubmit={save}>
       <DormSelector buildings={buildings} zone={zone} building={building} room={room} onZone={setZone} onBuilding={setBuilding} onRoom={setRoom}/>
       <button disabled={busy}>{busy ? '正在处理…' : '保存寝室资料'}</button>
@@ -116,7 +146,7 @@ function AdminHome() {
   return <section><p className="eyebrow">管理员工作区</p><h1>{admin ? admin.username : '账号与授权范围'}</h1>
     <p role="status">{message || (!admin ? '正在读取…' : '')}</p>
     {admin ? <><p>角色：{{ SUPER_ADMIN: '超级管理员', ZONE_ADMIN: '区域管理员', BUILDING_ADMIN: '楼栋管理员', DELIVERY_STAFF: '配送人员' }[admin.role]}</p>
-      <RecoveryCode admin/><h2>配送联系电话</h2><p>接单前请填写本人号码，接单后会向该订单的学生展示。号码仅做格式校验。</p><form onSubmit={async e=>{e.preventDefault();setSaving(true);try{const result=await api<{admin:Admin}>('/admin/me/contact','PUT',{phone});setAdmin(result.admin);setMessage('联系方式已保存');navigate('/admin',{replace:true});}catch(error){setMessage((error as Error).message);}finally{setSaving(false);}}}><label>管理员联系电话<input type="tel" inputMode="tel" autoComplete="tel" required pattern="1[3-9][0-9]{9}" maxLength={11} value={phone} onChange={e=>setPhone(e.target.value)}/></label><button disabled={saving}>保存联系方式并进入工作台</button></form>
+      <Suspense fallback={null}><RecoveryCode admin/></Suspense><h2>配送联系电话</h2><p>接单前请填写本人号码，接单后会向该订单的学生展示。号码仅做格式校验。</p><form onSubmit={async e=>{e.preventDefault();setSaving(true);try{const result=await api<{admin:Admin}>('/admin/me/contact','PUT',{phone});setAdmin(result.admin);setMessage('联系方式已保存');navigate('/admin',{replace:true});}catch(error){setMessage((error as Error).message);}finally{setSaving(false);}}}><label>管理员联系电话<input type="tel" inputMode="tel" autoComplete="tel" required pattern="1[3-9][0-9]{9}" maxLength={11} value={phone} onChange={e=>setPhone(e.target.value)}/></label><button disabled={saving}>保存联系方式并进入工作台</button></form>
       <h2>已授权楼栋</h2>{buildings.length ? <ul>{buildings.map(b => <li key={b.code}>{b.displayName}</li>)}</ul> : <p>暂无整栋楼权限；配送人员仅能查看分配给自己的批次和订单。</p>}<p><Link to="/admin">返回配送工作台</Link></p>
       <button className="secondary" onClick={logout}>退出管理员登录</button></> : <Link to="/admin/login">前往管理员登录</Link>}
   </section>;
@@ -131,11 +161,11 @@ function App() {
   useEffect(()=>{document.body.classList.toggle('student-view',!admin);},[admin]);
   useEffect(()=>{window.scrollTo(0,0);document.getElementById('main-content')?.focus({preventScroll:true});},[location.pathname]);
   return <div className="app-layout"><CampusRail/><div className="app-workspace"><a className="skip-link" href="#main-content">跳至主要内容</a><header className="topbar"><Link className="brand" to="/">青岛科技大学<span>崂山校区 · CampusDrop 校园快递</span></Link><nav><Link to="/">我的包裹</Link><Link to="/orders">订单</Link><Link to="/profile">寝室</Link>{!admin&&<MessageLink/>}<Link to="/tickets">售后</Link><Link to="/admin/login">管理入口</Link></nav></header>
-    <main id="main-content" tabIndex={-1}>{!admin&&!['/login','/register','/privacy'].includes(location.pathname)&&<AccountExit/>}<Routes><Route path="/" element={<Home />} /><Route path="/login" element={<Auth />} /><Route path="/register" element={<Auth register />} /><Route path="/profile" element={<Profile />} /><Route path="/admin/login" element={<Auth admin />} /><Route path="/admin" element={<AdminTasks />} /><Route path="/admin/account" element={<AdminHome />} />
+    <main id="main-content" tabIndex={-1}>{!admin&&!['/login','/register','/privacy'].includes(location.pathname)&&<AccountExit/>}<PageErrorBoundary resetKey={location.pathname}><Suspense fallback={pageFallback}><Routes><Route path="/" element={<Home />} /><Route path="/login" element={<Auth />} /><Route path="/register" element={<Auth register />} /><Route path="/profile" element={<Profile />} /><Route path="/admin/login" element={<Auth admin />} /><Route path="/admin" element={<AdminTasks />} /><Route path="/admin/account" element={<AdminHome />} />
       <Route path="/parcel/new" element={<NewParcel/>}/><Route path="/parcel/:id" element={<ParcelDetail/>}/><Route path="/orders" element={<Orders/>}/><Route path="/orders/:id" element={<OrderDetail/>}/><Route path="/checkout/:orderId" element={<OrderDetail checkout/>}/><Route path="/tip/:orderId" element={<TipPage/>}/>
       <Route path="/admin/orders/:id" element={<AdminOrderDetail/>}/><Route path="/admin/tasks" element={<AdminTasks/>}/><Route path="/admin/batches" element={<Batches/>}/><Route path="/admin/batches/:id" element={<BatchDetail/>}/><Route path="/admin/admins" element={<AdminAccounts/>}/><Route path="/admin/audit" element={<Audit/>}/>
       <Route path="/messages" element={<Inbox/>}/><Route path="/tickets" element={<TicketList/>}/><Route path="/tickets/new" element={<TicketNew/>}/><Route path="/tickets/:id" element={<TicketDetail/>}/><Route path="/admin/tickets" element={<TicketList admin/>}/><Route path="/admin/tickets/:id" element={<TicketDetail admin/>}/><Route path="/recover" element={<RecoveryPage/>}/><Route path="/admin/recovery" element={<RecoveryAdmin/>}/><Route path="/admin/errors" element={<ErrorMonitor/>}/><Route path="/guide" element={<ServicePages kind="guide"/>}/><Route path="/help" element={<ServicePages kind="help"/>}/><Route path="/contact" element={<ServicePages kind="contact"/>}/><Route path="/handoff-rules" element={<section><h1>包裹交接与退单规则</h1><p>未取件可说明原因后退回市场。已取件的包裹由当前配送员继续妥善保管，不得随意放置或交给身份未确认的人。</p><p>无法继续配送时，先标记配送异常，联系学生，并将包裹归还原取件站点；填写准确存放位置、包裹完整性和交接情况。另一位有权限的管理员核验实物后，才能退回接单市场或取消退款。</p><p>不得仅凭口头承诺点击核验。遗失、损坏、站点拒收或无法联系时，保持异常状态，联系负责该区域的管理员处理；未完成交接不得停用原配送账号。</p><p>核验记录只证明管理员作出了确认，不代表系统自动验证实物。当前资金操作为模拟，未发生真实扣款或退款。</p></section>}/><Route path="/privacy" element={<section><h1>资料用途</h1><p>姓名、联系电话及寝室资料用于校园配送联系与地址管理。你可以在个人页面移除当前寝室；修改前的地址与操作记录会保留用于业务追溯。</p><p>目前为开发版本，尚未开放真实配送。正式运营前将补充数据保留期限、账号删除渠道及运营联系方式。测试请使用虚构资料。</p><p>本项目非青岛科技大学或菜鸟官方产品，不绑定菜鸟账号。</p><Link to="/register">返回注册</Link></section>} />
-      <Route path="*" element={<section><h1>页面不存在</h1><Link to="/profile">返回我的寝室</Link></section>} /></Routes></main>
+      <Route path="*" element={<section><h1>页面不存在</h1><Link to="/profile">返回我的寝室</Link></section>} /></Routes></Suspense></PageErrorBoundary></main>
     <nav className={admin?'mobile-tabs hidden':'mobile-tabs'} aria-label="学生导航"><NavLink to="/" end>我的包裹</NavLink><NavLink to="/orders">配送订单</NavLink><NavLink to="/profile">我的寝室</NavLink><NavLink to="/messages">消息</NavLink></nav><footer>独立校园服务项目 · 非学校或菜鸟官方产品</footer></div></div>;
 }
 const cloudbaseStatic=typeof __CLOUDBASE_STATIC__!=='undefined'&&__CLOUDBASE_STATIC__;
