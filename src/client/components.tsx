@@ -11,7 +11,7 @@ const money = (fen: number) => `¥${(fen / 100).toFixed(2)}`;
 
 /** Replace this component's contents when approved campus imagery is available. */
 export function ImagePlaceholder({ label, compact = false }: { label: string; compact?: boolean }) {
-  return <div className={`image-placeholder ${compact ? 'compact' : ''}`}><img src="/images/qust-laoshan.jpg" alt={`${label} · 校园主题插画`} loading="lazy"/><span>QUST / 校园生活</span></div>;
+  return <div className={`image-placeholder ${compact ? 'compact' : ''}`}><picture><source type="image/webp" srcSet="/images/qust-laoshan-960.webp 960w, /images/qust-laoshan.webp 1672w" sizes="(max-width: 720px) 100vw, 640px"/><img src="/images/qust-laoshan.jpg" alt={`${label} · 校园主题插画`} loading="lazy" decoding="async" width={1672} height={941}/></picture><span>QUST / 校园生活</span></div>;
 }
 
 export function PickupCodeInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
