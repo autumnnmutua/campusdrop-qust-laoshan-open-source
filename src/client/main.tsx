@@ -1,4 +1,5 @@
 import {MessageLink} from './service-links';
+import {StudentSessionProvider,useStudentSession} from './session';
 import {CampusRail,ServicePages} from './campus-design';
 import { DormSelector } from './components';
 import { Component, StrictMode, Suspense, lazy, useEffect, useState, type ComponentType, type FormEvent, type ReactNode } from 'react';
@@ -43,12 +44,12 @@ class PageErrorBoundary extends Component<{ children: ReactNode; resetKey: strin
 const pageFallback = <section><p role="status">正在加载页面…</p></section>;
 
 function Auth({ register = false, admin = false }: { register?: boolean; admin?: boolean }) {
-  const navigate = useNavigate(); const [error, setError] = useState(''); const [busy, setBusy] = useState(false); const [registered,setRegistered]=useState(false);
+  const navigate = useNavigate(); const {setSession}=useStudentSession(); const [error, setError] = useState(''); const [busy, setBusy] = useState(false); const [registered,setRegistered]=useState(false);
   useEffect(() => {
     let active=true; setRegistered(false);
-    void api(admin?'/admin/me':'/me').then(()=>{if(active){if(register)setRegistered(true);else navigate(admin?'/admin/account':'/profile',{replace:true});}}).catch(()=>{});
+    void api(admin?'/admin/me':'/me').then(()=>{if(active){if(!admin)setSession('signed-in');if(register)setRegistered(true);else navigate(admin?'/admin/account':'/profile',{replace:true});}}).catch(()=>{});
     return ()=>{active=false;};
-  },[admin,register,navigate]);
+  },[admin,register,navigate,setSession]);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if(busy)return; setError('');
     const form = new FormData(event.currentTarget);
@@ -64,6 +65,7 @@ function Auth({ register = false, admin = false }: { register?: boolean; admin?:
       // Confirm the browser retained the HttpOnly session before announcing a successful login.
       try { await api(admin?'/admin/me':'/me'); }
       catch { throw new Error('账号验证已成功，但登录状态未能恢复。请允许本站 Cookie 后重新登录，勿重复注册。'); }
+      if(!admin)setSession('signed-in');
       if(register)setRegistered(true);else navigate(admin ? '/admin/account' : '/profile',{replace:true});
     } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
@@ -90,7 +92,7 @@ function Profile() {
   const [buildings, setBuildings] = useState<Building[]>([]); const [zone, setZone] = useState<'SOUTH' | 'NORTH'>('SOUTH');
   const [building, setBuilding] = useState(''); const [room, setRoom] = useState('');
   const [message, setMessage] = useState(''); const [busy, setBusy] = useState(false); const [loaded, setLoaded] = useState(false);
-  const navigate = useNavigate();
+  const navigate = useNavigate(); const {setSession}=useStudentSession();
   useEffect(() => {
     let active = true;
     Promise.all([api<{ user: Student; address: Address | null }>('/me'), api<{ buildings: Building[] }>('/dorm-buildings')])
@@ -114,7 +116,7 @@ function Profile() {
     catch (e) { setMessage((e as Error).message); } finally { setBusy(false); }
   }
   async function logout() {
-    try { await api('/auth/logout', 'POST'); navigate('/login',{replace:true}); } catch (e) { setMessage((e as Error).message); }
+    try { await api('/auth/logout', 'POST'); setSession('signed-out'); navigate('/login',{replace:true}); } catch (e) { setMessage((e as Error).message); }
   }
   if (!loaded) return <section><p role="status">正在读取资料…</p></section>;
   if (!user) return <section><h1>请先登录</h1><p role="alert">{message}</p><Link to="/login">前往登录</Link></section>;
@@ -153,8 +155,9 @@ function AdminHome() {
 }
 
 function AccountExit(){
-  const navigate=useNavigate();const [busy,setBusy]=useState(false),[error,setError]=useState('');
-  return <div className="account-exit"><button className="text-button" disabled={busy} onClick={async()=>{setBusy(true);try{await api('/auth/logout','POST');navigate('/login',{replace:true});}catch(e){setError((e as Error).message);}finally{setBusy(false);}}}>退出登录 / 切换账号</button>{error&&<p role="alert">{error}</p>}</div>;
+  const navigate=useNavigate();const {session,setSession}=useStudentSession();const [busy,setBusy]=useState(false),[error,setError]=useState('');
+  if(session!=='signed-in')return null;
+  return <div className="account-exit"><button className="text-button" disabled={busy} onClick={async()=>{setBusy(true);try{await api('/auth/logout','POST');setSession('signed-out');navigate('/login',{replace:true});}catch(e){setError((e as Error).message);}finally{setBusy(false);}}}>退出登录 / 切换账号</button>{error&&<p role="alert">{error}</p>}</div>;
 }
 function App() {
   const location=useLocation(); const admin=location.pathname.startsWith('/admin');
@@ -170,4 +173,4 @@ function App() {
 }
 const cloudbaseStatic=typeof __CLOUDBASE_STATIC__!=='undefined'&&__CLOUDBASE_STATIC__;
 const Router=cloudbaseStatic?HashRouter:BrowserRouter;
-createRoot(document.getElementById('root')!).render(<StrictMode><Router><App /></Router></StrictMode>);
+createRoot(document.getElementById('root')!).render(<StrictMode><Router><StudentSessionProvider><App /></StudentSessionProvider></Router></StrictMode>);

@@ -1,4 +1,4 @@
-export class RequestError extends Error {constructor(message:string,public requestId?:string){super(message);}}
+export class RequestError extends Error {constructor(message:string,public requestId?:string,public status?:number){super(message);}}
 export async function api<T>(path:string,method='GET',data?:unknown):Promise<T>{
  const readOnly=method==='GET'||method==='HEAD';
  for(let attempt=0;attempt<(readOnly?3:1);attempt++){
@@ -12,7 +12,7 @@ export async function api<T>(path:string,method='GET',data?:unknown):Promise<T>{
    if(!(response.headers.get('content-type')??'').includes('application/json'))throw new RequestError(response.status===404?'业务服务尚未接通，请联系管理员检查 /api 路由。':'网络或业务网关暂时不可用，请稍后刷新查询操作结果。',requestId);
    let result:{error?:{message?:string;requestId?:string}};
    try{result=await response.json();}catch{throw new RequestError('服务响应不完整，请刷新查询操作结果。',requestId);}
-   if(!response.ok){const id=result.error?.requestId??requestId;throw new RequestError((result.error?.message??'请求失败，请稍后重试')+(id?`（问题编号：${id}）`:''),id);}
+   if(!response.ok){const id=result.error?.requestId??requestId;throw new RequestError((result.error?.message??'请求失败，请稍后重试')+(id?`（问题编号：${id}）`:''),id,response.status);}
    return result as T;
   }finally{clearTimeout(timeout);}
  }
