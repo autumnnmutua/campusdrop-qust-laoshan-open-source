@@ -5,6 +5,7 @@ import { ChoiceSelector,ConfirmAction,PickupCodeInput,ParcelCard,DeliveryModeSel
 import { useCallback,useEffect,useRef,useState,type FormEvent } from 'react';
 import { Link,useNavigate,useParams,useLocation } from 'react-router-dom';
 import { api } from './api';
+import { useLiveOrder } from './live-order';
 import { CARRIERS,MOCK_MESSAGE,parcelSchema,STATUS_LABELS,type DeliveryMode,type Order,type OrderEvent,type Parcel,type Payment,type Station } from '../shared/delivery';
 export const money=(fen:number)=>`¥${(fen/100).toFixed(2)}`;
 export function useResource<T>(path:string){
@@ -13,14 +14,25 @@ export function useResource<T>(path:string){
   const generation=useRef(0);
   const refresh=useCallback(async()=>{const version=++generation.current;setLoading(true);try{const next=await api<T>(path);if(version===generation.current){setData(next);setError('');}}catch(e){if(version===generation.current){setData(null);setError((e as Error).message);}}finally{if(version===generation.current)setLoading(false);}},[path]);
   useEffect(()=>{void refresh();return()=>{generation.current++;};},[refresh,location.key]);
-  return {data,error,loading,refresh,setError};
+  /** Background refresh: keeps current data on failure and throws so callers (polling) can react, e.g. to 401. */
+  const revalidate=useCallback(async()=>{const version=generation.current;const next=await api<T>(path);if(version===generation.current){setData(next);setError('');}},[path]);
+  return {data,error,loading,refresh,revalidate,setError};
 }
 export function Notice({error}:{error:string}){return error?<p role="alert">{error} <Link to="/login">学生登录</Link></p>:null;}
+function orderProgress(status:Order['status']){return status==='COMPLETED'||status.startsWith('DELIVERED')?3:status==='OUT_FOR_DELIVERY'?2:status==='PICKED_UP'?1:0;}
+/** Remembers what an order looked like when first shown, so only later changes get the step-advance animation. */
+function useOrderBaseline(order:Order|undefined){
+ const [baseline,setBaseline]=useState<{id:string;status:Order['status']}|null>(null);
+ if(order&&baseline?.id!==order.id)setBaseline({id:order.id,status:order.status});
+ return order&&baseline?.id===order.id?baseline:null;
+}
 function CurrentOrderPreview(){
- const {data}=useResource<{orders:Order[]}>('/orders?pageSize=1');const order=data?.orders[0];
+ const {data,revalidate}=useResource<{orders:Order[]}>('/orders?pageSize=1');const order=data?.orders[0];
+ useLiveOrder(order?.status,revalidate);
+ const baseline=useOrderBaseline(order);
  if(!order)return null;
- const progress=order.status==='COMPLETED'||order.status.startsWith('DELIVERED')?3:order.status==='OUT_FOR_DELIVERY'?2:order.status==='PICKED_UP'?1:0;
- return <article className="current-order"><div className="row"><strong>当前订单</strong><span className="badge">{STATUS_LABELS[order.status]}</span></div><p>{order.dormSnapshot.buildingName} · {order.packageSize==='SMALL'?'小件':'大件'} · {money(order.amountFen)}</p>{!['CANCELLED','FAILED_PICKUP','DELIVERY_EXCEPTION'].includes(order.status)&&<ol className="compact-progress" aria-label="当前订单阶段">{['已下单','已取件','配送中','已送达'].map((label,index)=><li key={label} className={index<=progress?'reached':''}><span>{index<=progress?'✓':index+1}</span>{label}</li>)}</ol>}{order.serviceNotice&&<p className="muted">{order.serviceNotice}</p>}<Link to={`/orders/${order.id}`}>查看订单详情 ›</Link></article>;
+ const progress=orderProgress(order.status),startProgress=baseline?orderProgress(baseline.status):progress,statusChanged=!!baseline&&baseline.status!==order.status;
+ return <article className="current-order"><div className="row"><strong>当前订单</strong><span key={order.status} className={statusChanged?'badge just-advanced':'badge'}>{STATUS_LABELS[order.status]}</span></div><p>{order.dormSnapshot.buildingName} · {order.packageSize==='SMALL'?'小件':'大件'} · {money(order.amountFen)}</p>{!['CANCELLED','FAILED_PICKUP','DELIVERY_EXCEPTION'].includes(order.status)&&<ol className="compact-progress" aria-label="当前订单阶段">{['已下单','已取件','配送中','已送达'].map((label,index)=><li key={label} className={(index<=progress?'reached':'')+(index>startProgress&&index<=progress?' just-advanced':'')}><span>{index<=progress?'✓':index+1}</span>{label}</li>)}</ol>}{order.serviceNotice&&<p className="muted">{order.serviceNotice}</p>}<Link to={`/orders/${order.id}`}>查看订单详情 ›</Link></article>;
 }
 function QuickEntry(){
  const navigate=useNavigate();const [code,setCode]=useState(''),[size,setSize]=useState('SMALL'),[mode,setMode]=useState<DeliveryMode>('DOWNSTAIRS');
@@ -99,12 +111,13 @@ export function Orders(){
 }
 export interface Details {order:Order;events:OrderEvent[];payments:Payment[]}
 export function OrderDetail({checkout=false}:{checkout?:boolean}){
-  const params=useParams();const id=params.id??params.orderId;const {data,error,refresh,loading}=useResource<Details>(`/orders/${id}`);
+  const params=useParams();const id=params.id??params.orderId;const {data,error,refresh,revalidate,loading}=useResource<Details>(`/orders/${id}`);
+  useLiveOrder(data?.order.status,revalidate);const baseline=useOrderBaseline(data?.order);const statusChanged=!!baseline&&!!data&&baseline.status!==data.order.status;
   const [message,setMessage]=useState(''),[busy,setBusy]=useState(false);
   async function pay(){setBusy(true);try{await api(`/orders/${id}/mock-pay`,'POST');setMessage('');await refresh();}catch(e){setMessage((e as Error).message);}finally{setBusy(false);}}
   async function cancel(){setBusy(true);try{await api(`/orders/${id}/cancel`,'POST',{version:data!.order.version,confirmed:true});setMessage('订单已取消');await refresh();}catch(e){setMessage((e as Error).message);}finally{setBusy(false);}}
   return <section><Link to="/orders">← 我的订单</Link><h1>{checkout&&data?.order.status==='WAITING_PAYMENT'?'确认模拟支付':'配送进度'}</h1><Notice error={error}/>{loading&&!data&&<LoadingState/>}{data&&<>
-    <span className="badge">{STATUS_LABELS[data.order.status]}</span><p className="price">{money(data.order.amountFen)}</p><p>{data.order.dormSnapshot.buildingName} · {data.order.dormSnapshot.roomNo}</p><p>{data.order.stationSnapshot.canonicalName}</p><p>{data.order.deliveryMode==='ROOM'?'送到寝室':'送到楼下'}</p><p>备注：{data.order.note||'暂无备注'}</p>{data.order.upgradeFen>0&&<p>含升级配送模拟补款 {money(data.order.upgradeFen)}</p>}
+    <span key={data.order.status} className={statusChanged?'badge just-advanced':'badge'}>{STATUS_LABELS[data.order.status]}</span><p className="price">{money(data.order.amountFen)}</p><p>{data.order.dormSnapshot.buildingName} · {data.order.dormSnapshot.roomNo}</p><p>{data.order.stationSnapshot.canonicalName}</p><p>{data.order.deliveryMode==='ROOM'?'送到寝室':'送到楼下'}</p><p>备注：{data.order.note||'暂无备注'}</p>{data.order.upgradeFen>0&&<p>含升级配送模拟补款 {money(data.order.upgradeFen)}</p>}
     {data.order.status==='WAITING_PAYMENT'&&<div className="actions"><MockPaymentDialog amount={data.order.amountFen} busy={busy} onPay={pay}/><button className="secondary" disabled={busy} onClick={()=>void cancel()}>取消订单</button></div>}
     {data.payments.some(p=>p.type==='DELIVERY')&&<p className="success">模拟支付成功，未发生真实扣款</p>}
     {data.order.exceptionCode&&<p role="alert">异常原因：{{CODE_INVALID:'取件码无效',SIZE_MISMATCH:'大小件不符',UNREACHABLE:'暂时无法联系',OTHER:'其他异常'}[data.order.exceptionCode]??'其他异常'}，请联系管理员处理。</p>}
