@@ -12,3 +12,11 @@
 # Public images keep stable (unhashed) names: cache for a day, then revalidate in the background.
 /images/*
   Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
+# Site icons keep stable names: same policy as images.
+/favicon.ico
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+/favicon.svg
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+/apple-touch-icon.png
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
