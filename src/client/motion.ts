@@ -1,4 +1,4 @@
-import {useEffect,useRef,type RefObject} from 'react';
+import {useEffect,useRef,useState,type RefObject} from 'react';
 
 const EASE_OUT='cubic-bezier(.22,1,.36,1)';
 /** True when the visitor asked for reduced motion (or the browser cannot tell us). */
@@ -46,7 +46,68 @@ export function playThen(el:Element|null|undefined,keyframes:Keyframe[],duration
   setTimeout(finish,duration+120); // safety net if the animation is cancelled or the tab is throttled
 }
 
-const REVEAL_SELECTOR='.home-dashboard>*,.service-shortcuts>a,.campus-message,.card-list>*,.timeline,.information-page section';
+/**
+ * Animated number: eases from the previous value (or `from` on first render) to `value`. Reduced motion, a hidden tab
+ * or an unchanged value jump straight to the target. Callers render the result aria-hidden next to the final value.
+ */
+export function useCountUp(value:number,{duration=650,from}:{duration?:number;from?:number}={}){
+  // `current` is the value on screen right now, so an interrupted run (new value, or StrictMode's effect replay)
+  // continues from where it visually is instead of jumping to the end.
+  const [shown,setShown]=useState(from??value);const current=useRef(from??value);
+  useEffect(()=>{
+    const start=current.current;
+    if(start===value||prefersReducedMotion()||document.hidden){current.current=value;setShown(value);return;}
+    let frame=0;const begin=performance.now();
+    const step=(now:number)=>{
+      const t=Math.min(1,(now-begin)/duration),eased=1-Math.pow(1-t,3),next=t<1?start+(value-start)*eased:value;
+      current.current=next;setShown(next);
+      if(t<1)frame=requestAnimationFrame(step);
+    };
+    frame=requestAnimationFrame(step);
+    return ()=>cancelAnimationFrame(frame);
+  },[value,duration]);
+  return shown;
+}
+
+/**
+ * Material-style press ripple for buttons, added once at the app root. Spans are positioned through CSS custom
+ * properties set with CSSOM (allowed by the style-src 'self' CSP) and remove themselves when the animation ends.
+ * The mobile tab bar is skipped on purpose (see motion.css).
+ */
+export function useRipple(){
+  useEffect(()=>{
+    if(prefersReducedMotion())return;
+    const onDown=(event:PointerEvent)=>{
+      if(event.button!==0)return;
+      const target=(event.target as Element|null)?.closest?.('button:not(:disabled),a.button');
+      if(!(target instanceof HTMLElement)||target.closest('.mobile-tabs'))return;
+      const box=target.getBoundingClientRect(),size=Math.max(box.width,box.height)*2.2;
+      const ripple=document.createElement('span');ripple.className='ripple';ripple.setAttribute('aria-hidden','true');
+      ripple.style.setProperty('--rs',`${size}px`);ripple.style.setProperty('--rx',`${event.clientX-box.left}px`);ripple.style.setProperty('--ry',`${event.clientY-box.top}px`);
+      target.appendChild(ripple);
+      const remove=()=>ripple.remove();ripple.addEventListener('animationend',remove,{once:true});setTimeout(remove,900);
+    };
+    document.addEventListener('pointerdown',onDown,{passive:true});
+    return ()=>document.removeEventListener('pointerdown',onDown);
+  },[]);
+}
+
+/** Desktop-only pointer parallax: writes --px/--py in [-1,1] on the element; CSS decides what moves and how far. */
+export function usePointerParallax(ref:RefObject<HTMLElement|null>){
+  useEffect(()=>{
+    const el=ref.current;
+    if(!el||prefersReducedMotion()||typeof window.matchMedia!=='function'||!window.matchMedia('(hover:hover) and (pointer:fine)').matches)return;
+    let frame=0,x=0,y=0;
+    const apply=()=>{frame=0;el.style.setProperty('--px',x.toFixed(3));el.style.setProperty('--py',y.toFixed(3));};
+    const queue=()=>{if(!frame)frame=requestAnimationFrame(apply);};
+    const move=(event:PointerEvent)=>{const box=el.getBoundingClientRect();x=Math.max(-1,Math.min(1,((event.clientX-box.left)/box.width)*2-1));y=Math.max(-1,Math.min(1,((event.clientY-box.top)/box.height)*2-1));queue();};
+    const leave=()=>{x=0;y=0;queue();};
+    el.addEventListener('pointermove',move);el.addEventListener('pointerleave',leave);
+    return ()=>{el.removeEventListener('pointermove',move);el.removeEventListener('pointerleave',leave);if(frame)cancelAnimationFrame(frame);el.style.removeProperty('--px');el.style.removeProperty('--py');};
+  },[ref]);
+}
+
+const REVEAL_SELECTOR='.home-dashboard>*,.service-shortcuts>a,.campus-message,.card-list>*,.task-grid>*,.timeline,.information-page section,.admin-task-table tbody tr';
 /**
  * Scroll reveal. Content stays visible unless IntersectionObserver confirms an element starts fully below the fold;
  * only then is it hidden and faded in when it scrolls into view. Without IO/MutationObserver or with reduced motion

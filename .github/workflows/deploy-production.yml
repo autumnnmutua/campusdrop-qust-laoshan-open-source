@@ -1,0 +1,76 @@
+name: Deploy production
+# Publishes main to the campusdrop-qust-laoshan-production Worker (static assets + API).
+# One-time setup: add repository secrets CLOUDFLARE_API_TOKEN (Cloudflare token template "Edit Cloudflare Workers",
+# scoped to this account) and CLOUDFLARE_ACCOUNT_ID. Deploying a Worker with a D1 binding needs no D1 permission;
+# only running migrations does.
+# Database migrations are NOT run here; apply them deliberately with `npm run db:migrate:production`.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+jobs:
+  credentials:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    steps:
+      - name: Check automatic deployment credentials
+        id: check
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ -n "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+              echo "::error::Add the repository secret CLOUDFLARE_API_TOKEN before starting a manual deployment."
+              exit 1
+            fi
+            echo "::notice::Automatic Cloudflare deployment skipped: configure CLOUDFLARE_API_TOKEN to enable it. The Build workflow still verifies this commit."
+          fi
+  deploy:
+    needs: credentials
+    if: needs.credentials.outputs.configured == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      WRANGLER_SEND_METRICS: 'false'
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      PROD_D1_DATABASE_ID: ${{ vars.PROD_D1_DATABASE_ID || 'fc63fd64-82cf-4650-9397-e66c0f0fd21e' }}
+      PROD_APP_ORIGIN: ${{ vars.PROD_APP_ORIGIN || 'https://campusdrop-qust-laoshan-production.esthertreu3724.workers.dev' }}
+    steps:
+      - name: Require Cloudflare credentials
+        env:
+          ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::Add the repository secret CLOUDFLARE_API_TOKEN (Settings → Secrets and variables → Actions), then re-run this workflow."
+            exit 1
+          fi
+          if [ -n "$ACCOUNT_ID" ]; then echo "CLOUDFLARE_ACCOUNT_ID=$ACCOUNT_ID" >> "$GITHUB_ENV"; fi
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --include=dev
+      - run: npm run verify
+      - name: Apply production values to wrangler.jsonc (runner copy only)
+        run: node scripts/apply-deploy-config.mjs
+      - run: npm run production:check
+      - run: npm run deploy
+      - name: Smoke test
+        run: |
+          sleep 5
+          curl -fsS "$PROD_APP_ORIGIN/api/v1/health"
+          curl -fsS "$PROD_APP_ORIGIN/" | grep -q 'id="root"'

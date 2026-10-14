@@ -81,7 +81,7 @@ npm run api:check
 npm run verify
 ```
 
-GitHub Actions 负责代码检查和正式静态构建，不自动执行生产数据库变更。当前 main 源码树不包含测试账号、测试脚本或私有部署包；发布检查清单只记录公开的验证范围与平台版本，不包含凭据和测试数据。旧提交和已有标签仍保留历史内容。
+GitHub Actions 的 Build 工作流负责代码检查和正式静态构建。Deploy production 工作流在配置仓库 secret `CLOUDFLARE_API_TOKEN` 后自动发布 main；未配置时跳过自动发布，手动触发则给出配置提示。可选 secret `CLOUDFLARE_ACCOUNT_ID` 用于指定账户。工作流不自动执行生产数据库变更。当前 main 源码树不包含测试账号、测试脚本或私有部署包；发布检查清单只记录公开的验证范围与平台版本，不包含凭据和测试数据。旧提交和已有标签仍保留历史内容。
 
 ## 许可与素材
 

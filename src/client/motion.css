@@ -111,3 +111,97 @@
 @keyframes glide{0%,100%{transform:rotate(-12deg)}50%{transform:translate(4px,-3px) rotate(-8deg)}}
 @keyframes sheen{from{transform:translateX(-120%)}to{transform:translateX(120%)}}
 @keyframes dialog-in{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
+
+/* ======================================================================================================
+   v1.1 — extended motion (student pages and admin workspace). Same rules as above: opacity/transform (plus SVG
+   stroke offsets) only, nothing inside the blurred mobile tab bar, everything gated on no-preference.
+   ====================================================================================================== */
+@media (prefers-reduced-motion:no-preference){
+  /* Route progress: one sweep per navigation (and on first load). */
+  .route-progress{animation:route-sweep 700ms var(--ease-out) both}
+
+  /* Press ripple (spans created by useRipple). */
+  button,a.button{position:relative;overflow:hidden}
+  .ripple{position:absolute;left:var(--rx);top:var(--ry);width:var(--rs);height:var(--rs);margin:calc(var(--rs) / -2) 0 0 calc(var(--rs) / -2);border-radius:50%;background:currentColor;opacity:.22;transform:scale(0);pointer-events:none;animation:ripple 600ms var(--ease-out) forwards}
+
+  /* Sidebar highlight slides between links once it has been placed. */
+  .campus-rail nav.is-ready .rail-indicator{transition:transform 380ms var(--ease-out),opacity var(--motion-base)}
+
+  /* Busy ring spins. */
+  .is-busy::before{animation:spin 700ms linear infinite}
+
+  /* Live dot pings; the current progress step breathes. */
+  .live-indicator i::after{animation:ping 1.6s var(--ease-out) infinite}
+  .compact-progress li.current span::after{animation:halo 1.8s var(--ease-out) infinite}
+  .compact-progress li.reached:not(:last-child)::after{transform-origin:0 50%;animation:line-grow 600ms var(--ease-out) both}
+  .compact-progress li.reached:nth-child(2)::after{animation-delay:120ms}
+  .compact-progress li.reached:nth-child(3)::after{animation-delay:240ms}
+
+  /* Lists: items visible on first paint rise in with a short stagger (scroll reveal handles the rest). */
+  .card-list>:not(.reveal-pending):not(.reveal-in),.task-grid>:not(.reveal-pending):not(.reveal-in){animation:rise-in 460ms var(--ease-out) both}
+  .card-list>:nth-child(2),.task-grid>:nth-child(2){animation-delay:60ms}
+  .card-list>:nth-child(3),.task-grid>:nth-child(3){animation-delay:120ms}
+  .card-list>:nth-child(4),.task-grid>:nth-child(4){animation-delay:180ms}
+  .card-list>:nth-child(5),.task-grid>:nth-child(5){animation-delay:240ms}
+  .card-list>:nth-child(n+6),.task-grid>:nth-child(n+6){animation-delay:300ms}
+
+  /* Timeline: steps appear top to bottom, each dot pops. */
+  .timeline li:not(.just-advanced){animation:rise-in 420ms var(--ease-out) both}
+  .timeline li::before{animation:step-pop var(--motion-slow) var(--ease-out) both}
+  .timeline li:nth-child(2),.timeline li:nth-child(2)::before{animation-delay:70ms}
+  .timeline li:nth-child(3),.timeline li:nth-child(3)::before{animation-delay:140ms}
+  .timeline li:nth-child(4),.timeline li:nth-child(4)::before{animation-delay:210ms}
+  .timeline li:nth-child(n+5),.timeline li:nth-child(n+5)::before{animation-delay:280ms}
+
+  /* Admin stats tiles. */
+  .stats>span{animation:rise-in 420ms var(--ease-out) both}
+  .stats>span:nth-child(2){animation-delay:50ms}.stats>span:nth-child(3){animation-delay:100ms}
+  .stats>span:nth-child(4){animation-delay:150ms}.stats>span:nth-child(n+5){animation-delay:200ms}
+  .admin-nav a{transition:background-color var(--motion-base),color var(--motion-base)}
+  .admin-nav a.active{animation:icon-pop var(--motion-slow) var(--ease-out)}
+  .filters,.batch-tools{animation:rise-in 420ms 80ms var(--ease-out) both}
+
+  /* Success check: circle then tick draw in. */
+  .success-mark circle{stroke-dasharray:151;stroke-dashoffset:151;animation:draw 520ms var(--ease-out) forwards}
+  .success-mark path{stroke-dasharray:40;stroke-dashoffset:40;animation:draw 360ms 420ms var(--ease-out) forwards}
+  .success-mark{animation:icon-pop 520ms 600ms var(--ease-out) both}
+  .success-panel{animation:rise-in 420ms var(--ease-out) both}
+
+  /* Disclosures open and close smoothly where the browser supports animating to auto. */
+  summary::after{transition:transform var(--motion-base) var(--ease-out)}
+  @supports (interpolate-size:allow-keywords){
+    :root{interpolate-size:allow-keywords}
+    details::details-content{block-size:0;overflow:clip;transition:block-size 300ms var(--ease-out),content-visibility 300ms allow-discrete}
+    details[open]::details-content{block-size:auto}
+  }
+
+  /* Form controls ease their focus colours. */
+  input,select,textarea{transition:border-color var(--motion-base),background-color var(--motion-base)}
+
+  /* Home hero depth on desktop pointers: the scenery drifts against the copy. */
+  @media (min-width:721px){
+    .home-hero::before{scale:1.03;translate:calc(var(--px,0) * -10px) calc(var(--py,0) * -8px);transition:translate 900ms var(--ease-out)}
+    .home-hero .hero-copy{translate:calc(var(--px,0) * 5px) calc(var(--py,0) * 4px);transition:translate 900ms var(--ease-out)}
+    .home-hero .hero-note{translate:calc(var(--px,0) * 12px) calc(var(--py,0) * 9px);transition:translate 900ms var(--ease-out)}
+  }
+
+  /* Not-found and sign-in empty states float gently. */
+  .not-found h1{animation:rise-in 520ms 80ms var(--ease-out) both}
+  .not-found .button{animation:rise-in 520ms 180ms var(--ease-out) both}
+
+  @media (hover:hover){
+    .admin-content .market-card:hover,.admin-content .card-list>.parcel-card:not(.task-card):hover{transform:translateY(-2px)}
+    .admin-content .parcel-card{transition:transform var(--motion-base) var(--ease-out)}
+    .stats>span{transition:transform var(--motion-base) var(--ease-out)}
+    .stats>span:hover{transform:translateY(-2px)}
+    .live-indicator:hover i{transform:scale(1.2)}
+  }
+}
+
+@keyframes route-sweep{0%{opacity:1;transform:scaleX(0)}70%{opacity:1;transform:scaleX(1)}100%{opacity:0;transform:scaleX(1)}}
+@keyframes ripple{to{transform:scale(1);opacity:0}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes ping{0%{transform:scale(1);opacity:.6}80%,100%{transform:scale(2.6);opacity:0}}
+@keyframes halo{0%{transform:scale(.85);opacity:.7}70%,100%{transform:scale(1.35);opacity:0}}
+@keyframes line-grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes draw{to{stroke-dashoffset:0}}

@@ -41,13 +41,13 @@
       "name": "campusdrop-qust-laoshan-production",
       "vars": {
         "APP_ENV": "production",
-        "APP_ORIGIN": "https://configure-production.invalid"
+        "APP_ORIGIN": "https://campusdrop-qust-laoshan-production.esthertreu3724.workers.dev"
       },
       "d1_databases": [
         {
           "binding": "DB",
           "database_name": "campusdrop-qust-laoshan-production",
-          "database_id": "11111111-1111-1111-1111-111111111111",
+          "database_id": "fc63fd64-82cf-4650-9397-e66c0f0fd21e",
           "migrations_dir": "migrations"
         }
       ],

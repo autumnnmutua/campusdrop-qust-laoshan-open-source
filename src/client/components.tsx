@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import type { Building } from '../shared/contracts';
 import { MOCK_MESSAGE, pickupCodeSchema, STATUS_LABELS, type DeliveryMode, type Order, type OrderEvent, type Parcel } from '../shared/delivery';
 import { api } from './api';
+import { useCountUp } from './motion';
 
 const money = (fen: number) => `¥${(fen / 100).toFixed(2)}`;
 
@@ -51,7 +52,7 @@ export function ChoiceSelector({label,value,onChange,options,name}:{label:string
 }
 
 export function PriceSummary({ amount }: { amount: number | null }) {
-  return <div className="price-summary" aria-live="polite"><span>本次配送费用<small>以订单确认金额为准</small></span><strong key={amount ?? 'pending'} className={amount === null ? 'price is-pending' : 'price price-tick'}>{amount === null ? '报价中…' : money(amount)}</strong></div>;
+  return <div className="price-summary" aria-live="polite"><span>本次配送费用<small>以订单确认金额为准</small></span><strong key={amount === null ? 'pending' : 'quoted'} className={amount === null ? 'price is-pending' : 'price price-tick'}>{amount === null ? '报价中…' : <CountUp value={amount} from={0} format={money}/>}</strong></div>;
 }
 
 export function OrderTimeline({ events }: { events: OrderEvent[] }) {
@@ -63,12 +64,12 @@ export function OrderTimeline({ events }: { events: OrderEvent[] }) {
 export function MockPaymentDialog({ amount, busy, onPay }: { amount: number; busy: boolean; onPay: () => Promise<void> }) {
   const ref = useRef<HTMLDialogElement>(null), id = useId();
   useEffect(()=>{if(ref.current&&typeof ref.current.showModal!=='function')dialogPolyfill.registerDialog(ref.current);},[]);
-  return <><button disabled={busy} onClick={() => ref.current?.showModal()}>模拟支付 {money(amount)}</button><dialog ref={ref} aria-labelledby={id} onCancel={e => { if (busy) e.preventDefault(); }}><p className="eyebrow">支付确认</p><h2 id={id}>这是一笔模拟支付</h2><p>{MOCK_MESSAGE}</p><PriceSummary amount={amount} /><div className="actions"><button disabled={busy} onClick={() => { void onPay().finally(() => ref.current?.close()); }}>{busy ? '正在处理…' : '确认模拟支付'}</button><button className="secondary" disabled={busy} onClick={() => ref.current?.close()}>返回订单</button></div></dialog></>;
+  return <><button disabled={busy} onClick={() => ref.current?.showModal()}>模拟支付 {money(amount)}</button><dialog ref={ref} aria-labelledby={id} onCancel={e => { if (busy) e.preventDefault(); }}><p className="eyebrow">支付确认</p><h2 id={id}>这是一笔模拟支付</h2><p>{MOCK_MESSAGE}</p><PriceSummary amount={amount} /><div className="actions"><button className={busy ? 'is-busy' : undefined} disabled={busy} onClick={() => { void onPay().finally(() => ref.current?.close()); }}>{busy ? '正在处理…' : '确认模拟支付'}</button><button className="secondary" disabled={busy} onClick={() => ref.current?.close()}>返回订单</button></div></dialog></>;
 }
 
 export function TipSheet({ amount, onChange, busy, disabled, onSubmit }: { amount: string; onChange: (v: string) => void; busy: boolean; disabled: boolean; onSubmit: () => void }) {
   const id = useId();
-  return <div className="tip-sheet"><p className="muted">一点心意，由你决定。</p><div className="tip-options">{[1, 2, 5, 10].map(n => <button key={n} aria-pressed={amount === String(n)} className={amount === String(n) ? '' : 'secondary'} onClick={() => onChange(String(n))} disabled={busy}>{n} 元</button>)}</div><label htmlFor={id}>自定义金额（元）</label><input id={id} inputMode="decimal" value={amount} onChange={e => onChange(e.target.value)} disabled={busy} aria-describedby={`${id}-hint`} /><small id={`${id}-hint`}>0.01–100 元；自愿模拟打赏，不影响配送。</small><button className="block-button" disabled={disabled || busy} onClick={onSubmit}>{busy ? '正在处理…' : '确认模拟打赏'}</button></div>;
+  return <div className="tip-sheet"><p className="muted">一点心意，由你决定。</p><div className="tip-options">{[1, 2, 5, 10].map(n => <button key={n} aria-pressed={amount === String(n)} className={amount === String(n) ? '' : 'secondary'} onClick={() => onChange(String(n))} disabled={busy}>{n} 元</button>)}</div><label htmlFor={id}>自定义金额（元）</label><input id={id} inputMode="decimal" value={amount} onChange={e => onChange(e.target.value)} disabled={busy} aria-describedby={`${id}-hint`} /><small id={`${id}-hint`}>0.01–100 元；自愿模拟打赏，不影响配送。</small><button className={busy ? 'block-button is-busy' : 'block-button'} disabled={disabled || busy} onClick={onSubmit}>{busy ? '正在处理…' : '确认模拟打赏'}</button></div>;
 }
 
 export function SensitiveValue({ orderId, version }: { orderId: string; version: number }) {
@@ -91,8 +92,18 @@ export function AdminTaskTable({ orders, renderTask }: { orders: Order[]; render
 export function ConfirmAction({label,title,children,busy,onConfirm,canConfirm=true,validationMessage}:{label:string;title:string;children:ReactNode;busy:boolean;onConfirm:()=>Promise<void>;canConfirm?:boolean;validationMessage?:string}){
   const ref=useRef<HTMLDialogElement>(null),id=useId();
   useEffect(()=>{if(ref.current&&typeof ref.current.showModal!=='function')dialogPolyfill.registerDialog(ref.current);},[]);
-  return <><button className="secondary" disabled={busy} onClick={()=>ref.current?.showModal()}>{label}</button><dialog ref={ref} aria-labelledby={id} onCancel={e=>{if(busy)e.preventDefault();}}><h2 id={id}>{title}</h2>{children}{!canConfirm&&validationMessage&&<p role="status">{validationMessage}</p>}<div className="actions"><button disabled={busy||!canConfirm} onClick={()=>void onConfirm().finally(()=>ref.current?.close())}>{busy?'正在处理…':'确认操作'}</button><button className="secondary" disabled={busy} onClick={()=>ref.current?.close()}>暂不操作</button></div></dialog></>;
+  return <><button className="secondary" disabled={busy} onClick={()=>ref.current?.showModal()}>{label}</button><dialog ref={ref} aria-labelledby={id} onCancel={e=>{if(busy)e.preventDefault();}}><h2 id={id}>{title}</h2>{children}{!canConfirm&&validationMessage&&<p role="status">{validationMessage}</p>}<div className="actions"><button className={busy?'is-busy':undefined} disabled={busy||!canConfirm} onClick={()=>void onConfirm().finally(()=>ref.current?.close())}>{busy?'正在处理…':'确认操作'}</button><button className="secondary" disabled={busy} onClick={()=>ref.current?.close()}>暂不操作</button></div></dialog></>;
 }
 export function EmptyState({ title, children, icon = 'box' }: { title: string; children?: ReactNode; icon?: string }) { return <div className="empty-state"><span className="empty-icon" aria-hidden="true"><SymbolIcon name={icon}/></span><h3>{title}</h3>{children}</div>; }
 /** Skeleton placeholder; the status text stays available to screen readers. */
 export function LoadingState({ label = '正在加载，请稍候…' }: { label?: string }) { return <div className="skeleton" role="status" aria-live="polite"><span className="sr-only">{label}</span><span className="skeleton-line title" aria-hidden="true"/><span className="skeleton-line wide" aria-hidden="true"/><span className="skeleton-line mid" aria-hidden="true"/><span className="skeleton-block" aria-hidden="true"/></div>; }
+
+/** Number that rolls to its value; screen readers get only the final value. */
+export function CountUp({ value, from, format = String }: { value: number; from?: number; format?: (n: number) => string }) {
+  const shown = useCountUp(value, { from });
+  return <><span aria-hidden="true">{format(Math.round(shown))}</span><span className="sr-only">{format(value)}</span></>;
+}
+/** Animated check mark for completed steps (stroke draw; static under reduced motion). */
+export function SuccessMark() { return <svg className="success-mark" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="24"/><path d="M15 27.5l7.5 7.5L38 19"/></svg>; }
+/** Shown while an order is being refreshed automatically. */
+export function LiveIndicator({ label = '实时更新中' }: { label?: string }) { return <span className="live-indicator"><i aria-hidden="true"/>{label}</span>; }
