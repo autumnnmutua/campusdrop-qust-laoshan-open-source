@@ -1,6 +1,6 @@
 import {MessageLink} from './service-links';
-import {StudentSessionProvider,useStudentSession} from './session';
-import {CampusRail,ServicePages} from './campus-design';
+import {StudentSessionProvider,isUnauthorized,useStudentSession} from './session';
+import {CampusRail,ServicePages,SymbolIcon} from './campus-design';
 import { DormSelector, LoadingState } from './components';
 import { Component, StrictMode, Suspense, lazy, useEffect, useRef, useState, type ComponentType, type FormEvent, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -9,9 +9,10 @@ import { CAMPUS_ID, loginSchema, registerSchema, type Address, type Admin, type 
 import { api } from './api';
 import './styles.css';
 import './campus-rail.css';
+import './polish.css';
 import './motion.css';
-import { usePageEnter, useScrollReveal } from './motion';
-import { Home,NewParcel,ParcelDetail,Orders,OrderDetail,TipPage } from './student-delivery';
+import { usePageEnter, useScrollReveal, useScrolledClass } from './motion';
+import { Home,NewParcel,ParcelDetail,Orders,OrderDetail,TipPage,SignInPrompt } from './student-delivery';
 
 const CHUNK_RELOAD_KEY='campusdrop:chunk-reload';
 /** Lazily load one named page export. After a redeploy an open tab may request a chunk that no longer exists; reload once to pick up the new build. */
@@ -46,12 +47,17 @@ class PageErrorBoundary extends Component<{ children: ReactNode; resetKey: strin
 const pageFallback = <section><LoadingState label="正在加载页面…"/></section>;
 
 function Auth({ register = false, admin = false }: { register?: boolean; admin?: boolean }) {
-  const navigate = useNavigate(); const {setSession}=useStudentSession(); const [error, setError] = useState(''); const [busy, setBusy] = useState(false); const [registered,setRegistered]=useState(false);
+  const navigate = useNavigate(); const {session,setSession}=useStudentSession(); const [error, setError] = useState(''); const [busy, setBusy] = useState(false); const [registered,setRegistered]=useState(false);
+  // /login and /register render the same component instance, so clear per-form state when switching between them.
+  useEffect(()=>{setRegistered(false);setError('');},[admin,register]);
+  // Students: reuse the app-wide session check instead of a second /me request (a guaranteed 401 for visitors).
+  useEffect(()=>{if(!admin&&session==='signed-in'&&!registered)navigate('/profile',{replace:true});},[admin,session,registered,navigate]);
   useEffect(() => {
-    let active=true; setRegistered(false);
-    void api(admin?'/admin/me':'/me').then(()=>{if(active){if(!admin)setSession('signed-in');if(register)setRegistered(true);else navigate(admin?'/admin/account':'/profile',{replace:true});}}).catch(()=>{});
+    if(!admin)return;
+    let active=true;
+    void api('/admin/me').then(()=>{if(active)navigate('/admin/account',{replace:true});}).catch(()=>{});
     return ()=>{active=false;};
-  },[admin,register,navigate,setSession]);
+  },[admin,navigate]);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if(busy)return; setError('');
     const form = new FormData(event.currentTarget);
@@ -93,18 +99,21 @@ function Profile() {
   const [user, setUser] = useState<Student | null>(null); const [address, setAddress] = useState<Address | null>(null);
   const [buildings, setBuildings] = useState<Building[]>([]); const [zone, setZone] = useState<'SOUTH' | 'NORTH'>('SOUTH');
   const [building, setBuilding] = useState(''); const [room, setRoom] = useState('');
-  const [message, setMessage] = useState(''); const [busy, setBusy] = useState(false); const [loaded, setLoaded] = useState(false);
-  const navigate = useNavigate(); const {setSession}=useStudentSession();
+  const [message, setMessage] = useState(''); const [busy, setBusy] = useState(false); const [loaded, setLoaded] = useState(false); const [needsLogin,setNeedsLogin]=useState(false);
+  const navigate = useNavigate(); const {session,setSession}=useStudentSession();
   useEffect(() => {
     let active = true;
+    // Known visitors go straight to the sign-in prompt without requesting private data.
+    if(session==='signed-out'){setNeedsLogin(true);setLoaded(true);return;}
+    if(session==='unknown')return;
     Promise.all([api<{ user: Student; address: Address | null }>('/me'), api<{ buildings: Building[] }>('/dorm-buildings')])
       .then(([me, list]) => {
         if (!active) return;
-        setUser(me.user); setAddress(me.address); setBuildings(list.buildings);
+        setNeedsLogin(false); setUser(me.user); setAddress(me.address); setBuildings(list.buildings);
         if (me.address) { setZone(me.address.zone); setBuilding(me.address.buildingCode); setRoom(me.address.roomNo); }
-      }).catch((e: Error) => { if (active) setMessage(e.message); }).finally(() => { if (active) setLoaded(true); });
+      }).catch((e: Error) => { if (!active) return; if(isUnauthorized(e)){setNeedsLogin(true);setSession('signed-out');}else setMessage(e.message); }).finally(() => { if (active) setLoaded(true); });
     return () => { active = false; };
-  }, []);
+  }, [session,setSession]);
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setMessage('');
     try {
@@ -120,8 +129,9 @@ function Profile() {
   async function logout() {
     try { await api('/auth/logout', 'POST'); setSession('signed-out'); navigate('/login',{replace:true}); } catch (e) { setMessage((e as Error).message); }
   }
-  if (!loaded) return <section><p role="status">正在读取资料…</p></section>;
-  if (!user) return <section><h1>请先登录</h1><p role="alert">{message}</p><Link to="/login">前往登录</Link></section>;
+  if (!loaded) return <section><LoadingState label="正在读取资料…"/></section>;
+  if (needsLogin) return <section><p className="eyebrow">我的寝室</p><h1>管理收货寝室</h1><SignInPrompt title="登录后设置寝室" text="保存宿舍楼与房间号后，下单时会自动带入配送地址。"/></section>;
+  if (!user) return <section><h1>资料暂时无法读取</h1><p role="alert">{message}</p><button className="secondary" onClick={()=>window.location.reload()}>刷新重试</button></section>;
   return <section><p className="eyebrow">我的资料</p><h1>你好，{user.name}</h1><p className="muted">{user.phone}</p>
     <Suspense fallback={null}><RecoveryCode/></Suspense><h2>你的寝室</h2><p>{address ? `${address.buildingName} · ${address.roomNo}` : '选择宿舍楼，填写房间号。'}</p>
     <form onSubmit={save}>
@@ -163,16 +173,16 @@ function AccountExit(){
 }
 function App() {
   const location=useLocation(); const admin=location.pathname.startsWith('/admin'); const mainRef=useRef<HTMLElement>(null);
-  usePageEnter(mainRef,location.pathname,!admin); useScrollReveal(mainRef,location.pathname,!admin);
+  usePageEnter(mainRef,location.pathname,!admin); useScrollReveal(mainRef,location.pathname,!admin); useScrolledClass();
   useEffect(()=>{document.body.classList.toggle('student-view',!admin);},[admin]);
   useEffect(()=>{window.scrollTo(0,0);document.getElementById('main-content')?.focus({preventScroll:true});},[location.pathname]);
-  return <div className="app-layout"><CampusRail/><div className="app-workspace"><a className="skip-link" href="#main-content">跳至主要内容</a><header className="topbar"><Link className="brand" to="/">青岛科技大学<span>崂山校区 · CampusDrop 校园快递</span></Link><nav><Link to="/">我的包裹</Link><Link to="/orders">订单</Link><Link to="/profile">寝室</Link>{!admin&&<MessageLink/>}<Link to="/tickets">售后</Link><Link to="/admin/login">管理入口</Link></nav></header>
+  return <div className="app-layout"><CampusRail/><div className="app-workspace"><a className="skip-link" href="#main-content">跳至主要内容</a><header className="topbar"><Link className="brand" to="/">青岛科技大学<span>崂山校区 · CampusDrop 校园快递</span></Link><nav aria-label="快捷导航"><NavLink to="/" end>我的包裹</NavLink><NavLink to="/orders">订单</NavLink><NavLink to="/profile">寝室</NavLink>{!admin&&<MessageLink/>}<NavLink to="/tickets">售后</NavLink><NavLink className="topbar-admin" to="/admin/login">管理入口</NavLink></nav></header>
     <main id="main-content" ref={mainRef} tabIndex={-1}>{!admin&&!['/login','/register','/privacy'].includes(location.pathname)&&<AccountExit/>}<PageErrorBoundary resetKey={location.pathname}><Suspense fallback={pageFallback}><Routes><Route path="/" element={<Home />} /><Route path="/login" element={<Auth />} /><Route path="/register" element={<Auth register />} /><Route path="/profile" element={<Profile />} /><Route path="/admin/login" element={<Auth admin />} /><Route path="/admin" element={<AdminTasks />} /><Route path="/admin/account" element={<AdminHome />} />
       <Route path="/parcel/new" element={<NewParcel/>}/><Route path="/parcel/:id" element={<ParcelDetail/>}/><Route path="/orders" element={<Orders/>}/><Route path="/orders/:id" element={<OrderDetail/>}/><Route path="/checkout/:orderId" element={<OrderDetail checkout/>}/><Route path="/tip/:orderId" element={<TipPage/>}/>
       <Route path="/admin/orders/:id" element={<AdminOrderDetail/>}/><Route path="/admin/tasks" element={<AdminTasks/>}/><Route path="/admin/batches" element={<Batches/>}/><Route path="/admin/batches/:id" element={<BatchDetail/>}/><Route path="/admin/admins" element={<AdminAccounts/>}/><Route path="/admin/audit" element={<Audit/>}/>
       <Route path="/messages" element={<Inbox/>}/><Route path="/tickets" element={<TicketList/>}/><Route path="/tickets/new" element={<TicketNew/>}/><Route path="/tickets/:id" element={<TicketDetail/>}/><Route path="/admin/tickets" element={<TicketList admin/>}/><Route path="/admin/tickets/:id" element={<TicketDetail admin/>}/><Route path="/recover" element={<RecoveryPage/>}/><Route path="/admin/recovery" element={<RecoveryAdmin/>}/><Route path="/admin/errors" element={<ErrorMonitor/>}/><Route path="/guide" element={<ServicePages kind="guide"/>}/><Route path="/help" element={<ServicePages kind="help"/>}/><Route path="/contact" element={<ServicePages kind="contact"/>}/><Route path="/handoff-rules" element={<section><h1>包裹交接与退单规则</h1><p>未取件可说明原因后退回市场。已取件的包裹由当前配送员继续妥善保管，不得随意放置或交给身份未确认的人。</p><p>无法继续配送时，先标记配送异常，联系学生，并将包裹归还原取件站点；填写准确存放位置、包裹完整性和交接情况。另一位有权限的管理员核验实物后，才能退回接单市场或取消退款。</p><p>不得仅凭口头承诺点击核验。遗失、损坏、站点拒收或无法联系时，保持异常状态，联系负责该区域的管理员处理；未完成交接不得停用原配送账号。</p><p>核验记录只证明管理员作出了确认，不代表系统自动验证实物。当前资金操作为模拟，未发生真实扣款或退款。</p></section>}/><Route path="/privacy" element={<section><h1>资料用途</h1><p>姓名、联系电话及寝室资料用于校园配送联系与地址管理。你可以在个人页面移除当前寝室；修改前的地址与操作记录会保留用于业务追溯。</p><p>目前为开发版本，尚未开放真实配送。正式运营前将补充数据保留期限、账号删除渠道及运营联系方式。测试请使用虚构资料。</p><p>本项目非青岛科技大学或菜鸟官方产品，不绑定菜鸟账号。</p><Link to="/register">返回注册</Link></section>} />
-      <Route path="*" element={<section><h1>页面不存在</h1><Link to="/profile">返回我的寝室</Link></section>} /></Routes></Suspense></PageErrorBoundary></main>
-    <nav className={admin?'mobile-tabs hidden':'mobile-tabs'} aria-label="学生导航"><NavLink to="/" end>我的包裹</NavLink><NavLink to="/orders">配送订单</NavLink><NavLink to="/profile">我的寝室</NavLink><NavLink to="/messages">消息</NavLink></nav><footer>独立校园服务项目 · 非学校或菜鸟官方产品</footer></div></div>;
+      <Route path="*" element={<section className="not-found"><p className="eyebrow">404 · 页面不存在</p><h1>这个地址没有找到内容</h1><p className="muted">链接可能已失效，或页面已经调整。</p><Link className="button" to="/">返回首页</Link></section>} /></Routes></Suspense></PageErrorBoundary></main>
+    <nav className={admin?'mobile-tabs hidden':'mobile-tabs'} aria-label="学生导航">{([['/','box','我的包裹'],['/orders','order','配送订单'],['/profile','room','我的寝室'],['/messages','chat','消息']] as const).map(([to,icon,label])=><NavLink key={to} to={to} end={to==='/'}><SymbolIcon name={icon}/><span>{label}</span></NavLink>)}</nav><footer>独立校园服务项目 · 非学校或菜鸟官方产品</footer></div></div>;
 }
 const cloudbaseStatic=typeof __CLOUDBASE_STATIC__!=='undefined'&&__CLOUDBASE_STATIC__;
 const Router=cloudbaseStatic?HashRouter:BrowserRouter;
