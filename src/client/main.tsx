@@ -1,7 +1,7 @@
 import {MessageLink} from './service-links';
 import {StudentSessionProvider,isUnauthorized,useStudentSession} from './session';
 import {CampusRail,ServicePages,SymbolIcon} from './campus-design';
-import { DormSelector, LoadingState } from './components';
+import { DormSelector, LoadingState, SuccessMark } from './components';
 import { Component, StrictMode, Suspense, lazy, useEffect, useRef, useState, type ComponentType, type FormEvent, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, HashRouter, Link, NavLink, Route, Routes, useNavigate, useLocation } from 'react-router-dom';
@@ -11,7 +11,7 @@ import './styles.css';
 import './campus-rail.css';
 import './polish.css';
 import './motion.css';
-import { usePageEnter, useScrollReveal, useScrolledClass } from './motion';
+import { usePageEnter, useRipple, useScrollReveal, useScrolledClass } from './motion';
 import { Home,NewParcel,ParcelDetail,Orders,OrderDetail,TipPage,SignInPrompt } from './student-delivery';
 
 const CHUNK_RELOAD_KEY='campusdrop:chunk-reload';
@@ -77,7 +77,7 @@ function Auth({ register = false, admin = false }: { register?: boolean; admin?:
       if(register)setRegistered(true);else navigate(admin ? '/admin/account' : '/profile',{replace:true});
     } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
-  if(register&&registered)return <section><h1>注册成功</h1><p role="status">账号已创建并登录。接下来可以完善寝室资料。</p><Link className="button" to="/profile">完善寝室资料</Link><Link to="/">返回首页</Link></section>;
+  if(register&&registered)return <section className="auth-success"><SuccessMark/><h1>注册成功</h1><p role="status">账号已创建并登录。接下来可以完善寝室资料。</p><Link className="button" to="/profile">完善寝室资料</Link><Link to="/">返回首页</Link></section>;
   return <section className="auth-page"><div className="auth-scenery" aria-hidden="true"><span>每一份期待<br/>都值得准时抵达</span></div><p className="eyebrow">{admin ? '管理员入口' : '学生服务'}</p><h1>{register ? '创建你的账号' : admin ? '管理员登录' : '欢迎回来'}</h1>
     <p className="muted">青岛科技大学 · 崂山校区</p>
     <form onSubmit={submit} noValidate>
@@ -88,7 +88,7 @@ function Auth({ register = false, admin = false }: { register?: boolean; admin?:
         <label>姓名<input name="name" required maxLength={32} autoComplete="name" /></label>
         <label>配送联系电话<input name="phone" type="tel" required pattern="1[3-9][0-9]{9}" autoComplete="tel" /></label>
         <p className="muted">联系电话仅用于配送联系，不代表已完成手机号或学生身份认证。<Link to="/privacy">了解资料用途</Link></p></>}
-      </fieldset><p role="alert" aria-live="assertive">{error}</p><button disabled={busy}>{busy ? '正在处理…' : register ? '注册并继续' : '登录'}</button>
+      </fieldset><p role="alert" aria-live="assertive">{error}</p><button className={busy?'is-busy':undefined} disabled={busy}>{busy ? '正在处理…' : register ? '注册并继续' : '登录'}</button>
     </form>
     <p><Link to="/recover">忘记密码 / 使用恢复码</Link></p>
     {!admin && <p>{register ? <Link to="/login">已有账号，去登录</Link> : <Link to="/register">创建学生账号</Link>}</p>}
@@ -173,10 +173,10 @@ function AccountExit(){
 }
 function App() {
   const location=useLocation(); const admin=location.pathname.startsWith('/admin'); const mainRef=useRef<HTMLElement>(null);
-  usePageEnter(mainRef,location.pathname,!admin); useScrollReveal(mainRef,location.pathname,!admin); useScrolledClass();
-  useEffect(()=>{document.body.classList.toggle('student-view',!admin);},[admin]);
+  usePageEnter(mainRef,location.pathname,true); useScrollReveal(mainRef,location.pathname,true); useScrolledClass(); useRipple();
+  useEffect(()=>{document.body.classList.toggle('student-view',!admin);document.body.classList.toggle('admin-view',admin);},[admin]);
   useEffect(()=>{window.scrollTo(0,0);document.getElementById('main-content')?.focus({preventScroll:true});},[location.pathname]);
-  return <div className="app-layout"><CampusRail/><div className="app-workspace"><a className="skip-link" href="#main-content">跳至主要内容</a><header className="topbar"><Link className="brand" to="/">青岛科技大学<span>崂山校区 · CampusDrop 校园快递</span></Link><nav aria-label="快捷导航"><NavLink to="/" end>我的包裹</NavLink><NavLink to="/orders">订单</NavLink><NavLink to="/profile">寝室</NavLink>{!admin&&<MessageLink/>}<NavLink to="/tickets">售后</NavLink><NavLink className="topbar-admin" to="/admin/login">管理入口</NavLink></nav></header>
+  return <div className="app-layout"><CampusRail/><div className="app-workspace"><div key={location.key} className="route-progress" aria-hidden="true"/><a className="skip-link" href="#main-content">跳至主要内容</a><header className="topbar"><Link className="brand" to="/">青岛科技大学<span>崂山校区 · CampusDrop 校园快递</span></Link><nav aria-label="快捷导航"><NavLink to="/" end>我的包裹</NavLink><NavLink to="/orders">订单</NavLink><NavLink to="/profile">寝室</NavLink>{!admin&&<MessageLink/>}<NavLink to="/tickets">售后</NavLink><NavLink className="topbar-admin" to="/admin/login">管理入口</NavLink></nav></header>
     <main id="main-content" ref={mainRef} tabIndex={-1}>{!admin&&!['/login','/register','/privacy'].includes(location.pathname)&&<AccountExit/>}<PageErrorBoundary resetKey={location.pathname}><Suspense fallback={pageFallback}><Routes><Route path="/" element={<Home />} /><Route path="/login" element={<Auth />} /><Route path="/register" element={<Auth register />} /><Route path="/profile" element={<Profile />} /><Route path="/admin/login" element={<Auth admin />} /><Route path="/admin" element={<AdminTasks />} /><Route path="/admin/account" element={<AdminHome />} />
       <Route path="/parcel/new" element={<NewParcel/>}/><Route path="/parcel/:id" element={<ParcelDetail/>}/><Route path="/orders" element={<Orders/>}/><Route path="/orders/:id" element={<OrderDetail/>}/><Route path="/checkout/:orderId" element={<OrderDetail checkout/>}/><Route path="/tip/:orderId" element={<TipPage/>}/>
       <Route path="/admin/orders/:id" element={<AdminOrderDetail/>}/><Route path="/admin/tasks" element={<AdminTasks/>}/><Route path="/admin/batches" element={<Batches/>}/><Route path="/admin/batches/:id" element={<BatchDetail/>}/><Route path="/admin/admins" element={<AdminAccounts/>}/><Route path="/admin/audit" element={<Audit/>}/>

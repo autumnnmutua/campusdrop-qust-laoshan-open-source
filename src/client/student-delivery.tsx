@@ -1,13 +1,13 @@
 import {RoundHistory} from './service-links';
 function randomClientId(){if(crypto.randomUUID)return crypto.randomUUID();return '10000000-1000-4000-8000-100000000000'.replace(/[018]/g,c=>(Number(c)^crypto.getRandomValues(new Uint8Array(1))[0]&(15>>Number(c)/4)).toString(16));}
 import {SymbolIcon} from './campus-design';
-import { ChoiceSelector,ConfirmAction,PickupCodeInput,ParcelCard,DeliveryModeSelector,PriceSummary,OrderTimeline,MockPaymentDialog,TipSheet,EmptyState,LoadingState } from './components';
+import { ChoiceSelector,ConfirmAction,PickupCodeInput,ParcelCard,DeliveryModeSelector,PriceSummary,OrderTimeline,MockPaymentDialog,TipSheet,EmptyState,LoadingState,LiveIndicator,SuccessMark } from './components';
 import { useCallback,useEffect,useRef,useState,type FormEvent } from 'react';
 import { Link,useNavigate,useParams,useLocation } from 'react-router-dom';
 import { api } from './api';
-import { useLiveOrder } from './live-order';
+import { shouldWatchOrder,useLiveOrder } from './live-order';
 import { isUnauthorized,useStudentSession } from './session';
-import { playThen } from './motion';
+import { playThen,usePointerParallax } from './motion';
 import { CARRIERS,MOCK_MESSAGE,parcelSchema,STATUS_LABELS,type DeliveryMode,type Order,type OrderEvent,type Parcel,type Payment,type Station } from '../shared/delivery';
 export const money=(fen:number)=>`¥${(fen/100).toFixed(2)}`;
 /**
@@ -63,7 +63,8 @@ function CurrentOrderPreview({enabled}:{enabled:boolean}){
  const baseline=useOrderBaseline(order);
  if(!order)return null;
  const progress=orderProgress(order.status),startProgress=baseline?orderProgress(baseline.status):progress,statusChanged=!!baseline&&baseline.status!==order.status;
- return <article className="current-order"><div className="row"><strong>当前订单</strong><span key={order.status} data-status={order.status} className={statusChanged?'badge just-advanced':'badge'}>{STATUS_LABELS[order.status]}</span></div><p>{order.dormSnapshot.buildingName} · {order.packageSize==='SMALL'?'小件':'大件'} · {money(order.amountFen)}</p>{!['CANCELLED','FAILED_PICKUP','DELIVERY_EXCEPTION'].includes(order.status)&&<ol className="compact-progress" aria-label="当前订单阶段">{['已下单','已取件','配送中','已送达'].map((label,index)=><li key={label} className={(index<=progress?'reached':'')+(index>startProgress&&index<=progress?' just-advanced':'')}><span>{index<=progress?'✓':index+1}</span>{label}</li>)}</ol>}{order.serviceNotice&&<p className="muted">{order.serviceNotice}</p>}<Link to={`/orders/${order.id}`}>查看订单详情 ›</Link></article>;
+ const live=shouldWatchOrder(order.status)&&order.status!=='WAITING_PAYMENT',finished=order.status==='COMPLETED'||order.status.startsWith('DELIVERED');
+ return <article className="current-order"><div className="row"><strong>当前订单{live&&<LiveIndicator/>}</strong><span key={order.status} data-status={order.status} className={statusChanged?'badge just-advanced':'badge'}>{STATUS_LABELS[order.status]}</span></div><p>{order.dormSnapshot.buildingName} · {order.packageSize==='SMALL'?'小件':'大件'} · {money(order.amountFen)}</p>{!['CANCELLED','FAILED_PICKUP','DELIVERY_EXCEPTION'].includes(order.status)&&<ol className="compact-progress" aria-label="当前订单阶段">{['已下单','已取件','配送中','已送达'].map((label,index)=><li key={label} className={(index<=progress?'reached':'')+(index>startProgress&&index<=progress?' just-advanced':'')+(index===progress&&!finished?' current':'')}><span>{index<=progress?'✓':index+1}</span>{label}</li>)}</ol>}{order.serviceNotice&&<p className="muted">{order.serviceNotice}</p>}<Link to={`/orders/${order.id}`}>查看订单详情 ›</Link></article>;
 }
 function QuickEntry(){
  const navigate=useNavigate();const [code,setCode]=useState(''),[size,setSize]=useState('SMALL'),[mode,setMode]=useState<DeliveryMode>('DOWNSTAIRS');
@@ -81,8 +82,9 @@ export function Home(){
   const signedOut=session==='signed-out'||unauthorized,checking=session==='unknown'||(canLoad&&loading&&!data);
   const [busy,setBusy]=useState(''),[expanded,setExpanded]=useState(false),[removed,setRemoved]=useState<string[]>([]),[feedback,setFeedback]=useState('');
   const parcels=(data?.parcels??[]).filter(p=>p.status!=='CANCELLED'&&!removed.includes(p.id));
+  const heroRef=useRef<HTMLDivElement>(null);usePointerParallax(heroRef);
   async function remove(id:string){setBusy(id);try{await api(`/parcels/${id}`,'DELETE');setRemoved(ids=>[...ids,id]);setFeedback('包裹已移除');await refresh();}catch(e){setError((e as Error).message);}finally{setBusy('');}}
-  return <section className="student-home"><div className="home-hero"><div className="hero-copy"><p className="hero-school">青岛科技大学<span>崂山校区 · CAMPUSDROP</span></p><h1>校园快递配送</h1><p className="hero-subtitle">让每一份包裹<br/>更快抵达你的身边</p><div className="hero-features"><span><SymbolIcon name="box"/>手动登记</span><span><SymbolIcon name="person"/>校园配送</span><span><SymbolIcon name="order"/>进度可查</span></div></div><span className="hero-note" aria-hidden="true">把时间留给校园生活</span></div>
+  return <section className="student-home"><div className="home-hero" ref={heroRef}><div className="hero-copy"><p className="hero-school">青岛科技大学<span>崂山校区 · CAMPUSDROP</span></p><h1>校园快递配送</h1><p className="hero-subtitle">让每一份包裹<br/>更快抵达你的身边</p><div className="hero-features"><span><SymbolIcon name="box"/>手动登记</span><span><SymbolIcon name="person"/>校园配送</span><span><SymbolIcon name="order"/>进度可查</span></div></div><span className="hero-note" aria-hidden="true">把时间留给校园生活</span></div>
     <div className="home-dashboard"><div className="home-quick"><div className="panel-heading"><SymbolIcon/><h2>快速下单</h2><small>简单几步 · 安排配送</small></div><p>选择寝室、填写取件码，剩下的交给配送流程。</p><Link className="address-shortcut" to="/profile"><SymbolIcon name="room"/><span>我的收货寝室<small>下单前请确认地址与联系电话</small></span><b>切换 ›</b></Link><QuickEntry/></div>
     <div className="home-live"><CurrentOrderPreview enabled={session==='signed-in'}/><div className="panel-heading"><SymbolIcon name="order"/><h2>我的包裹</h2><Link to="/orders">全部订单 ›</Link></div>
       {signedOut?<SignInPrompt title="登录后，查看你的包裹" text="登记包裹、查看配送进度，让期待更近一步。"/>:<>
@@ -110,7 +112,7 @@ export function NewParcel(){
       <ChoiceSelector label="包裹大小" name="packageSize" value={packageSize} onChange={setPackageSize} options={[{value:'SMALL',label:'小件',icon:'box',hint:'轻便包裹'},{value:'LARGE',label:'大件',icon:'box',hint:'较大包裹'}]}/>
       <label htmlFor="carrier">承运商（选填）</label><select id="carrier" name="carrier"><option value="">暂不填写</option>{CARRIERS.map(c=><option key={c}>{c}</option>)}</select>
       <label htmlFor="parcel-note">备注（选填）</label><textarea id="parcel-note" name="note" maxLength={120} rows={3}/><small>最多 120 字，请勿填写额外取件凭证。</small>
-      <p role="alert">{message}</p><button disabled={busy||!data?.stations.length}>{busy?'正在登记…':'保存包裹'}</button>
+      <p role="alert">{message}</p><button className={busy?'is-busy':undefined} disabled={busy||!data?.stations.length}>{busy?'正在登记…':'保存包裹'}</button>
     </form><p><Link to="/orders">已有订单？前往继续支付或查看配送</Link></p>
   </section>;
 }
@@ -124,7 +126,7 @@ export function ParcelDetail(){
   return <section><Link to="/">← 我的包裹</Link><h1>安排配送</h1><Notice error={error} unauthorized={unauthorized}/>{loading&&!data&&<LoadingState/>}{data&&<><p className="pickup-code">{data.parcel.pickupCode}</p><p>{size==='SMALL'?'小件':'大件'} · 请再次核对取件码</p>
     <DeliveryModeSelector value={mode} onChange={setMode}/><PriceSummary amount={amount}/>
     <p className="muted">按已保存的寝室配送，<Link to="/profile">修改寝室</Link>。</p>
-    <button disabled={busy||amount===null||data.parcel.status!=='ACTIVE'} onClick={()=>void order()}>{busy?'正在创建…':'确认并下单'}</button></>}
+    <button className={busy?'is-busy':undefined} disabled={busy||amount===null||data.parcel.status!=='ACTIVE'} onClick={()=>void order()}>{busy?'正在创建…':'确认并下单'}</button></>}
     <p role="alert">{message}</p><Link to="/orders">查看已有订单</Link>
   </section>;
 }
@@ -143,7 +145,7 @@ function OrderActions({order,refresh,onMessage}:{order:Order;refresh:()=>Promise
     {order.deliveryMode==='DOWNSTAIRS'&&['WAITING_PICKUP','PICKED_UP','OUT_FOR_DELIVERY'].includes(order.status)&&<ConfirmAction label={`改为送到寝室 · 补${(order.upgradeQuoteFen??(order.packageSize==='LARGE'?200:100))/100}元`} title="确认升级配送并模拟补付？" busy={busy} onConfirm={()=>act('upgrade')}><p>额外模拟支付 {money(order.upgradeQuoteFen??(order.packageSize==='LARGE'?200:100))}，改为送到已保存的寝室；未发生真实扣款。</p></ConfirmAction>}</div></div>;
 
 }
-function DeliveryContact({order}:{order:Order}){return <div className="delivery-contact">{order.serviceNotice&&<p role="status">{order.serviceNotice}</p>}{order.assigneePhone&&<p>接单人联系电话：<a href={`tel:${order.assigneePhone}`}>{order.assigneePhone}</a></p>}{order.exceptionNote&&<p role="alert">配送问题说明：{order.exceptionNote}</p>}</div>;}
+function DeliveryContact({order}:{order:Order}){if(!order.serviceNotice&&!order.assigneePhone&&!order.exceptionNote)return null;return <div className="delivery-contact">{order.serviceNotice&&<p role="status">{order.serviceNotice}</p>}{order.assigneePhone&&<p>接单人联系电话：<a href={`tel:${order.assigneePhone}`}>{order.assigneePhone}</a></p>}{order.exceptionNote&&<p role="alert">配送问题说明：{order.exceptionNote}</p>}</div>;}
 export function Orders(){
   const [cursor,setCursor]=useState(''),[back,setBack]=useState<string[]>([]);
   const {data,error,loading,refresh,unauthorized}=useStudentResource<{orders:Order[];nextCursor:string|null}>(`/orders?pageSize=20${cursor?'&cursor='+encodeURIComponent(cursor):''}`);const [message,setMessage]=useState('');
@@ -155,12 +157,12 @@ export function Orders(){
 export interface Details {order:Order;events:OrderEvent[];payments:Payment[]}
 export function OrderDetail({checkout=false}:{checkout?:boolean}){
   const params=useParams();const id=params.id??params.orderId;const {data,error,refresh,revalidate,loading,unauthorized}=useStudentResource<Details>(`/orders/${id}`);
-  useLiveOrder(data?.order.status,revalidate);const baseline=useOrderBaseline(data?.order);const statusChanged=!!baseline&&!!data&&baseline.status!==data.order.status;
+  useLiveOrder(data?.order.status,revalidate);const {session}=useStudentSession();const baseline=useOrderBaseline(data?.order);const statusChanged=!!baseline&&!!data&&baseline.status!==data.order.status;
   const [message,setMessage]=useState(''),[busy,setBusy]=useState(false);
   async function pay(){setBusy(true);try{await api(`/orders/${id}/mock-pay`,'POST');setMessage('');await refresh();}catch(e){setMessage((e as Error).message);}finally{setBusy(false);}}
   async function cancel(){setBusy(true);try{await api(`/orders/${id}/cancel`,'POST',{version:data!.order.version,confirmed:true});setMessage('订单已取消');await refresh();}catch(e){setMessage((e as Error).message);}finally{setBusy(false);}}
   return <section><Link to="/orders">← 我的订单</Link><h1>{checkout&&data?.order.status==='WAITING_PAYMENT'?'确认模拟支付':'配送进度'}</h1><Notice error={error} unauthorized={unauthorized}/>{loading&&!data&&<LoadingState/>}{data&&<>
-    <span key={data.order.status} data-status={data.order.status} className={statusChanged?'badge just-advanced':'badge'}>{STATUS_LABELS[data.order.status]}</span><p className="price">{money(data.order.amountFen)}</p><p>{data.order.dormSnapshot.buildingName} · {data.order.dormSnapshot.roomNo}</p><p>{data.order.stationSnapshot.canonicalName}</p><p>{data.order.deliveryMode==='ROOM'?'送到寝室':'送到楼下'}</p><p>备注：{data.order.note||'暂无备注'}</p>{data.order.upgradeFen>0&&<p>含升级配送模拟补款 {money(data.order.upgradeFen)}</p>}
+    <div className="status-line"><span key={data.order.status} data-status={data.order.status} className={statusChanged?'badge just-advanced':'badge'}>{STATUS_LABELS[data.order.status]}</span>{session==='signed-in'&&shouldWatchOrder(data.order.status)&&data.order.status!=='WAITING_PAYMENT'&&<LiveIndicator/>}</div>{data.order.status==='COMPLETED'&&<div className="success-panel"><SuccessMark/><p><strong>订单已完成</strong><br/><small>感谢使用 CampusDrop 校园配送</small></p></div>}<p className="price">{money(data.order.amountFen)}</p><p>{data.order.dormSnapshot.buildingName} · {data.order.dormSnapshot.roomNo}</p><p>{data.order.stationSnapshot.canonicalName}</p><p>{data.order.deliveryMode==='ROOM'?'送到寝室':'送到楼下'}</p><p>备注：{data.order.note||'暂无备注'}</p>{data.order.upgradeFen>0&&<p>含升级配送模拟补款 {money(data.order.upgradeFen)}</p>}
     {data.order.status==='WAITING_PAYMENT'&&<div className="actions"><MockPaymentDialog amount={data.order.amountFen} busy={busy} onPay={pay}/><button className="secondary" disabled={busy} onClick={()=>void cancel()}>取消订单</button></div>}
     {data.payments.some(p=>p.type==='DELIVERY')&&<p className="success">模拟支付成功，未发生真实扣款</p>}
     {data.order.exceptionCode&&<p role="alert">异常原因：{{CODE_INVALID:'取件码无效',SIZE_MISMATCH:'大小件不符',UNREACHABLE:'暂时无法联系',OTHER:'其他异常'}[data.order.exceptionCode]??'其他异常'}，请联系管理员处理。</p>}
@@ -183,7 +185,7 @@ export function TipPage(){
   }
   const tipped=data?.payments.some(p=>p.type==='TIP');
   return <section><Link to={`/orders/${orderId}`}>← 订单详情</Link><h1>感谢这次配送</h1><Notice error={error} unauthorized={unauthorized}/>{loading&&!data&&<LoadingState/>}<p>{MOCK_MESSAGE}</p>
-    {tipped?<p className="success">已收到你的模拟打赏，谢谢！</p>:<TipSheet amount={amount} onChange={setAmount} busy={busy} disabled={data?.order.status!=='COMPLETED'} onSubmit={()=>void tip()}/>}
+    {tipped?<div className="success-panel"><SuccessMark/><p className="success">已收到你的模拟打赏，谢谢！</p></div>:<TipSheet amount={amount} onChange={setAmount} busy={busy} disabled={data?.order.status!=='COMPLETED'} onSubmit={()=>void tip()}/>}
     <p role="status">{message}</p>
   </section>;
 }

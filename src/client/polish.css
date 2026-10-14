@@ -74,3 +74,55 @@
 
 /* The dark layout background exists for the desktop rail; on phones it showed as a navy band under short pages. */
 @media (max-width:720px){.app-layout{background:transparent}.app-workspace{min-height:100vh;min-height:100dvh}}
+
+/* ======================================================================================================
+   v1.1 — supporting styles for the extended motion layer (static; every animation lives in motion.css)
+   ====================================================================================================== */
+
+/* Route progress bar: hidden unless motion.css animates it. */
+.route-progress{position:fixed;top:0;left:0;right:0;height:3px;z-index:60;pointer-events:none;opacity:0;transform-origin:0 50%;background:linear-gradient(90deg,#57b0ff,#1568e9 60%,#7c5cff)}
+
+/* Sidebar: the active highlight is a separate layer that slides between links. */
+.campus-rail nav.has-indicator{position:relative}
+.campus-rail nav.has-indicator>a{position:relative;z-index:1}
+.campus-rail nav.has-indicator>a.active{background:transparent;box-shadow:none}
+.rail-indicator{position:absolute;left:0;right:0;top:0;height:var(--rail-h,47px);transform:translateY(var(--rail-y,0));opacity:var(--rail-o,0);border-radius:10px;background:linear-gradient(110deg,#fff,#e8f3ff);box-shadow:0 4px 14px #06285530;pointer-events:none}
+
+/* Busy buttons show a small ring before their label. */
+.is-busy::before{content:'';flex:none;width:14px;height:14px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;opacity:.85}
+
+/* Live-refresh indicator next to an order's status. */
+.live-indicator{display:inline-flex;align-items:center;gap:6px;margin-left:10px;padding:2px 9px 2px 7px;border-radius:999px;background:#e8f7ef;color:#1d7a4b;font-size:11px;font-weight:600;vertical-align:2px;white-space:nowrap}
+.live-indicator i{position:relative;width:7px;height:7px;border-radius:50%;background:#22a565}
+.live-indicator i::after{content:'';position:absolute;inset:0;border-radius:50%;background:#22a565;opacity:0}
+.status-line{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.status-line .live-indicator{margin-left:4px}
+
+/* Current step in the compact progress gets a halo. */
+.compact-progress span{position:relative}
+.compact-progress li.current span::after{content:'';position:absolute;inset:-6px;border-radius:50%;border:2px solid #2585f1;opacity:0}
+
+/* Success check mark and the panels that hold it. */
+.success-mark{display:block;width:64px;height:64px;margin:0 auto 14px}
+.success-mark circle{fill:#e8f7ef;stroke:#22a565;stroke-width:2.5}
+.success-mark path{fill:none;stroke:#1d8f55;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
+.success-panel{display:flex;align-items:center;gap:16px;margin:18px 0;padding:16px 18px;border-radius:14px;background:#f1fbf5;border:1px solid #cdeedb}
+.success-panel .success-mark{width:48px;height:48px;margin:0;flex:none}
+.success-panel p{margin:0}
+.success-panel .success{background:none;padding:0}
+.auth-success{text-align:center}
+.auth-success .button{margin:6px}
+
+/* Smoother disclosure widgets: custom chevron instead of the default marker. */
+summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px}
+summary::-webkit-details-marker{display:none}
+summary::after{content:'';flex:none;width:8px;height:8px;margin-right:4px;border-right:2px solid #6f8db5;border-bottom:2px solid #6f8db5;transform:rotate(45deg) translateY(-2px)}
+details[open]>summary::after{transform:rotate(225deg) translate(-2px,0)}
+
+/* Admin workspace accents. */
+.admin-nav a{position:relative}
+.admin-nav a:not(.active):hover{background:#e7f0ff;color:#1f5fb4}
+.stats span[data-status=OUT_FOR_DELIVERY] strong{color:#1559c4}
+.stats span[data-status^=DELIVERED] strong,.stats span[data-status=COMPLETED] strong{color:#1f7a49}
+.stats span[data-status=FAILED_PICKUP] strong,.stats span[data-status=DELIVERY_EXCEPTION] strong{color:#b3303f}
+.market-card button{width:100%;margin-top:6px}
