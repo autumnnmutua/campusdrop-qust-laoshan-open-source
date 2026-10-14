@@ -1,0 +1,76 @@
+/* Visual polish layer: static styling only, loaded after styles.css and campus-rail.css. All motion lives in motion.css. */
+
+/* ---------- Top bar: sticky and frosted on wider screens, with a separator once the page is scrolled ---------- */
+@media (min-width:721px){
+  .topbar{position:sticky;top:0;z-index:20;background:#ffffffd6;-webkit-backdrop-filter:saturate(1.4) blur(10px);backdrop-filter:saturate(1.4) blur(10px);border-bottom-color:transparent}
+  body.is-scrolled .topbar{border-bottom-color:#dfe9f8;box-shadow:0 6px 24px #1f4d8a12}
+}
+.topbar nav{align-items:center}
+.topbar nav a{position:relative;padding:8px 2px;color:#4f6b90;font-weight:550}
+.topbar nav a:hover{color:#1660c4}
+.topbar nav a.active{color:#1568e9;font-weight:700}
+.topbar nav a::after{content:'';position:absolute;left:0;right:0;bottom:1px;height:2px;border-radius:2px;background:currentColor;transform:scaleX(0)}
+.topbar nav a.active::after{transform:scaleX(1)}
+.topbar nav a.topbar-admin{padding:6px 14px;border:1px solid #cfe0f8;border-radius:999px;background:#f6faff;color:#245ea8}
+.topbar nav a.topbar-admin::after{display:none}
+.topbar nav a.topbar-admin:hover{background:#e9f2ff;border-color:#b5cff3}
+.unread-dot{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;margin-left:5px;border-radius:9px;background:#e5484d;color:#fff;font-size:10px;font-weight:700;line-height:1;vertical-align:1px}
+
+/* ---------- Home hero: the handwritten note sits on a soft pill so it stays legible over the mountains ---------- */
+.hero-note{padding:6px 16px;border-radius:999px;background:#ffffffc4;box-shadow:0 6px 18px #1d548414;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.hero-features span{padding:5px 10px 5px 8px;border-radius:999px;background:#ffffffa8;border:1px solid #ffffffd0}
+
+/* ---------- Quick order: the price cell that matches the current size × mode is highlighted ---------- */
+.rate-grid>div{position:relative;border:1.5px solid transparent;border-radius:10px;padding:6px 2px}
+.rate-grid>div.is-current{background:#fff;border-color:#2b84f0;box-shadow:0 6px 16px #2a7be524}
+.rate-grid>div:nth-child(n+3).is-current{background:#fff;border-color:#e39a3c;box-shadow:0 6px 16px #d0841f24}
+.launch-order{overflow:hidden;isolation:isolate}
+.launch-order::after{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(110deg,transparent 30%,#ffffff4d 50%,transparent 70%);transform:translateX(-120%);pointer-events:none}
+
+/* ---------- Cards and shortcuts: clearer hover states ---------- */
+.address-shortcut:hover{border-color:#b8d3f8;background:#f7fbff}
+.address-shortcut b{display:inline-block}
+.service-shortcuts>a:hover{border-color:#bcd6fa;background:#fff}
+.service-shortcuts .symbol-icon{display:block;margin:0 auto}
+.parcel-card:hover{border-color:#c9dcf7}
+.choice-options button:focus-visible{outline:3px solid #eaa91b;outline-offset:3px}
+
+/* ---------- Empty, sign-in and error states ---------- */
+.empty-state .empty-icon{display:inline-grid;place-items:center;width:56px;height:56px;margin-bottom:8px;border-radius:18px;background:linear-gradient(150deg,#eef6ff,#dbeaff);color:#2b7fe8}
+.empty-state .empty-icon .symbol-icon{width:28px;height:28px}
+.actions.centered{justify-content:center;margin-top:14px}
+.empty-state .button{min-height:42px}
+.inline-error{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0;padding:10px 14px;background:#fff6f6;border:1px solid #f4d4d8;border-radius:12px}
+.inline-error p{margin:0;flex:1;min-width:12em}
+.not-found{text-align:center;padding-top:48px;padding-bottom:48px}
+.not-found .muted{margin-bottom:22px}
+
+/* ---------- Order status badges: one colour family per stage instead of blue for everything ---------- */
+.badge[data-status=WAITING_PAYMENT]{background:#fff4e2;color:#a85d0c}
+.badge[data-status=OUT_FOR_DELIVERY]{background:#e5f0ff;color:#1559c4}
+.badge[data-status^=DELIVERED]{background:#e3f6f2;color:#13786a}
+.badge[data-status=COMPLETED]{background:#e7f6ee;color:#1f7a49}
+.badge[data-status=CANCELLED]{background:#eef1f5;color:#66758a}
+.badge[data-status=FAILED_PICKUP],.badge[data-status=DELIVERY_EXCEPTION]{background:#fdecee;color:#b3303f}
+
+/* ---------- Price ---------- */
+.price.is-pending{color:#8aa3c4;font-size:22px}
+.price-summary .price{display:inline-block}
+
+/* ---------- Mobile ---------- */
+@media (max-width:720px){
+  /* The only visible top-bar link and small inline links get a finger-sized hit area (≥40px). */
+  .topbar nav a.topbar-admin{display:inline-flex;align-items:center;min-height:40px;padding:8px 14px;font-size:13px}
+  .panel-heading>a{display:inline-flex;align-items:center;min-height:40px;padding:0 6px;margin-right:-6px}
+  .current-order>a{display:inline-flex;align-items:center;min-height:40px}
+  /* Tab bar with icons; labels stay visible. */
+  .mobile-tabs a{display:flex;flex:1;min-width:0;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;font-size:11px;line-height:1.3}
+  .mobile-tabs .symbol-icon{width:22px;height:22px}
+  .mobile-tabs a.active .symbol-icon{color:#1f6fe0}
+  body.student-view{padding-bottom:84px}
+  .hero-features span{padding:4px 8px 4px 6px}
+  .not-found{padding-top:36px;padding-bottom:36px}
+}
+
+/* The dark layout background exists for the desktop rail; on phones it showed as a navy band under short pages. */
+@media (max-width:720px){.app-layout{background:transparent}.app-workspace{min-height:100vh;min-height:100dvh}}

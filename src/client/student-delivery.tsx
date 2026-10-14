@@ -6,19 +6,50 @@ import { useCallback,useEffect,useRef,useState,type FormEvent } from 'react';
 import { Link,useNavigate,useParams,useLocation } from 'react-router-dom';
 import { api } from './api';
 import { useLiveOrder } from './live-order';
+import { isUnauthorized,useStudentSession } from './session';
+import { playThen } from './motion';
 import { CARRIERS,MOCK_MESSAGE,parcelSchema,STATUS_LABELS,type DeliveryMode,type Order,type OrderEvent,type Parcel,type Payment,type Station } from '../shared/delivery';
 export const money=(fen:number)=>`¥${(fen/100).toFixed(2)}`;
-export function useResource<T>(path:string){
-  const location=useLocation();
-  const [data,setData]=useState<T|null>(null),[error,setError]=useState(''),[loading,setLoading]=useState(true);
+/**
+ * Fetch one API resource for a page. `enabled:false` skips the request entirely (e.g. visitors who are known to be
+ * signed out), so the console and server logs are not filled with expected 401s. `unauthorized` is derived from the
+ * HTTP status, never from the error text, because messages carry a trailing request id.
+ */
+export function useResource<T>(path:string,enabled=true){
+  const location=useLocation();const {setSession}=useStudentSession();
+  const [data,setData]=useState<T|null>(null),[error,setError]=useState(''),[loading,setLoading]=useState(enabled),[unauthorized,setUnauthorized]=useState(false);
   const generation=useRef(0);
-  const refresh=useCallback(async()=>{const version=++generation.current;setLoading(true);try{const next=await api<T>(path);if(version===generation.current){setData(next);setError('');}}catch(e){if(version===generation.current){setData(null);setError((e as Error).message);}}finally{if(version===generation.current)setLoading(false);}},[path]);
+  const refresh=useCallback(async()=>{
+    if(!enabled){generation.current++;setLoading(false);return;}
+    const version=++generation.current;setLoading(true);
+    try{const next=await api<T>(path);if(version===generation.current){setData(next);setError('');setUnauthorized(false);}}
+    catch(e){if(version===generation.current){const denied=isUnauthorized(e);setData(null);setError((e as Error).message);setUnauthorized(denied);if(denied&&!path.startsWith('/admin'))setSession('signed-out');}}
+    finally{if(version===generation.current)setLoading(false);}
+  },[path,enabled,setSession]);
   useEffect(()=>{void refresh();return()=>{generation.current++;};},[refresh,location.key]);
   /** Background refresh: keeps current data on failure and throws so callers (polling) can react, e.g. to 401. */
   const revalidate=useCallback(async()=>{const version=generation.current;const next=await api<T>(path);if(version===generation.current){setData(next);setError('');}},[path]);
-  return {data,error,loading,refresh,revalidate,setError};
+  return {data,error,loading,refresh,revalidate,setError,unauthorized};
 }
-export function Notice({error}:{error:string}){return error?<p role="alert">{error} <Link to="/login">学生登录</Link></p>:null;}
+/**
+ * useResource for student-only data: waits for the app-wide session check, skips the request for known visitors and
+ * reports them as unauthorized. `studentOnly=false` (staff views sharing a component) behaves like plain useResource.
+ */
+export function useStudentResource<T>(path:string,studentOnly=true){
+  const {session}=useStudentSession();
+  const ready=!studentOnly||session==='signed-in'||session==='unavailable',signedOut=studentOnly&&session==='signed-out';
+  const resource=useResource<T>(path,ready);
+  return {...resource,loading:resource.loading||(studentOnly&&session==='unknown'),unauthorized:resource.unauthorized||signedOut,error:signedOut?'请先登录':resource.error};
+}
+/** Error line for student pages: a sign-in prompt only when the server actually said 401, the plain message otherwise. */
+export function Notice({error,unauthorized=false}:{error:string;unauthorized?:boolean}){
+  if(!error)return null;
+  if(unauthorized)return <SignInPrompt/>;
+  return <p role="alert">{error}</p>;
+}
+export function SignInPrompt({title='登录后继续',text='登录学生账号后，即可查看包裹、订单与配送进度。'}:{title?:string;text?:string}){
+  return <EmptyState title={title} icon="person"><p>{text}</p><div className="actions centered"><Link className="button" to="/login">学生登录</Link><Link className="button secondary" to="/register">创建账号</Link></div></EmptyState>;
+}
 function orderProgress(status:Order['status']){return status==='COMPLETED'||status.startsWith('DELIVERED')?3:status==='OUT_FOR_DELIVERY'?2:status==='PICKED_UP'?1:0;}
 /** Remembers what an order looked like when first shown, so only later changes get the step-advance animation. */
 function useOrderBaseline(order:Order|undefined){
@@ -26,26 +57,38 @@ function useOrderBaseline(order:Order|undefined){
  if(order&&baseline?.id!==order.id)setBaseline({id:order.id,status:order.status});
  return order&&baseline?.id===order.id?baseline:null;
 }
-function CurrentOrderPreview(){
- const {data,revalidate}=useResource<{orders:Order[]}>('/orders?pageSize=1');const order=data?.orders[0];
+function CurrentOrderPreview({enabled}:{enabled:boolean}){
+ const {data,revalidate}=useResource<{orders:Order[]}>('/orders?pageSize=1',enabled);const order=data?.orders[0];
  useLiveOrder(order?.status,revalidate);
  const baseline=useOrderBaseline(order);
  if(!order)return null;
  const progress=orderProgress(order.status),startProgress=baseline?orderProgress(baseline.status):progress,statusChanged=!!baseline&&baseline.status!==order.status;
- return <article className="current-order"><div className="row"><strong>当前订单</strong><span key={order.status} className={statusChanged?'badge just-advanced':'badge'}>{STATUS_LABELS[order.status]}</span></div><p>{order.dormSnapshot.buildingName} · {order.packageSize==='SMALL'?'小件':'大件'} · {money(order.amountFen)}</p>{!['CANCELLED','FAILED_PICKUP','DELIVERY_EXCEPTION'].includes(order.status)&&<ol className="compact-progress" aria-label="当前订单阶段">{['已下单','已取件','配送中','已送达'].map((label,index)=><li key={label} className={(index<=progress?'reached':'')+(index>startProgress&&index<=progress?' just-advanced':'')}><span>{index<=progress?'✓':index+1}</span>{label}</li>)}</ol>}{order.serviceNotice&&<p className="muted">{order.serviceNotice}</p>}<Link to={`/orders/${order.id}`}>查看订单详情 ›</Link></article>;
+ return <article className="current-order"><div className="row"><strong>当前订单</strong><span key={order.status} data-status={order.status} className={statusChanged?'badge just-advanced':'badge'}>{STATUS_LABELS[order.status]}</span></div><p>{order.dormSnapshot.buildingName} · {order.packageSize==='SMALL'?'小件':'大件'} · {money(order.amountFen)}</p>{!['CANCELLED','FAILED_PICKUP','DELIVERY_EXCEPTION'].includes(order.status)&&<ol className="compact-progress" aria-label="当前订单阶段">{['已下单','已取件','配送中','已送达'].map((label,index)=><li key={label} className={(index<=progress?'reached':'')+(index>startProgress&&index<=progress?' just-advanced':'')}><span>{index<=progress?'✓':index+1}</span>{label}</li>)}</ol>}{order.serviceNotice&&<p className="muted">{order.serviceNotice}</p>}<Link to={`/orders/${order.id}`}>查看订单详情 ›</Link></article>;
 }
 function QuickEntry(){
  const navigate=useNavigate();const [code,setCode]=useState(''),[size,setSize]=useState('SMALL'),[mode,setMode]=useState<DeliveryMode>('DOWNSTAIRS');
- return <form className="quick-entry" onSubmit={e=>{e.preventDefault();navigate('/parcel/new',{state:{pickupCode:code,packageSize:size,deliveryMode:mode}});}}><PickupCodeInput value={code} onChange={setCode}/><div className="quick-choice-grid"><ChoiceSelector label="包裹类型" value={size} onChange={setSize} options={[{value:'SMALL',label:'小件',icon:'box'},{value:'LARGE',label:'大件',icon:'box'}]}/><DeliveryModeSelector value={mode} onChange={setMode}/></div><div className="rate-grid">{[['小件 · 楼下',2],['小件 · 到寝',3],['大件 · 楼下',5],['大件 · 到寝',7]].map(([label,price])=><div key={label}><small>{label}</small><strong>¥{price}<em>元</em></strong></div>)}</div><button className="launch-order" type="submit"><SymbolIcon name="plane"/>立即下单<span aria-hidden="true">›</span></button><small className="quick-footnote">下一步确认站点与包裹资料，费用以服务端报价为准</small></form>;
+ const rates:[string,number,string,DeliveryMode][]=[['小件 · 楼下',2,'SMALL','DOWNSTAIRS'],['小件 · 到寝',3,'SMALL','ROOM'],['大件 · 楼下',5,'LARGE','DOWNSTAIRS'],['大件 · 到寝',7,'LARGE','ROOM']];
+ const launching=useRef(false);
+ return <form className="quick-entry" onSubmit={e=>{e.preventDefault();if(launching.current)return;launching.current=true;
+   const go=()=>navigate('/parcel/new',{state:{pickupCode:code,packageSize:size,deliveryMode:mode}});
+   playThen(e.currentTarget.querySelector('.launch-order .icon-plane'),[{transform:'none',opacity:1},{transform:'translate(-6px,4px) rotate(-8deg)',opacity:1,offset:.25},{transform:'translate(64px,-26px) rotate(12deg) scale(.7)',opacity:0}],380,go);}}><PickupCodeInput value={code} onChange={setCode}/><div className="quick-choice-grid"><ChoiceSelector label="包裹类型" value={size} onChange={setSize} options={[{value:'SMALL',label:'小件',icon:'box'},{value:'LARGE',label:'大件',icon:'box'}]}/><DeliveryModeSelector value={mode} onChange={setMode}/></div><div className="rate-grid">{rates.map(([label,price,s,m])=>{const current=s===size&&m===mode;return <div key={label} className={current?'is-current':undefined}><small>{label}</small><strong>¥{price}<em>元</em></strong>{current&&<span className="sr-only">（当前选择）</span>}</div>;})}</div><button className="launch-order" type="submit"><SymbolIcon name="plane"/>立即下单<span aria-hidden="true">›</span></button><small className="quick-footnote">下一步确认站点与包裹资料，费用以服务端报价为准</small></form>;
 }
 export function Home(){
-  const {data,error,loading,refresh,setError}=useResource<{parcels:Parcel[]}>('/parcels');
+  const {session}=useStudentSession();
+  // Wait for the session check before asking for private data: visitors then trigger one /me request instead of three 401s.
+  const canLoad=session==='signed-in'||session==='unavailable';
+  const {data,error,loading,refresh,setError,unauthorized}=useResource<{parcels:Parcel[]}>('/parcels',canLoad);
+  const signedOut=session==='signed-out'||unauthorized,checking=session==='unknown'||(canLoad&&loading&&!data);
   const [busy,setBusy]=useState(''),[expanded,setExpanded]=useState(false),[removed,setRemoved]=useState<string[]>([]),[feedback,setFeedback]=useState('');
   const parcels=(data?.parcels??[]).filter(p=>p.status!=='CANCELLED'&&!removed.includes(p.id));
   async function remove(id:string){setBusy(id);try{await api(`/parcels/${id}`,'DELETE');setRemoved(ids=>[...ids,id]);setFeedback('包裹已移除');await refresh();}catch(e){setError((e as Error).message);}finally{setBusy('');}}
-  return <section className="student-home"><div className="home-hero"><div className="hero-copy"><p className="hero-school">青岛科技大学<span>崂山校区 · CAMPUSDROP</span></p><h1>校园快递配送</h1><p className="hero-subtitle">让每一份包裹<br/>更快抵达你的身边</p><div className="hero-features"><span><SymbolIcon name="box"/>手动登记</span><span><SymbolIcon name="person"/>校园配送</span><span><SymbolIcon name="order"/>进度可查</span></div></div><span className="hero-note">把时间留给校园生活</span></div>
+  return <section className="student-home"><div className="home-hero"><div className="hero-copy"><p className="hero-school">青岛科技大学<span>崂山校区 · CAMPUSDROP</span></p><h1>校园快递配送</h1><p className="hero-subtitle">让每一份包裹<br/>更快抵达你的身边</p><div className="hero-features"><span><SymbolIcon name="box"/>手动登记</span><span><SymbolIcon name="person"/>校园配送</span><span><SymbolIcon name="order"/>进度可查</span></div></div><span className="hero-note" aria-hidden="true">把时间留给校园生活</span></div>
     <div className="home-dashboard"><div className="home-quick"><div className="panel-heading"><SymbolIcon/><h2>快速下单</h2><small>简单几步 · 安排配送</small></div><p>选择寝室、填写取件码，剩下的交给配送流程。</p><Link className="address-shortcut" to="/profile"><SymbolIcon name="room"/><span>我的收货寝室<small>下单前请确认地址与联系电话</small></span><b>切换 ›</b></Link><QuickEntry/></div>
-    <div className="home-live"><CurrentOrderPreview/><div className="panel-heading"><SymbolIcon name="order"/><h2>我的包裹</h2><Link to="/orders">全部订单 ›</Link></div><Notice error={error==='请先登录'?'':error}/>{error==='请先登录'&&<EmptyState title="登录后，查看你的包裹"><p>登记包裹、查看配送进度，让期待更近一步。</p><Link className="button secondary" to="/login">学生登录</Link></EmptyState>}{loading&&!data&&<LoadingState/>}{data&&parcels.length===0&&<EmptyState title="下一件快递，从这里开始"><p>登记取件码后，就能安排配送。</p><Link to="/parcel/new">添加第一件快递 →</Link></EmptyState>}<p role="status">{feedback}</p><div className="card-list">{(expanded?parcels:parcels.slice(0,3)).map(p=><ParcelCard key={p.id} parcel={p} busy={busy===p.id} onRemove={()=>void remove(p.id)}/>)}</div>{parcels.length>3&&<button className="secondary" aria-expanded={expanded} onClick={()=>setExpanded(!expanded)}>{expanded?'收起包裹':`更多包裹（还有 ${parcels.length-3} 件）`}</button>}<div className="service-shortcuts"><Link to="/guide"><SymbolIcon name="order"/><strong>配送说明</strong><small>计费 · 范围 · 交接</small></Link><Link to="/help"><SymbolIcon name="help"/><strong>常见问题</strong><small>使用指南与解答</small></Link><Link to="/contact"><SymbolIcon name="phone"/><strong>配送联系</strong><small>找到订单接单人</small></Link></div><div className="campus-message"><SymbolIcon name="plane"/><p>传递的不止包裹<br/><strong>更是校园里的温度</strong></p></div></div></div>
+    <div className="home-live"><CurrentOrderPreview enabled={session==='signed-in'}/><div className="panel-heading"><SymbolIcon name="order"/><h2>我的包裹</h2><Link to="/orders">全部订单 ›</Link></div>
+      {signedOut?<SignInPrompt title="登录后，查看你的包裹" text="登记包裹、查看配送进度，让期待更近一步。"/>:<>
+      {error&&<div className="inline-error"><p role="alert">{error}</p><button type="button" className="text-button" onClick={()=>void refresh()}>重新加载</button></div>}
+      {checking&&<LoadingState/>}{data&&parcels.length===0&&<EmptyState title="下一件快递，从这里开始"><p>登记取件码后，就能安排配送。</p><Link className="button secondary" to="/parcel/new">添加第一件快递 →</Link></EmptyState>}<p role="status">{feedback}</p><div className="card-list">{(expanded?parcels:parcels.slice(0,3)).map(p=><ParcelCard key={p.id} parcel={p} busy={busy===p.id} onRemove={()=>void remove(p.id)}/>)}</div>{parcels.length>3&&<button className="secondary" aria-expanded={expanded} onClick={()=>setExpanded(!expanded)}>{expanded?'收起包裹':`更多包裹（还有 ${parcels.length-3} 件）`}</button>}</>}
+      <div className="service-shortcuts"><Link to="/guide"><SymbolIcon name="order"/><strong>配送说明</strong><small>计费 · 范围 · 交接</small></Link><Link to="/help"><SymbolIcon name="help"/><strong>常见问题</strong><small>使用指南与解答</small></Link><Link to="/contact"><SymbolIcon name="phone"/><strong>配送联系</strong><small>找到订单接单人</small></Link></div><div className="campus-message"><SymbolIcon name="plane"/><p>传递的不止包裹<br/><strong>更是校园里的温度</strong></p></div></div></div>
   </section>;
 }
 export function NewParcel(){
@@ -72,13 +115,13 @@ export function NewParcel(){
   </section>;
 }
 export function ParcelDetail(){
-  const {id}=useParams();const {data,error,loading}=useResource<{parcel:Parcel}>(`/parcels/${id}`);
+  const {id}=useParams();const {data,error,loading,unauthorized}=useStudentResource<{parcel:Parcel}>(`/parcels/${id}`);
   const location=useLocation();
   const [mode,setMode]=useState<DeliveryMode>(location.state?.deliveryMode==='ROOM'?'ROOM':'DOWNSTAIRS'),[amount,setAmount]=useState<number|null>(null),[message,setMessage]=useState(''),[busy,setBusy]=useState(false);
   const navigate=useNavigate();const size=data?.parcel.packageSize;
   useEffect(()=>{let current=true;setAmount(null);if(size)api<{amountFen:number}>('/quotes','POST',{packageSize:size,deliveryMode:mode}).then(r=>{if(current)setAmount(r.amountFen);}).catch(e=>{if(current)setMessage(e.message);});return()=>{current=false;};},[size,mode]);
   async function order(){setBusy(true);try{const r=await api<{order:Order}>('/orders','POST',{parcelId:id,deliveryMode:mode});navigate(`/checkout/${r.order.id}`);}catch(e){setMessage((e as Error).message);}finally{setBusy(false);}}
-  return <section><Link to="/">← 我的包裹</Link><h1>安排配送</h1><Notice error={error}/>{loading&&!data&&<LoadingState/>}{data&&<><p className="pickup-code">{data.parcel.pickupCode}</p><p>{size==='SMALL'?'小件':'大件'} · 请再次核对取件码</p>
+  return <section><Link to="/">← 我的包裹</Link><h1>安排配送</h1><Notice error={error} unauthorized={unauthorized}/>{loading&&!data&&<LoadingState/>}{data&&<><p className="pickup-code">{data.parcel.pickupCode}</p><p>{size==='SMALL'?'小件':'大件'} · 请再次核对取件码</p>
     <DeliveryModeSelector value={mode} onChange={setMode}/><PriceSummary amount={amount}/>
     <p className="muted">按已保存的寝室配送，<Link to="/profile">修改寝室</Link>。</p>
     <button disabled={busy||amount===null||data.parcel.status!=='ACTIVE'} onClick={()=>void order()}>{busy?'正在创建…':'确认并下单'}</button></>}
@@ -103,21 +146,21 @@ function OrderActions({order,refresh,onMessage}:{order:Order;refresh:()=>Promise
 function DeliveryContact({order}:{order:Order}){return <div className="delivery-contact">{order.serviceNotice&&<p role="status">{order.serviceNotice}</p>}{order.assigneePhone&&<p>接单人联系电话：<a href={`tel:${order.assigneePhone}`}>{order.assigneePhone}</a></p>}{order.exceptionNote&&<p role="alert">配送问题说明：{order.exceptionNote}</p>}</div>;}
 export function Orders(){
   const [cursor,setCursor]=useState(''),[back,setBack]=useState<string[]>([]);
-  const {data,error,loading,refresh}=useResource<{orders:Order[];nextCursor:string|null}>(`/orders?pageSize=20${cursor?'&cursor='+encodeURIComponent(cursor):''}`);const [message,setMessage]=useState('');
-  return <section><div className="row"><h1>我的订单</h1><button className="text-button" onClick={()=>void refresh()}>刷新</button></div><Notice error={error}/><p role="status">{message}</p>{loading&&!data&&<LoadingState/>}{data?.orders.length===0&&<p>暂无订单，<Link to="/parcel/new">添加快递</Link>。</p>}
-    <div className="card-list">{data?.orders.map(o=><article key={o.id} className="parcel-card"><div className="row"><span className="badge">{STATUS_LABELS[o.status]}</span><strong>{money(o.amountFen)}</strong></div><p>{o.dormSnapshot.buildingName} · {o.dormSnapshot.roomNo}</p><p>{o.packageSize==='SMALL'?'小件':'大件'} / {o.deliveryMode==='ROOM'?'到寝':'楼下'}</p><Link to={o.status==='WAITING_PAYMENT'?`/checkout/${o.id}`:`/orders/${o.id}`}>{o.status==='WAITING_PAYMENT'?'继续模拟支付':'查看进度'}</Link><RoundHistory order={o}/><DeliveryContact order={o}/><OrderActions order={o} refresh={refresh} onMessage={setMessage}/></article>)}</div>
-    <div className="actions"><button className="secondary" disabled={!back.length} onClick={()=>{setCursor(back.at(-1)!);setBack(back.slice(0,-1));}}>订单上一页</button><span>第 {back.length+1} 页</span><button className="secondary" disabled={!data?.nextCursor} onClick={()=>{setBack([...back,cursor]);setCursor(data!.nextCursor!);}}>订单下一页</button></div>
+  const {data,error,loading,refresh,unauthorized}=useStudentResource<{orders:Order[];nextCursor:string|null}>(`/orders?pageSize=20${cursor?'&cursor='+encodeURIComponent(cursor):''}`);const [message,setMessage]=useState('');
+  return <section><div className="row"><h1>我的订单</h1>{!unauthorized&&<button className="text-button" onClick={()=>void refresh()}>刷新</button>}</div><Notice error={error} unauthorized={unauthorized}/><p role="status">{message}</p>{loading&&!data&&<LoadingState/>}{data?.orders.length===0&&<p>暂无订单，<Link to="/parcel/new">添加快递</Link>。</p>}
+    <div className="card-list">{data?.orders.map(o=><article key={o.id} className="parcel-card"><div className="row"><span className="badge" data-status={o.status}>{STATUS_LABELS[o.status]}</span><strong>{money(o.amountFen)}</strong></div><p>{o.dormSnapshot.buildingName} · {o.dormSnapshot.roomNo}</p><p>{o.packageSize==='SMALL'?'小件':'大件'} / {o.deliveryMode==='ROOM'?'到寝':'楼下'}</p><Link to={o.status==='WAITING_PAYMENT'?`/checkout/${o.id}`:`/orders/${o.id}`}>{o.status==='WAITING_PAYMENT'?'继续模拟支付':'查看进度'}</Link><RoundHistory order={o}/><DeliveryContact order={o}/><OrderActions order={o} refresh={refresh} onMessage={setMessage}/></article>)}</div>
+    {data&&<div className="actions pager"><button className="secondary" disabled={!back.length} onClick={()=>{setCursor(back.at(-1)!);setBack(back.slice(0,-1));}}>订单上一页</button><span>第 {back.length+1} 页</span><button className="secondary" disabled={!data?.nextCursor} onClick={()=>{setBack([...back,cursor]);setCursor(data!.nextCursor!);}}>订单下一页</button></div>}
   </section>;
 }
 export interface Details {order:Order;events:OrderEvent[];payments:Payment[]}
 export function OrderDetail({checkout=false}:{checkout?:boolean}){
-  const params=useParams();const id=params.id??params.orderId;const {data,error,refresh,revalidate,loading}=useResource<Details>(`/orders/${id}`);
+  const params=useParams();const id=params.id??params.orderId;const {data,error,refresh,revalidate,loading,unauthorized}=useStudentResource<Details>(`/orders/${id}`);
   useLiveOrder(data?.order.status,revalidate);const baseline=useOrderBaseline(data?.order);const statusChanged=!!baseline&&!!data&&baseline.status!==data.order.status;
   const [message,setMessage]=useState(''),[busy,setBusy]=useState(false);
   async function pay(){setBusy(true);try{await api(`/orders/${id}/mock-pay`,'POST');setMessage('');await refresh();}catch(e){setMessage((e as Error).message);}finally{setBusy(false);}}
   async function cancel(){setBusy(true);try{await api(`/orders/${id}/cancel`,'POST',{version:data!.order.version,confirmed:true});setMessage('订单已取消');await refresh();}catch(e){setMessage((e as Error).message);}finally{setBusy(false);}}
-  return <section><Link to="/orders">← 我的订单</Link><h1>{checkout&&data?.order.status==='WAITING_PAYMENT'?'确认模拟支付':'配送进度'}</h1><Notice error={error}/>{loading&&!data&&<LoadingState/>}{data&&<>
-    <span key={data.order.status} className={statusChanged?'badge just-advanced':'badge'}>{STATUS_LABELS[data.order.status]}</span><p className="price">{money(data.order.amountFen)}</p><p>{data.order.dormSnapshot.buildingName} · {data.order.dormSnapshot.roomNo}</p><p>{data.order.stationSnapshot.canonicalName}</p><p>{data.order.deliveryMode==='ROOM'?'送到寝室':'送到楼下'}</p><p>备注：{data.order.note||'暂无备注'}</p>{data.order.upgradeFen>0&&<p>含升级配送模拟补款 {money(data.order.upgradeFen)}</p>}
+  return <section><Link to="/orders">← 我的订单</Link><h1>{checkout&&data?.order.status==='WAITING_PAYMENT'?'确认模拟支付':'配送进度'}</h1><Notice error={error} unauthorized={unauthorized}/>{loading&&!data&&<LoadingState/>}{data&&<>
+    <span key={data.order.status} data-status={data.order.status} className={statusChanged?'badge just-advanced':'badge'}>{STATUS_LABELS[data.order.status]}</span><p className="price">{money(data.order.amountFen)}</p><p>{data.order.dormSnapshot.buildingName} · {data.order.dormSnapshot.roomNo}</p><p>{data.order.stationSnapshot.canonicalName}</p><p>{data.order.deliveryMode==='ROOM'?'送到寝室':'送到楼下'}</p><p>备注：{data.order.note||'暂无备注'}</p>{data.order.upgradeFen>0&&<p>含升级配送模拟补款 {money(data.order.upgradeFen)}</p>}
     {data.order.status==='WAITING_PAYMENT'&&<div className="actions"><MockPaymentDialog amount={data.order.amountFen} busy={busy} onPay={pay}/><button className="secondary" disabled={busy} onClick={()=>void cancel()}>取消订单</button></div>}
     {data.payments.some(p=>p.type==='DELIVERY')&&<p className="success">模拟支付成功，未发生真实扣款</p>}
     {data.order.exceptionCode&&<p role="alert">异常原因：{{CODE_INVALID:'取件码无效',SIZE_MISMATCH:'大小件不符',UNREACHABLE:'暂时无法联系',OTHER:'其他异常'}[data.order.exceptionCode]??'其他异常'}，请联系管理员处理。</p>}
@@ -128,7 +171,7 @@ export function OrderDetail({checkout=false}:{checkout?:boolean}){
   </section>;
 }
 export function TipPage(){
-  const {orderId}=useParams();const {data,error,refresh,loading}=useResource<Details>(`/orders/${orderId}`);
+  const {orderId}=useParams();const {data,error,refresh,loading,unauthorized}=useStudentResource<Details>(`/orders/${orderId}`);
   const [amount,setAmount]=useState('2'),[message,setMessage]=useState(''),[busy,setBusy]=useState(false);
   const storageKey=`campusdrop-tip-${orderId}`;const key=useRef(sessionStorage.getItem(storageKey)||randomClientId());
   async function tip(){
@@ -139,7 +182,7 @@ export function TipPage(){
     catch(e){setMessage((e as Error).message);}finally{setBusy(false);}
   }
   const tipped=data?.payments.some(p=>p.type==='TIP');
-  return <section><Link to={`/orders/${orderId}`}>← 订单详情</Link><h1>感谢这次配送</h1><Notice error={error}/>{loading&&!data&&<LoadingState/>}<p>{MOCK_MESSAGE}</p>
+  return <section><Link to={`/orders/${orderId}`}>← 订单详情</Link><h1>感谢这次配送</h1><Notice error={error} unauthorized={unauthorized}/>{loading&&!data&&<LoadingState/>}<p>{MOCK_MESSAGE}</p>
     {tipped?<p className="success">已收到你的模拟打赏，谢谢！</p>:<TipSheet amount={amount} onChange={setAmount} busy={busy} disabled={data?.order.status!=='COMPLETED'} onSubmit={()=>void tip()}/>}
     <p role="status">{message}</p>
   </section>;
