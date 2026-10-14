@@ -23,6 +23,29 @@ export function usePageEnter(ref:RefObject<HTMLElement|null>,key:string,enabled:
   },[ref,key,enabled]);
 }
 
+/** Adds body.is-scrolled once the page leaves the top, so the sticky top bar can show its separator. Not motion itself. */
+export function useScrolledClass(threshold=6){
+  useEffect(()=>{
+    let frame=0;
+    const update=()=>{frame=0;document.body.classList.toggle('is-scrolled',window.scrollY>threshold);};
+    const onScroll=()=>{if(!frame)frame=requestAnimationFrame(update);};
+    update();window.addEventListener('scroll',onScroll,{passive:true});
+    return ()=>{window.removeEventListener('scroll',onScroll);if(frame)cancelAnimationFrame(frame);document.body.classList.remove('is-scrolled');};
+  },[threshold]);
+}
+
+/**
+ * Plays a short "take-off" on an element, then runs `done`. With reduced motion, no WAAPI support or no element,
+ * `done` runs immediately, so the action never depends on the animation finishing.
+ */
+export function playThen(el:Element|null|undefined,keyframes:Keyframe[],duration:number,done:()=>void){
+  if(!el||prefersReducedMotion()||typeof (el as HTMLElement).animate!=='function'){done();return;}
+  let finished=false;const finish=()=>{if(!finished){finished=true;done();}};
+  const animation=(el as HTMLElement).animate(keyframes,{duration,easing:EASE_OUT,fill:'forwards'});
+  animation.finished.then(finish,finish);
+  setTimeout(finish,duration+120); // safety net if the animation is cancelled or the tab is throttled
+}
+
 const REVEAL_SELECTOR='.home-dashboard>*,.service-shortcuts>a,.campus-message,.card-list>*,.timeline,.information-page section';
 /**
  * Scroll reveal. Content stays visible unless IntersectionObserver confirms an element starts fully below the fold;

@@ -1,6 +1,6 @@
 // Lightweight pieces shared by eagerly loaded pages, kept apart from the lazily loaded service pages.
 import {useEffect,useState} from 'react';
-import {Link,useLocation} from 'react-router-dom';
+import {NavLink,useLocation} from 'react-router-dom';
 import {api} from './api';
 import {isUnauthorized,useStudentSession} from './session';
 import type {Order} from '../shared/delivery';
@@ -17,5 +17,5 @@ export function MessageLink(){
     const timer=setInterval(()=>{if(!document.hidden)void load();},30000);
     return()=>{active=false;clearInterval(timer);};
   },[session,setSession,location.key]);
-  return <Link to="/messages">消息{unread?` (${unread})`:''}</Link>;
+  return <NavLink to="/messages">消息{unread?<span className="unread-dot" aria-label={`${unread} 条未读`}>{unread>99?'99+':unread}</span>:null}</NavLink>;
 }

@@ -1,5 +1,6 @@
 /* Motion layer. Every animation lives inside prefers-reduced-motion:no-preference and only touches opacity/transform.
-   Not animated on purpose: the blurred mobile tab bar, dialogs and their backdrops, backdrop-filter and box-shadow. */
+   Not animated on purpose: the blurred mobile tab bar (nor anything inside it), dialog backdrops, backdrop-filter and
+   box-shadow. The dialog box itself gets a short opacity/scale entrance; its blurred backdrop stays static. */
 :root{--motion-fast:120ms;--motion-base:200ms;--motion-slow:280ms;--ease-out:cubic-bezier(.22,1,.36,1);--ease-in-out:cubic-bezier(.65,0,.35,1)}
 
 /* Skeletons render statically everywhere; only the shimmer below is motion. */
@@ -41,6 +42,57 @@
   @media (min-width:721px){
     .home-hero::before,.auth-scenery::before{content:'';position:absolute;inset:0;background:inherit;transform-origin:60% 50%;animation:hero-zoom 14s var(--ease-out) both;pointer-events:none}
   }
+
+  /* ---- Home first paint: hero copy, then the two dashboard panels, rise in with a short stagger. ---- */
+  .hero-copy>*{animation:rise-in 560ms var(--ease-out) both}
+  .hero-copy>:nth-child(2){animation-delay:70ms}
+  .hero-copy>:nth-child(3){animation-delay:140ms}
+  .hero-copy>:nth-child(4){animation-delay:210ms}
+  .hero-features span{animation:rise-in 480ms var(--ease-out) both}
+  .hero-features span:nth-child(1){animation-delay:260ms}
+  .hero-features span:nth-child(2){animation-delay:320ms}
+  .hero-features span:nth-child(3){animation-delay:380ms}
+  .hero-note{animation:note-in 760ms 420ms var(--ease-out) both}
+  /* Panels the scroll reveal has taken over (.reveal-pending/.reveal-in) are left to it. */
+  .home-dashboard>:not(.reveal-pending):not(.reveal-in){animation:rise-in 520ms 120ms var(--ease-out) both}
+  .home-dashboard>:nth-child(2):not(.reveal-pending):not(.reveal-in){animation-delay:200ms}
+  .auth-page>:not(.auth-scenery){animation:rise-in 480ms var(--ease-out) both}
+
+  /* ---- Navigation feedback ---- */
+  .topbar nav a::after{transition:transform var(--motion-base) var(--ease-out)}
+  .campus-rail nav a>.symbol-icon,.campus-rail nav a>b,.rail-admin>span,.address-shortcut b,.launch-order>span{transition:transform var(--motion-base) var(--ease-out),opacity var(--motion-base)}
+  .campus-rail nav a.active>.symbol-icon{animation:icon-pop var(--motion-slow) var(--ease-out)}
+
+  /* ---- Choices and prices: selection is confirmed with a small pop; the matching price cell lifts. ---- */
+  .choice-options [aria-checked=true] i{animation:step-pop var(--motion-slow) var(--ease-out)}
+  .choice-options [aria-checked=true] .symbol-icon{animation:icon-pop var(--motion-slow) var(--ease-out)}
+  .rate-grid>div{transition:transform var(--motion-base) var(--ease-out),background-color var(--motion-base),border-color var(--motion-base)}
+  .rate-grid>div.is-current{transform:translateY(-2px)}
+  .rate-grid>div.is-current strong{animation:step-pop var(--motion-slow) var(--ease-out)}
+  .price-tick{animation:price-in var(--motion-slow) var(--ease-out)}
+  .price.is-pending{animation:soft-pulse 1.2s var(--ease-in-out) infinite}
+
+  /* ---- Ambient details: slow, small and only on decorative icons. ---- */
+  .empty-state .empty-icon{animation:float-y 4.2s var(--ease-in-out) infinite}
+  .campus-message>.symbol-icon{animation:glide 5.5s var(--ease-in-out) infinite}
+  .unread-dot{animation:step-pop var(--motion-slow) var(--ease-out)}
+
+  /* ---- Dialog box (not its backdrop) ---- */
+  dialog[open]{animation:dialog-in 220ms var(--ease-out)}
+
+  /* ---- Hover, only for pointers that can hover ---- */
+  @media (hover:hover){
+    .topbar nav a:not(.active):not(.topbar-admin):hover::after{transform:scaleX(.55)}
+    .campus-rail nav a:hover>.symbol-icon{transform:translateX(2px) scale(1.08)}
+    .campus-rail nav a:not(.active):hover>b{opacity:.65;transform:translateX(2px)}
+    .rail-admin:hover>span{transform:translate(2px,-2px)}
+    .address-shortcut:hover b{transform:translateX(3px)}
+    body.student-view .service-shortcuts>a:hover{transform:translateY(-3px)}
+    body.student-view .service-shortcuts>a:hover .symbol-icon{animation:icon-bounce 520ms var(--ease-out)}
+    .launch-order:not(:disabled):hover::after{animation:sheen 900ms var(--ease-out)}
+    .launch-order:not(:disabled):hover>span{transform:translateX(4px)}
+    body.student-view .rate-grid>div:not(.is-current):hover{transform:translateY(-1px)}
+  }
 }
 
 @keyframes skeleton-shimmer{to{transform:translateX(100%)}}
@@ -49,3 +101,13 @@
 @keyframes feedback-shake{0%,100%{transform:none}25%{transform:translateX(-4px)}50%{transform:translateX(3px)}75%{transform:translateX(-2px)}}
 @keyframes step-pop{0%{transform:scale(.6);opacity:.4}70%{transform:scale(1.12);opacity:1}100%{transform:scale(1)}}
 @keyframes hero-zoom{from{transform:scale(1)}to{transform:scale(1.06)}}
+@keyframes rise-in{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes note-in{from{opacity:0;transform:translateY(10px) rotate(-12deg)}to{opacity:1;transform:rotate(-7deg)}}
+@keyframes icon-pop{0%{transform:scale(.8)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+@keyframes icon-bounce{0%,100%{transform:none}40%{transform:translateY(-4px)}70%{transform:translateY(1px)}}
+@keyframes price-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes soft-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes float-y{0%,100%{transform:none}50%{transform:translateY(-4px)}}
+@keyframes glide{0%,100%{transform:rotate(-12deg)}50%{transform:translate(4px,-3px) rotate(-8deg)}}
+@keyframes sheen{from{transform:translateX(-120%)}to{transform:translateX(120%)}}
+@keyframes dialog-in{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}

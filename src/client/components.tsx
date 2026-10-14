@@ -1,7 +1,7 @@
 import dialogPolyfill from 'dialog-polyfill';
 import 'dialog-polyfill/dist/dialog-polyfill.css';
 import {SymbolIcon} from './campus-design';
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import type { Building } from '../shared/contracts';
 import { MOCK_MESSAGE, pickupCodeSchema, STATUS_LABELS, type DeliveryMode, type Order, type OrderEvent, type Parcel } from '../shared/delivery';
@@ -32,12 +32,26 @@ export function DormSelector({ buildings, zone, building, room, onZone, onBuildi
 export function DeliveryModeSelector({ value, onChange }: { value: DeliveryMode; onChange: (value: DeliveryMode) => void }) {
  return <ChoiceSelector label="配送方式" value={value} onChange={v=>onChange(v as DeliveryMode)} options={[{value:'DOWNSTAIRS',label:'楼下配送',icon:'person',hint:'至宿舍楼下'},{value:'ROOM',label:'送至寝室',icon:'room',hint:'至已保存的寝室'}]}/>;
 }
+/**
+ * Card-style single choice. One accessible radio group (arrow keys, Home/End, roving tabindex) replaces the earlier
+ * visually hidden <select> + button pair, which screen readers announced twice. `name` submits through a hidden field.
+ */
 export function ChoiceSelector({label,value,onChange,options,name}:{label:string;value:string;onChange:(v:string)=>void;options:{value:string;label:string;icon:string;hint?:string}[];name?:string}){
- const id=useId();return <div className="choice-selector"><label htmlFor={id}>{label}</label><select className="choice-native" id={id} name={name} value={value} onChange={e=>onChange(e.target.value)}>{options.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select><div className="choice-options">{options.map(o=><button key={o.value} type="button" aria-pressed={value===o.value} onClick={()=>onChange(o.value)}><SymbolIcon name={o.icon}/><span>{o.label}{o.hint&&<small>{o.hint}</small>}</span><i aria-hidden="true">{value===o.value?'✓':''}</i></button>)}</div></div>;
+ const id=useId(),refs=useRef<(HTMLButtonElement|null)[]>([]);
+ const index=Math.max(0,options.findIndex(o=>o.value===value));
+ function onKeyDown(event:KeyboardEvent<HTMLDivElement>){
+  const step=event.key==='ArrowRight'||event.key==='ArrowDown'?1:event.key==='ArrowLeft'||event.key==='ArrowUp'?-1:0;
+  if(!step&&event.key!=='Home'&&event.key!=='End')return;
+  event.preventDefault();
+  const next=event.key==='Home'?0:event.key==='End'?options.length-1:(index+step+options.length)%options.length;
+  onChange(options[next].value);refs.current[next]?.focus();
+ }
+ return <div className="choice-selector"><span className="choice-label" id={`${id}-label`}>{label}</span>{name&&<input type="hidden" name={name} value={value}/>}
+  <div className="choice-options" role="radiogroup" aria-labelledby={`${id}-label`} onKeyDown={onKeyDown}>{options.map((o,i)=>{const checked=value===o.value;return <button key={o.value} ref={el=>{refs.current[i]=el;}} type="button" role="radio" aria-checked={checked} tabIndex={i===index?0:-1} onClick={()=>onChange(o.value)}><SymbolIcon name={o.icon}/><span>{o.label}{o.hint&&<small>{o.hint}</small>}</span><i aria-hidden="true">{checked?'✓':''}</i></button>;})}</div></div>;
 }
 
 export function PriceSummary({ amount }: { amount: number | null }) {
-  return <div className="price-summary" aria-live="polite"><span>本次配送费用<small>以订单确认金额为准</small></span><strong className="price">{amount === null ? '报价中…' : money(amount)}</strong></div>;
+  return <div className="price-summary" aria-live="polite"><span>本次配送费用<small>以订单确认金额为准</small></span><strong key={amount ?? 'pending'} className={amount === null ? 'price is-pending' : 'price price-tick'}>{amount === null ? '报价中…' : money(amount)}</strong></div>;
 }
 
 export function OrderTimeline({ events }: { events: OrderEvent[] }) {
@@ -79,6 +93,6 @@ export function ConfirmAction({label,title,children,busy,onConfirm,canConfirm=tr
   useEffect(()=>{if(ref.current&&typeof ref.current.showModal!=='function')dialogPolyfill.registerDialog(ref.current);},[]);
   return <><button className="secondary" disabled={busy} onClick={()=>ref.current?.showModal()}>{label}</button><dialog ref={ref} aria-labelledby={id} onCancel={e=>{if(busy)e.preventDefault();}}><h2 id={id}>{title}</h2>{children}{!canConfirm&&validationMessage&&<p role="status">{validationMessage}</p>}<div className="actions"><button disabled={busy||!canConfirm} onClick={()=>void onConfirm().finally(()=>ref.current?.close())}>{busy?'正在处理…':'确认操作'}</button><button className="secondary" disabled={busy} onClick={()=>ref.current?.close()}>暂不操作</button></div></dialog></>;
 }
-export function EmptyState({ title, children }: { title: string; children?: ReactNode }) { return <div className="empty-state"><span aria-hidden="true">○</span><h3>{title}</h3>{children}</div>; }
+export function EmptyState({ title, children, icon = 'box' }: { title: string; children?: ReactNode; icon?: string }) { return <div className="empty-state"><span className="empty-icon" aria-hidden="true"><SymbolIcon name={icon}/></span><h3>{title}</h3>{children}</div>; }
 /** Skeleton placeholder; the status text stays available to screen readers. */
 export function LoadingState({ label = '正在加载，请稍候…' }: { label?: string }) { return <div className="skeleton" role="status" aria-live="polite"><span className="sr-only">{label}</span><span className="skeleton-line title" aria-hidden="true"/><span className="skeleton-line wide" aria-hidden="true"/><span className="skeleton-line mid" aria-hidden="true"/><span className="skeleton-block" aria-hidden="true"/></div>; }
