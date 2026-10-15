@@ -1,6 +1,7 @@
 import {useEffect,useRef} from 'react';
 import {isUnauthorized,useStudentSession} from './session';
 import type {OrderStatus} from '../shared/delivery';
+import {notifyEnabled} from './notify';
 
 /** Statuses that no longer change without the student acting, so there is nothing to watch for. */
 const QUIET_STATUSES:ReadonlySet<OrderStatus>=new Set<OrderStatus>(['WAITING_PAYMENT','COMPLETED','CANCELLED']);
@@ -20,7 +21,8 @@ export function useLiveOrder(status:OrderStatus|undefined,revalidate:()=>Promise
     if(!active)return;
     let stopped=false,inFlight=false,last=Date.now();
     const tick=async()=>{
-      if(stopped||inFlight||document.hidden)return;
+      // In the background, keep checking (at a third of the pace) only when the student turned on arrival reminders.
+      if(stopped||inFlight||(document.hidden&&!(notifyEnabled()&&Date.now()-last>=intervalMs*3)))return;
       inFlight=true;last=Date.now();
       try{await latest.current();}catch(error){if(isUnauthorized(error)){stopped=true;setSession('signed-out');}}
       finally{inFlight=false;}

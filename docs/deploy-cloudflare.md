@@ -2,8 +2,8 @@
 
 1. 使用 Node.js 22.12以上或24，执行 `npm install --include=dev`。
 2. 使用自己的Cloudflare账户登录Wrangler，创建D1数据库。
-3. 当前 `wrangler.jsonc` 的 production 环境已指向现有主站与 D1 数据库。部署到其他账户时，必须替换为自己的数据库 ID 与实际 APP_ORIGIN；staging 仍是占位配置。
-4. 先用 `npx wrangler d1 migrations list DB --remote --env production --config wrangler.jsonc` 检查是否有待应用的迁移。有新迁移时先备份已有数据，再执行 `npm run db:migrate:production`；v1.1.0 没有数据库结构变更。
+3. 在wrangler.jsonc的production环境填入数据库ID及实际APP_ORIGIN；当前值为公开占位配置，不能直接发布。
+4. 执行 `npm run db:migrate:production` 应用迁移。首次部署初始化空库，已有数据则先备份。从 v1.x 升级到 v2.0 需要应用新增的 `0009_engagement.sql`（只新建表，不修改已有数据）。
 5. 执行 `npm run deploy` 构建并部署；Worker名称必须与配置一致。
 
 使用本地环境时执行 `npm run db:migrate`、`npm run dev`。开发数据库与生产数据库隔离。

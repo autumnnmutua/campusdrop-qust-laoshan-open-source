@@ -730,6 +730,92 @@
           "maximum": 100
         }
       }
+    },
+    "announcementCreate": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": [
+            "INFO",
+            "NOTICE",
+            "PAUSE"
+          ]
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "body": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "durationHours": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1440
+        }
+      },
+      "required": [
+        "level",
+        "title",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "announcementArchive": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "confirmed": {
+          "type": "boolean",
+          "const": true
+        }
+      },
+      "required": [
+        "confirmed"
+      ],
+      "additionalProperties": false
+    },
+    "ratingCreate": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "stars": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "tags": {
+          "maxItems": 5,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "准时送达",
+              "包裹完好",
+              "沟通及时",
+              "态度友好",
+              "放置位置准确",
+              "送达较慢",
+              "包装受损",
+              "联系不上",
+              "放错位置"
+            ]
+          }
+        },
+        "comment": {
+          "type": "string",
+          "maxLength": 120
+        }
+      },
+      "required": [
+        "stars",
+        "tags",
+        "comment"
+      ],
+      "additionalProperties": false
     }
   }
 }

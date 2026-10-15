@@ -1,6 +1,6 @@
 import type { Env } from './types';
 import {ApiError} from './http';
-const known=new Set(['health','auth','admin','me','orders','parcels','quotes','stations','dorm-buildings','login','logout','register','address','tasks','available','dashboard','batches','status','pickup-code','claim','release','handoffs','confirm','reject','recovery','recovery-code','reset','issue','errors','admins','scopes','disable','note','upgrade','cancel','hide','refund','mock-pay','tips','contact','audit','assignees','password','tickets','messages','read','read-all','receive','bulk-pickup']);
+const known=new Set(['health','auth','admin','me','orders','parcels','quotes','stations','dorm-buildings','login','logout','register','address','tasks','available','dashboard','batches','status','pickup-code','claim','release','handoffs','confirm','reject','recovery','recovery-code','reset','issue','errors','admins','scopes','disable','note','upgrade','cancel','hide','refund','mock-pay','tips','contact','audit','assignees','password','tickets','messages','read','read-all','receive','bulk-pickup','announcements','archive','rating','stats','analytics','alerts']);
 export function safeRoute(request:Request){const parts=new URL(request.url).pathname.split('/').slice(3,10);return '/api/v1/'+parts.map(p=>known.has(p)?p:':id').join('/');}
 export function classifyError(error:unknown){
  const message=error instanceof Error?error.message:String(error);

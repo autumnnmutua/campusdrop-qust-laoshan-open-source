@@ -1,4 +1,5 @@
 import {serviceRoutes} from './service-workflows';
+import {engagementRoutes} from './engagement';
 import {recoveryRoutes} from './recovery';
 import {recordError,classifyError,expectedConstraint} from './observability';
 import type { Env } from './types';
@@ -76,6 +77,7 @@ async function route(request: Request, env: Env): Promise<Response> {
     if (method === 'DELETE') { await deleteAddress(env, user.id); return json({ ok: true }); }
   }
   const recoveryResponse=await recoveryRoutes(request,env);if(recoveryResponse)return recoveryResponse;
+  const engagementResponse=await engagementRoutes(request,env);if(engagementResponse)return engagementResponse;
   const serviceResponse=await serviceRoutes(request,env);if(serviceResponse)return serviceResponse;
   const deliveryResponse=await deliveryRoutes(request,env);
   if(deliveryResponse)return deliveryResponse;
