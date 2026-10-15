@@ -1,6 +1,6 @@
 {
   "name": "campusdrop-qust-laoshan",
-  "version": "1.1.0",
+  "version": "2.3.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -34,12 +34,14 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.9.0",
+    "tesseract.js": "^7.0.0",
     "zod": "^4.3.0"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.63.1",
     "@cloudflare/workers-types": "5.20261009.1",
     "@eslint/js": "^9.39.0",
+    "@tesseract.js-data/eng": "^1.0.0",
     "@types/dialog-polyfill": "^0.5.0",
     "@types/node": "^24.0.0",
     "@types/react": "^19.2.0",

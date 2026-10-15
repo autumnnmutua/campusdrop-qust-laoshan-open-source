@@ -1,0 +1,15 @@
+{
+  "name": "CampusDrop · 崂山校区校园快递",
+  "short_name": "CampusDrop",
+  "description": "青岛科技大学崂山校区校园包裹配送：登记包裹、安排配送、查看进度。独立校园服务项目，非学校或菜鸟官方产品。",
+  "lang": "zh-CN",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#edf4ff",
+  "theme_color": "#17477f",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

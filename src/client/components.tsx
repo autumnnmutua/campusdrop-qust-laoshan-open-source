@@ -7,6 +7,7 @@ import type { Building } from '../shared/contracts';
 import { MOCK_MESSAGE, pickupCodeSchema, STATUS_LABELS, type DeliveryMode, type Order, type OrderEvent, type Parcel } from '../shared/delivery';
 import { api } from './api';
 import { useCountUp } from './motion';
+import { toast } from './effects';
 
 const money = (fen: number) => `¥${(fen / 100).toFixed(2)}`;
 
@@ -22,7 +23,7 @@ export function PickupCodeInput({ value, onChange }: { value: string; onChange: 
 }
 
 export function ParcelCard({ parcel: p, busy, onRemove }: { parcel: Parcel; busy: boolean; onRemove: () => void }) {
-  return <article className="parcel-card"><div className="row"><strong className="pickup-code">{p.pickupCode}</strong><span className="badge">{p.packageSize === 'SMALL' ? '小件' : '大件'}</span></div><p>{p.carrier || '未填写承运商'} · {p.status === 'ACTIVE' ? '待安排' : p.status === 'CLOSED' ? '配送完成' : '已移除'}</p>{p.note && <p className="muted">{p.note}</p>}{p.status === 'ACTIVE' && <div className="actions"><Link to={`/parcel/${p.id}`}>选择配送 →</Link><button className="text-button" disabled={busy} onClick={onRemove}>{busy ? '正在移除…' : '移除'}</button></div>}</article>;
+  return <article className="parcel-card"><div className="row"><strong className="pickup-code">{p.pickupCode}</strong><button type="button" className="copy-code" aria-label={`复制取件码 ${p.pickupCode}`} onClick={()=>{if(navigator.clipboard?.writeText)void navigator.clipboard.writeText(p.pickupCode).then(()=>toast('取件码已复制','success',p.pickupCode),()=>toast('复制失败，请长按取件码手动复制','warn'));else toast('当前浏览器不支持自动复制','warn','请长按取件码手动复制');}}>复制</button><span className="badge">{p.packageSize === 'SMALL' ? '小件' : '大件'}</span></div><p>{p.carrier || '未填写承运商'} · {p.status === 'ACTIVE' ? '待安排' : p.status === 'CLOSED' ? '配送完成' : '已移除'}</p>{p.note && <p className="muted">{p.note}</p>}{p.status === 'ACTIVE' && <div className="actions"><Link to={`/parcel/${p.id}`}>选择配送 →</Link><button className="text-button" disabled={busy} onClick={onRemove}>{busy ? '正在移除…' : '移除'}</button></div>}</article>;
 }
 
 export function DormSelector({ buildings, zone, building, room, onZone, onBuilding, onRoom }: { buildings: Building[]; zone: 'SOUTH' | 'NORTH'; building: string; room: string; onZone: (v: 'SOUTH' | 'NORTH') => void; onBuilding: (v: string) => void; onRoom: (v: string) => void }) {

@@ -21,12 +21,14 @@ export async function availableOrders(env:Env,admin:Admin,request:Request){
  const f=parsed.data,scope=availableScope(admin),key=JSON.stringify([admin.id,'market',f.building??'',f.packageSize??'',f.deliveryMode??'']);const {limit,cursor}=cursorPage(request,key);
  const where=[available,scope.sql],params:(string|number)[]=[...scope.params];
  for(const [v,col] of [[f.building,'o.dorm_building_code'],[f.packageSize,'o.package_size'],[f.deliveryMode,"CASE WHEN o.delivery_upgrade_fen>0 THEN 'ROOM' ELSE o.delivery_mode END"]])if(v){where.push(col+'=?');params.push(v);}
+ // Totals for the whole filtered market (not just this page): lets the workspace notice new orders that land beyond page 1.
+ const totals=await env.DB.prepare(`SELECT count(*) AS total,max(o.created_at) AS newestAt FROM delivery_orders o WHERE ${where.join(' AND ')}`).bind(...params).first<{total:number;newestAt:number|null}>();
  if(cursor){where.push('(o.created_at>? OR (o.created_at=? AND o.id>?))');params.push(cursor.time,cursor.time,cursor.id);}
  const rows=(await env.DB.prepare(`SELECT o.id,o.created_at AS createdAt,json_extract(o.dorm_snapshot_json,'$.buildingName') AS buildingName,
  json_extract(o.station_snapshot_json,'$.canonicalName') AS stationName,o.package_size AS packageSize,
  CASE WHEN o.delivery_upgrade_fen>0 THEN 'ROOM' ELSE o.delivery_mode END AS deliveryMode,o.amount_fen+o.delivery_upgrade_fen+o.upgrade_surcharge_fen AS amountFen
  FROM delivery_orders o WHERE ${where.join(' AND ')} ORDER BY o.created_at,o.id LIMIT ?`).bind(...params,limit+1).all<AvailableOrder&{createdAt:number}>()).results;
- const result=cursorResult(rows,limit,key);return {orders:result.items,nextCursor:result.nextCursor,hasMore:result.hasMore,pageSize:limit};
+ const result=cursorResult(rows,limit,key);return {orders:result.items,nextCursor:result.nextCursor,hasMore:result.hasMore,pageSize:limit,total:totals?.total??0,newestAt:totals?.newestAt??null};
 }
 export async function claimOrder(env:Env,admin:Admin,id:string){
   await requireContact(env,admin.id);

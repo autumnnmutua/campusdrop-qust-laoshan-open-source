@@ -2,7 +2,7 @@
   X-Content-Type-Options: nosniff
   Referrer-Policy: no-referrer
   X-Frame-Options: DENY
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
   Permissions-Policy: camera=(), microphone=(), geolocation=()
 
 # Vite build output: file names carry a content hash, so they can be cached forever.
@@ -20,3 +20,14 @@
   Cache-Control: public, max-age=86400, stale-while-revalidate=604800
 /apple-touch-icon.png
   Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+/manifest.webmanifest
+  Content-Type: application/manifest+json; charset=utf-8
+  Cache-Control: public, max-age=3600
+/icon-192.png
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+/icon-512.png
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
+# On-device OCR engine and model (copied at build time into a versioned folder): safe to cache for a long time.
+/ocr/*
+  Cache-Control: public, max-age=2592000, immutable
