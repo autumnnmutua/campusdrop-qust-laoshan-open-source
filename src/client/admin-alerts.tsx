@@ -1,7 +1,8 @@
 import {useEffect,useState} from 'react';
 import {Link} from 'react-router-dom';
 import {api} from './api';
-import {STALL_RULES,type StalledOrder} from '../shared/engagement';
+import {STALL_RULES} from '../shared/engagement-rules';
+import type {StalledOrder} from '../shared/engagement';
 
 export function overdueText(minutes:number){
   if(minutes<60)return `超时 ${Math.max(1,minutes)} 分钟`;

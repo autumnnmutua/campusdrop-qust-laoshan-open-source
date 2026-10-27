@@ -68,7 +68,7 @@ v1.x 已经跑通完整的业务闭环：登记取件码、下单、模拟支付
 | 数据迁移 | `migrations/0009_engagement.sql`（`announcements`、`order_ratings` 两张新表，以及“只能评价自己已完成订单”的触发器） |
 | 共享校验与类型 | `src/shared/engagement.ts`（公告与评价的 zod 校验、徽章规则、短信取件码识别） |
 | 后端接口 | `src/worker/engagement.ts`：`GET /announcements`、`GET /me/stats`、`GET/POST /orders/:id/rating`、`GET /admin/analytics`、`GET/POST /admin/announcements`、`POST /admin/announcements/:id/archive` |
-| 动效引擎 | `src/client/effects.ts`（季节粒子、彩带、全局提示）、`src/client/effects-ui.tsx`、`src/client/effects.css` |
+| 动效引擎 | `src/client/effects.ts`（季节粒子、彩带、全局提示）、`src/client/effects-ui.tsx`、`src/client/styles/features-shell.css`（样式已按层拆分，见 `src/client/styles/index.css`） |
 | 学生端功能 | `src/client/engagement-ui.tsx`（公告横幅、短信识别、备注标签、费用计算器、问题搜索、配送足迹、评价、新手引导） |
 | 管理端功能 | `src/client/admin-insights.tsx`（数据看板、公告管理）、`src/client/csv.ts`（任务导出） |
 

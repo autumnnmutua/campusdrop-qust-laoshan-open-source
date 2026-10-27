@@ -72,7 +72,7 @@ export function useCountUp(value:number,{duration=650,from}:{duration?:number;fr
 /**
  * Material-style press ripple for buttons, added once at the app root. Spans are positioned through CSS custom
  * properties set with CSSOM (allowed by the style-src 'self' CSP) and remove themselves when the animation ends.
- * The mobile tab bar is skipped on purpose (see motion.css).
+ * The mobile tab bar is skipped on purpose (see styles/motion.css).
  */
 export function useRipple(){
   useEffect(()=>{

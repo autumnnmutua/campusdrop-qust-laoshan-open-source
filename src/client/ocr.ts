@@ -1,5 +1,6 @@
 import type {Worker as TesseractWorker,LoggerMessage} from 'tesseract.js';
-import {mergeOcrCodes,recognizeOcrCodes,recognizePickupCodes,type RecognizedParcel} from '../shared/engagement';
+import {mergeOcrCodes,recognizeOcrCodes,recognizePickupCodes} from '../shared/engagement-rules';
+import type {RecognizedParcel} from '../shared/engagement';
 
 /*
  * On-device screenshot recognition. The image never leaves the browser: it is decoded with createImageBitmap,

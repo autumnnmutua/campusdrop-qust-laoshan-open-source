@@ -57,7 +57,7 @@ import { BounceText } from './bounce-text';
 <p><BounceText text="正在排队…" variant="wave" /></p>                          {/* 持续波浪 */}
 ```
 
-节奏和幅度集中在 `src/client/extras.css` 的“文字跳动”一节（`bt-drop`、`bt-pop`、`bt-wave` 三组动画），调整那里会统一影响全站。
+节奏和幅度集中在 `src/client/styles/features-student.css` 的“文字跳动”一节（`bt-drop`、`bt-pop`、`bt-wave` 三组动画），调整那里会统一影响全站。
 
 ## 可选的扩展方向（尚未实现）
 

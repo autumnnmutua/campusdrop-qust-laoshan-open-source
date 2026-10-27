@@ -5,7 +5,7 @@ import {SymbolIcon} from './campus-design';
 import {AMBIENT_LABELS,celebrate,setAmbientMode,toast,type AmbientMode} from './effects';
 import {openOnboarding} from './engagement-ui';
 import {isBounceEnabled,setBounceEnabled} from './bounce-text';
-import {disableNotify,enableNotify,useNotifyState} from './notify';
+import {disableNotify,enableNotify,pushEnabled,useNotifyState} from './notify';
 
 /* ================================================================== arrival reminders toggle */
 export function NotifyToggle({compact=false}:{compact?:boolean}){
@@ -14,12 +14,12 @@ export function NotifyToggle({compact=false}:{compact?:boolean}){
   async function toggle(){
     if(state==='on'){disableNotify();toast('已关闭到达提醒','info');return;}
     setBusy(true);const r=await enableNotify();setBusy(false);
-    if(r==='on')toast('到达提醒已开启','success','订单状态变化时会弹出系统通知');
+    if(r==='on')toast('到达提醒已开启','success',pushEnabled()?'即使关闭网页，配送进度和配送员消息也会推送到这台设备':'订单状态变化时会弹出系统通知');
     else if(r==='denied')toast('浏览器拒绝了通知权限','warn','可以在浏览器的网站设置里允许通知后再试');
     else if(r==='blocked')toast('这个浏览器只允许已安装的应用发通知','warn','可以先“添加到主屏幕”，或改用电脑浏览器');
   }
   return <div className={`notify-toggle${compact?' compact':''}`}>
-    <label className="switch"><input type="checkbox" checked={state==='on'} disabled={busy||state==='denied'} onChange={()=>void toggle()}/><span><strong>到达提醒</strong><small>{state==='denied'?'通知权限已被拒绝，请在浏览器网站设置里允许':state==='on'?'已开启：页面在后台时，状态变化会弹出系统通知':'包裹送到楼下或寝室时，即使切到其他页面也提醒你'}</small></span></label>
+    <label className="switch"><input type="checkbox" checked={state==='on'} disabled={busy||state==='denied'} onChange={()=>void toggle()}/><span><strong>到达提醒</strong><small>{state==='denied'?'通知权限已被拒绝，请在浏览器网站设置里允许':state==='on'?(pushEnabled()?'已开启推送：即使关闭网页，状态变化和配送员消息也会通知你':'已开启：页面在后台时，状态变化会弹出系统通知'):'包裹送到楼下或寝室时，即使切到其他页面也提醒你'}</small></span></label>
   </div>;
 }
 

@@ -12,11 +12,13 @@ const ScreenshotReader=lazy(()=>import('./screenshot-reader').then(m=>({default:
 const ShareCardButton=lazy(()=>import('./share-card').then(m=>({default:m.ShareCardButton})));
 import {BounceText} from './bounce-text';
 import {priceFen,upgradePriceFen} from '../domain/commerce';
-import {CARRIERS,type Parcel,type Station} from '../shared/delivery';
-import {mergeOcrCodes,ANNOUNCEMENT_LEVEL_LABELS,RATING_TAGS_BAD,RATING_TAGS_GOOD,badgesFor,recognizePickupCodes,type Announcement,type Rating,type RecognizedParcel,type StudentStats} from '../shared/engagement';
+import {CARRIERS} from '../shared/constants';
+import type {Parcel,Station} from '../shared/delivery';
+import {mergeOcrCodes,ANNOUNCEMENT_LEVEL_LABELS,RATING_TAGS_BAD,RATING_TAGS_GOOD,badgesFor,recognizePickupCodes} from '../shared/engagement-rules';
+import type {Announcement,Rating,RecognizedParcel,StudentStats} from '../shared/engagement';
 import {getItem,getList as readList,setItem,setList as writeList,storageAvailable} from './storage';
 
-const yuan=(fen:number)=>`¥${(fen/100).toFixed(fen%100?2:0)}`;
+import {yuan} from './format';
 
 /* ================================================================== announcements */
 const DISMISSED_KEY='campusdrop:dismissed-announcements';
@@ -136,7 +138,12 @@ const FAQ:[string,string,string][]=[
   ['支付','为什么是模拟支付？','当前版本用于测试流程，支付、补款、退款和打赏都不会发生真实资金流转。'],
   ['订单','取消后订单还在？','取消配送会保留订单和退款记录，你可以确认退款信息后再隐藏订单。'],
   ['订单','配送员退单后怎么办？','订单会重新进入接单市场。如果包裹已经取出，必须先完成归还，并由另一位管理员核验。'],
-  ['订单','订单状态多久更新一次？','订单详情页在配送过程中会每 20 秒自动刷新一次，状态变化时页面顶部会弹出提示。'],
+  ['订单','订单状态多久更新一次？','站点支持实时通道时，状态变化会立即推送到页面；否则订单详情页在配送过程中每 20 秒自动刷新一次。状态变化时页面顶部会弹出提示。'],
+  ['订单','收货码是什么？','付款后订单页会显示 4 位收货码。配送员送到时请当面告诉 TA，配送员输入核验通过后订单自动签收，不用你再点“确认收货”。请不要提前把收货码发给别人。'],
+  ['订单','可以预约送达时间吗？','可以。安排配送时选择今天到后天的午间（11:30–13:00）、傍晚（17:00–19:00）或晚间（20:00–22:00），每个时段有名额上限，开始前 30 分钟截止预约。'],
+  ['订单','怎么联系配送员？','配送员接单后，订单详情页会出现“和配送员沟通”，可以发文字或点常用语。聊天只在本订单内可见，订单完成后保留 90 天自动清理。'],
+  ['订单','预计送达时间准吗？','预计时间依据近 30 天同楼栋的实际送达用时估算，样本不够时按站点到楼栋的路线距离估算，仅供参考。地图底图是学校官方平面图，配送员位置在未校准时为估算。'],
+  ['账号','怎么注销账号？','在“我的寝室”页底部选择“注销账号”。需要先完成或取消所有进行中的订单。注销后姓名、电话、寝室、聊天和消息会被删除，订单只保留匿名记录用于对账。'],
   ['评价','评价会被公开吗？','不会。确认收货后可以给本次配送打 1–5 星，评价只给运营管理员用来改进服务，其他同学看不到。每单只能评价一次。'],
   ['评价','徽章是怎么获得的？','徽章完全根据你的真实订单计算，例如完成第 1 单、累计 5 单、3 次送到寝室等。徽章不设排行，也不能兑换任何东西。'],
   ['订单','包裹到了能提醒我吗？','可以。在“我的寝室”页或配送中的订单页打开“到达提醒”，浏览器询问时选择允许。之后包裹状态变化时，即使切到其他页面也会弹出系统通知（需要这个网页仍然开着）。部分手机浏览器只允许已添加到主屏幕的网页发通知。'],
@@ -223,7 +230,7 @@ function closeOnboarding(){onboardingOpen=false;setItem(ONBOARD_KEY,'1');onboard
 const STEPS=[
   {icon:'chat',title:'登记包裹',text:'粘贴驿站短信自动识别取件码，或者手动填写。一次收到好几件，也能批量登记。'},
   {icon:'room',title:'选择配送',text:'送到楼下或寝室门口，小件 2 元起。下单前会显示服务端报价，当前均为模拟支付。'},
-  {icon:'plane',title:'跟踪与收货',text:'配送中页面会自动刷新，状态变化即时提醒。收到后确认收货，再给这次配送打个分。'},
+  {icon:'plane',title:'跟踪与收货',text:'在校园地图上看配送路线和预计送达时间。见到配送员时出示 4 位收货码，核验后自动签收。'},
 ];
 /** Three-step introduction, shown once per browser and reopenable from the FAQ page. */
 export function Onboarding({autoOpen}:{autoOpen:boolean}){

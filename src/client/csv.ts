@@ -1,4 +1,5 @@
-import {STATUS_LABELS,type Order} from '../shared/delivery';
+import {STATUS_LABELS} from '../shared/constants';
+import type {Order} from '../shared/delivery';
 
 /** Quote a cell; cells that a spreadsheet would run as a formula get a leading apostrophe (CSV injection guard). */
 function cell(value:string|number):string{

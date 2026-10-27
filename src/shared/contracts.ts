@@ -1,5 +1,6 @@
 import { z } from 'zod';
-export const CAMPUS_ID = 'QUST_LAOSHAN' as const;
+import { CAMPUS_ID } from './constants.ts';
+export { CAMPUS_ID };
 export const zoneSchema = z.enum(['SOUTH', 'NORTH']);
 export const roleSchema = z.enum(['SUPER_ADMIN', 'ZONE_ADMIN', 'BUILDING_ADMIN', 'DELIVERY_STAFF']);
 export type AdminRole = z.infer<typeof roleSchema>;

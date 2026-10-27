@@ -1,19 +1,14 @@
-import './zod-config';
-import {MessageLink} from './service-links';
+import {MessageLink,UnreadDot,useUnreadCount} from './service-links';
 import {StudentSessionProvider,isUnauthorized,useStudentSession} from './session';
 import {CampusRail,ServicePages,SymbolIcon} from './campus-design';
 import { DormSelector, LoadingState, SuccessMark } from './components';
 import { Component, StrictMode, Suspense, lazy, useEffect, useRef, useState, type ComponentType, type FormEvent, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, HashRouter, Link, NavLink, Route, Routes, useNavigate, useLocation } from 'react-router-dom';
-import { CAMPUS_ID, loginSchema, registerSchema, type Address, type Admin, type Building, type Student } from '../shared/contracts';
+import {CAMPUS_ID} from '../shared/constants';
+import type {Address,Admin,Building,Student} from '../shared/contracts';
 import { api } from './api';
-import './styles.css';
-import './campus-rail.css';
-import './polish.css';
-import './motion.css';
-import './effects.css';
-import './extras.css';
+import './styles/index.css';
 import { AmbientLayer, AmbientSwitch, Toaster } from './effects-ui';
 import { BounceText } from './bounce-text';
 import { CommandPalette, NetworkStatus, NotifyToggle, PaletteButton, useEasterEgg } from './extras';
@@ -21,6 +16,8 @@ import { AnnouncementBanner, FaqSearch, FeeCalculator, FootprintPanel, Onboardin
 import { usePageEnter, useRipple, useScrollReveal, useScrolledClass } from './motion';
 import { Home,NewParcel,ParcelDetail,Orders,OrderDetail,TipPage,SignInPrompt } from './student-delivery';
 import { getItem, removeItem, setItem } from './storage';
+import { useLiveChannel } from './live';
+import { IntroSplash } from './intro';
 
 const CHUNK_RELOAD_KEY='campusdrop:chunk-reload';
 /** Lazily load one named page export. After a redeploy an open tab may request a chunk that no longer exists; reload once to pick up the new build. */
@@ -44,6 +41,9 @@ const AdminAnalytics = lazyPage(loadInsights, 'AdminAnalytics'), AdminAnnounceme
 const loadRecovery = () => import('./recovery-pages');
 const RecoveryPage = lazyPage(loadRecovery, 'RecoveryPage'), RecoveryCode = lazyPage(loadRecovery, 'RecoveryCode'), RecoveryAdmin = lazyPage(loadRecovery, 'RecoveryAdmin'), ErrorMonitor = lazyPage(loadRecovery, 'ErrorMonitor');
 const RouteSheet = lazyPage(() => import('./route-sheet'), 'RouteSheet');
+const CampusMapPage = lazyPage(() => import('./campus-map'), 'CampusMapPage');
+const AdminLiveMap = lazyPage(() => import('./admin-map'), 'AdminLiveMap');
+const AccountDelete = lazyPage(() => import('./account-delete'), 'AccountDelete');
 const loadExtras = () => import('./receipt');
 const OrderReceipt = lazyPage(loadExtras, 'OrderReceipt');
 const loadGame = () => import('./game');
@@ -62,10 +62,14 @@ class PageErrorBoundary extends Component<{ children: ReactNode; resetKey: strin
 }
 const pageFallback = <section><LoadingState label="正在加载页面…"/><p className="loading-wave" aria-hidden="true"><BounceText text="正在加载…" variant="wave"/></p></section>;
 
+const fieldMessages=(register:boolean):Record<string,string>=>({username:'用户名须为 3–32 位字母、数字或下划线',password:register?'密码须为 6–128 个字符，且不超过 256 字节':'请输入密码，最多 128 个字符',name:'请填写姓名（1–32 个字符，不含特殊控制符或尖括号）',phone:'请填写有效的 11 位手机号码'});
+
 function Auth({ register = false, admin = false }: { register?: boolean; admin?: boolean }) {
-  const navigate = useNavigate(); const {session,setSession}=useStudentSession(); const [error, setError] = useState(''); const [busy, setBusy] = useState(false); const [registered,setRegistered]=useState(false);
+  const navigate = useNavigate(); const {session,setSession}=useStudentSession(); const [error, setError] = useState(''); const [fieldErrors,setFieldErrors]=useState<Record<string,string>>({}); const [busy, setBusy] = useState(false); const [registered,setRegistered]=useState(false);
   // /login and /register render the same component instance, so clear per-form state when switching between them.
-  useEffect(()=>{setRegistered(false);setError('');},[admin,register]);
+  useEffect(()=>{setRegistered(false);setError('');setFieldErrors({});},[admin,register]);
+  // Warm the lazily loaded form schemas so submitting does not wait on them.
+  useEffect(()=>{void import('./validation');},[]);
   // Students: reuse the app-wide session check instead of a second /me request (a guaranteed 401 for visitors).
   useEffect(()=>{if(!admin&&session==='signed-in'&&!registered)navigate('/profile',{replace:true});},[admin,session,registered,navigate]);
   useEffect(() => {
@@ -76,13 +80,19 @@ function Auth({ register = false, admin = false }: { register?: boolean; admin?:
   },[admin,navigate]);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if(busy)return; setError('');
-    const form = new FormData(event.currentTarget);
+    const formElement=event.currentTarget;const form = new FormData(formElement);
+    const {loginSchema,registerSchema}=await import('./validation');
     const parsed=(register?registerSchema:loginSchema).safeParse(Object.fromEntries(form));
     if(!parsed.success){
-      const field=String(parsed.error.issues[0]?.path[0]??'');
-      setError(field==='username'?'用户名须为 3–32 位字母、数字或下划线':field==='password'?(register?'密码须为 6–128 个字符，且不超过 256 字节':'请输入密码，最多 128 个字符'):field==='phone'?'请填写有效的 11 位手机号码':field==='name'?'请填写姓名（1–32 个字符，不含特殊控制符或尖括号）':'请检查填写内容');
+      // Report every invalid field next to its input, then move focus to the first one.
+      const messages=fieldMessages(register),next:Record<string,string>={};
+      for(const issue of parsed.error.issues){const field=String(issue.path[0]??'');if(messages[field])next[field]??=messages[field];}
+      setFieldErrors(next);
+      const first=Object.keys(messages).find(field=>next[field]);
+      if(first)formElement.querySelector<HTMLInputElement>(`[name="${first}"]`)?.focus();else setError('请检查填写内容');
       return;
     }
+    setFieldErrors({});
     setBusy(true);
     try {
       await api(admin ? '/admin/auth/login' : register ? '/auth/register' : '/auth/login', 'POST', parsed.data);
@@ -93,16 +103,21 @@ function Auth({ register = false, admin = false }: { register?: boolean; admin?:
       if(register)setRegistered(true);else navigate(admin ? '/admin/account' : '/profile',{replace:true});
     } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
+  const field=(name:string,hint?:string)=>({'aria-invalid':fieldErrors[name]?true:undefined,'aria-describedby':[hint,fieldErrors[name]&&`${name}-error`].filter(Boolean).join(' ')||undefined});
+  const fieldError=(name:string)=>fieldErrors[name]&&<small className="field-error" id={`${name}-error`}>{fieldErrors[name]}</small>;
+  // Typing in a flagged field clears its message; the rest stay until the next submit.
+  const clearField=(event:FormEvent<HTMLFormElement>)=>{const name=(event.target as HTMLInputElement).name;if(fieldErrors[name])setFieldErrors(prev=>{const next={...prev};delete next[name];return next;});};
   if(register&&registered)return <section className="auth-success"><SuccessMark/><h1><BounceText text="注册成功"/></h1><p role="status">账号已创建并登录。接下来可以完善寝室资料。</p><Link className="button" to="/profile">完善寝室资料</Link><Link to="/">返回首页</Link></section>;
   return <section className="auth-page"><div className="auth-scenery" aria-hidden="true"><span>每一份期待<br/>都值得准时抵达</span></div><p className="eyebrow">{admin ? '管理员入口' : '学生服务'}</p><h1>{register ? '创建你的账号' : admin ? '管理员登录' : '欢迎回来'}</h1>
     <p className="muted">青岛科技大学 · 崂山校区</p>
-    <form onSubmit={submit} noValidate>
-      <fieldset disabled={busy}><label>用户名<input name="username" required minLength={3} maxLength={32} pattern="[a-zA-Z0-9_]{3,32}" autoComplete="username" aria-describedby="username-hint" /></label>
-      <small id="username-hint">3–32 位字母、数字或下划线</small>
-      <label>密码<input name="password" type="password" required minLength={register ? 6 : 1} maxLength={128} autoComplete={register ? 'new-password' : 'current-password'} /></label>
+    <form onSubmit={submit} onInput={clearField} noValidate>
+      <fieldset disabled={busy}><label>用户名<input name="username" required minLength={3} maxLength={32} pattern="[a-zA-Z0-9_]{3,32}" autoComplete="username" {...field('username','username-hint')} /></label>
+      <small id="username-hint">3–32 位字母、数字或下划线</small>{fieldError('username')}
+      <label>密码<input name="password" type="password" {...field('password')} required minLength={register ? 6 : 1} maxLength={128} autoComplete={register ? 'new-password' : 'current-password'} /></label>
+      {fieldError('password')}
       {register && <><small>至少 6 个字符，建议使用较长的独立密码。</small>
-        <label>姓名<input name="name" required maxLength={32} autoComplete="name" /></label>
-        <label>配送联系电话<input name="phone" type="tel" required pattern="1[3-9][0-9]{9}" autoComplete="tel" /></label>
+        <label>姓名<input name="name" required maxLength={32} autoComplete="name" {...field('name')} /></label>{fieldError('name')}
+        <label>配送联系电话<input name="phone" type="tel" required pattern="1[3-9][0-9]{9}" autoComplete="tel" {...field('phone')} /></label>{fieldError('phone')}
         <p className="muted">联系电话仅用于配送联系，不代表已完成手机号或学生身份认证。<Link to="/privacy">了解资料用途</Link></p></>}
       </fieldset><p role="alert" aria-live="assertive">{error}</p><button className={busy?'is-busy':undefined} disabled={busy}>{busy ? '正在处理…' : register ? '注册并继续' : '登录'}</button>
     </form>
@@ -156,6 +171,7 @@ function Profile() {
     </form>
     <p role="status">{message}</p><p><Link to="/">前往我的包裹 →</Link></p>
     <div className="actions">{address && <button className="secondary" disabled={busy} onClick={remove}>移除当前寝室</button>}<button className="secondary" onClick={logout}>退出登录</button></div>
+    <Suspense fallback={null}><AccountDelete/></Suspense>
   </section>;
 }
 
@@ -187,20 +203,42 @@ function AccountExit(){
   if(session!=='signed-in')return null;
   return <div className="account-exit"><button className="text-button" disabled={busy} onClick={async()=>{setBusy(true);try{await api('/auth/logout','POST');setSession('signed-out');navigate('/login',{replace:true});}catch(e){setError((e as Error).message);}finally{setBusy(false);}}}>退出登录 / 切换账号</button>{error&&<p role="alert">{error}</p>}</div>;
 }
+/**
+ * Notification clicks: an open tab gets a message from the service worker; a fresh tab opens at /?go=<path>, which
+ * works the same with browser and hash routing. Only same-site paths are followed.
+ */
+function useDeepLinks(){
+  const navigate=useNavigate();
+  useEffect(()=>{
+    const safe=(path:unknown):path is string=>typeof path==='string'&&/^\/(?![/\\])/.test(path);
+    const go=new URLSearchParams(window.location.search).get('go');
+    if(safe(go)){window.history.replaceState(window.history.state,'',window.location.pathname+window.location.hash);navigate(go,{replace:true});}
+    if(!('serviceWorker' in navigator))return;
+    const onMessage=(event:MessageEvent)=>{if(event.data?.type==='campusdrop:navigate'&&safe(event.data.url))navigate(event.data.url);};
+    navigator.serviceWorker.addEventListener('message',onMessage);
+    return()=>navigator.serviceWorker.removeEventListener('message',onMessage);
+  },[navigate]);
+}
 function App() {
   const location=useLocation(); const admin=location.pathname.startsWith('/admin'); const mainRef=useRef<HTMLElement>(null);
   useEasterEgg(!admin);
   usePageEnter(mainRef,location.pathname,true); useScrollReveal(mainRef,location.pathname,true); useScrolledClass(); useRipple();
   useEffect(()=>{document.body.classList.toggle('student-view',!admin);document.body.classList.toggle('admin-view',admin);},[admin]);
   useEffect(()=>{window.scrollTo(0,0);document.getElementById('main-content')?.focus({preventScroll:true});},[location.pathname]);
-  return <div className="app-layout"><CampusRail/><div className="app-workspace"><div key={location.key} className="route-progress" aria-hidden="true"/><a className="skip-link" href="#main-content">跳至主要内容</a><header className="topbar"><Link className="brand" to="/">青岛科技大学<span>崂山校区 · CampusDrop 校园快递</span></Link><nav aria-label="快捷导航"><NavLink to="/" end>我的包裹</NavLink><NavLink to="/orders">订单</NavLink><NavLink to="/profile">寝室</NavLink>{!admin&&<MessageLink/>}<NavLink to="/tickets">售后</NavLink><NavLink className="topbar-admin" to="/admin/login">管理入口</NavLink><PaletteButton/>{!admin&&<AmbientSwitch/>}</nav></header>
+  const unread=useUnreadCount();const {session}=useStudentSession();
+  useLiveChannel(!admin&&session==='signed-in'?'student':null);
+  useDeepLinks();
+  // Destinations live in the rail (desktop) and the tab bar (phones); the top bar only carries utilities.
+  return <div className="app-layout"><IntroSplash/><CampusRail unread={unread}/><div className="app-workspace"><div key={location.key} className="route-progress" aria-hidden="true"/><a className="skip-link" href="#main-content">跳至主要内容</a><header className="topbar"><Link className="brand" to="/">青岛科技大学<span>崂山校区 · CampusDrop 校园快递</span></Link><nav aria-label="工具栏">{!admin&&<MessageLink unread={unread}/>}<PaletteButton/>{!admin&&<AmbientSwitch/>}<NavLink className="topbar-admin" to="/admin/login">管理入口</NavLink></nav></header>
     <main id="main-content" ref={mainRef} tabIndex={-1}>{!admin&&!['/login','/register','/privacy'].includes(location.pathname)&&<><AnnouncementBanner/><AccountExit/></>}<PageErrorBoundary resetKey={location.pathname}><Suspense fallback={pageFallback}><Routes><Route path="/" element={<Home />} /><Route path="/login" element={<Auth />} /><Route path="/register" element={<Auth register />} /><Route path="/profile" element={<Profile />} /><Route path="/admin/login" element={<Auth admin />} /><Route path="/admin" element={<AdminTasks />} /><Route path="/admin/account" element={<AdminHome />} />
       <Route path="/parcel/new" element={<NewParcel/>}/><Route path="/parcel/:id" element={<ParcelDetail/>}/><Route path="/orders" element={<Orders/>}/><Route path="/orders/:id" element={<OrderDetail/>}/><Route path="/orders/:id/receipt" element={<OrderReceipt/>}/><Route path="/play" element={<PlayPage/>}/><Route path="/checkout/:orderId" element={<OrderDetail checkout/>}/><Route path="/tip/:orderId" element={<TipPage/>}/>
-      <Route path="/admin/orders/:id" element={<AdminOrderDetail/>}/><Route path="/admin/tasks" element={<AdminTasks/>}/><Route path="/admin/batches" element={<Batches/>}/><Route path="/admin/batches/:id" element={<BatchDetail/>}/><Route path="/admin/admins" element={<AdminAccounts/>}/><Route path="/admin/audit" element={<Audit/>}/><Route path="/admin/analytics" element={<AdminAnalytics/>}/><Route path="/admin/announcements" element={<AdminAnnouncements/>}/><Route path="/admin/route-sheet" element={<RouteSheet/>}/>
+      <Route path="/admin/orders/:id" element={<AdminOrderDetail/>}/><Route path="/admin/tasks" element={<AdminTasks/>}/><Route path="/admin/batches" element={<Batches/>}/><Route path="/admin/batches/:id" element={<BatchDetail/>}/><Route path="/admin/admins" element={<AdminAccounts/>}/><Route path="/admin/audit" element={<Audit/>}/><Route path="/admin/analytics" element={<AdminAnalytics/>}/><Route path="/admin/announcements" element={<AdminAnnouncements/>}/><Route path="/map" element={<CampusMapPage/>}/><Route path="/admin/map" element={<AdminLiveMap/>}/><Route path="/admin/route-sheet" element={<RouteSheet/>}/>
       <Route path="/messages" element={<Inbox/>}/><Route path="/tickets" element={<TicketList/>}/><Route path="/tickets/new" element={<TicketNew/>}/><Route path="/tickets/:id" element={<TicketDetail/>}/><Route path="/admin/tickets" element={<TicketList admin/>}/><Route path="/admin/tickets/:id" element={<TicketDetail admin/>}/><Route path="/recover" element={<RecoveryPage/>}/><Route path="/admin/recovery" element={<RecoveryAdmin/>}/><Route path="/admin/errors" element={<ErrorMonitor/>}/><Route path="/guide" element={<ServicePages kind="guide" slot={<FeeCalculator/>}/>}/><Route path="/help" element={<ServicePages kind="help" slot={<FaqSearch/>}/>}/><Route path="/contact" element={<ServicePages kind="contact"/>}/><Route path="/handoff-rules" element={<section><h1>包裹交接与退单规则</h1><p>未取件可说明原因后退回市场。已取件的包裹由当前配送员继续妥善保管，不得随意放置或交给身份未确认的人。</p><p>无法继续配送时，先标记配送异常，联系学生，并将包裹归还原取件站点；填写准确存放位置、包裹完整性和交接情况。另一位有权限的管理员核验实物后，才能退回接单市场或取消退款。</p><p>不得仅凭口头承诺点击核验。遗失、损坏、站点拒收或无法联系时，保持异常状态，联系负责该区域的管理员处理；未完成交接不得停用原配送账号。</p><p>核验记录只证明管理员作出了确认，不代表系统自动验证实物。当前资金操作为模拟，未发生真实扣款或退款。</p></section>}/><Route path="/privacy" element={<section><h1>资料用途</h1><p>姓名、联系电话及寝室资料用于校园配送联系与地址管理。你可以在个人页面移除当前寝室；修改前的地址与操作记录会保留用于业务追溯。</p><p>目前为开发版本，尚未开放真实配送。正式运营前将补充数据保留期限、账号删除渠道及运营联系方式。测试请使用虚构资料。</p><p>本项目非青岛科技大学或菜鸟官方产品，不绑定菜鸟账号。</p><Link to="/register">返回注册</Link></section>} />
       <Route path="*" element={<section className="not-found"><p className="eyebrow">404 · 页面不存在</p><h1><BounceText text="这个地址没有找到内容" variant="wave"/></h1><p className="muted">链接可能已失效，或页面已经调整。</p><Link className="button" to="/">返回首页</Link><Suspense fallback={null}><ParcelGame title="迷路了？先玩一局接包裹"/></Suspense></section>} /></Routes></Suspense></PageErrorBoundary></main>
-    <nav className={admin?'mobile-tabs hidden':'mobile-tabs'} aria-label="学生导航">{([['/','box','我的包裹'],['/orders','order','配送订单'],['/profile','room','我的寝室'],['/messages','chat','消息']] as const).map(([to,icon,label])=><NavLink key={to} to={to} end={to==='/'}><SymbolIcon name={icon}/><span>{label}</span></NavLink>)}</nav><footer>独立校园服务项目 · 非学校或菜鸟官方产品</footer></div><AmbientLayer enabled={!admin}/><Toaster/><NetworkStatus/><CommandPalette/>{!admin&&<Onboarding autoOpen={location.pathname==='/'}/>}</div>;
+    <nav className={admin?'mobile-tabs hidden':'mobile-tabs'} aria-label="学生导航">{([['/','box','包裹'],['/orders','order','订单'],['/messages','chat','消息'],['/tickets','ticket','售后'],['/profile','person','我的']] as const).map(([to,icon,label])=><NavLink key={to} to={to} end={to==='/'}><span className="tab-icon"><SymbolIcon name={icon}/>{to==='/messages'&&<UnreadDot count={unread}/>}</span><span>{label}</span></NavLink>)}</nav><footer>独立校园服务项目 · 非学校或菜鸟官方产品<span aria-hidden="true"> · </span><Link to="/admin/login">管理员入口</Link></footer></div><AmbientLayer enabled={!admin}/><Toaster/><NetworkStatus/><CommandPalette/>{!admin&&<Onboarding autoOpen={location.pathname==='/'}/>}</div>;
 }
 const cloudbaseStatic=typeof __CLOUDBASE_STATIC__!=='undefined'&&__CLOUDBASE_STATIC__;
 const Router=cloudbaseStatic?HashRouter:BrowserRouter;
+// Offline shell, asset cache and web push. Development builds skip it so hot reload is never served from a cache.
+if(import.meta.env.PROD&&'serviceWorker' in navigator)window.addEventListener('load',()=>{void navigator.serviceWorker.register('/sw.js').catch(()=>{});});
 createRoot(document.getElementById('root')!).render(<StrictMode><Router><StudentSessionProvider><App /></StudentSessionProvider></Router></StrictMode>);
