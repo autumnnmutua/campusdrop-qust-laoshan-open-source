@@ -1,0 +1,675 @@
+/* Layout: app shell, campus side rail, top bar, main column, footer and the mobile tab bar.
+   Navigation has one home per screen size: the rail on desktop (≥721px), the tab bar on phones. The top bar only
+   carries utilities (messages, search, ambience, admin entry). Each component keeps its breakpoints next to it. */
+
+/* ---------------------------------------------------------------- shell */
+.app-layout {
+  display: grid;
+  grid-template-columns: 248px minmax(0,1fr);
+  min-height: 100vh;
+  /* Fills the rail column below the sticky rail on long pages. */
+  background: var(--blue-800);
+}
+
+.app-workspace {
+  min-width: 0;
+  background: linear-gradient(var(--blue-50),var(--blue-75));
+}
+
+main {
+  width: calc(100% - 56px);
+  max-width: 1500px;
+  margin: 0 auto;
+  padding-top: 18px;
+  min-height: calc(100vh - 230px);
+}
+
+main:focus {
+  outline: none;
+}
+
+main>section {
+  max-width: 820px;
+  margin: 0 auto;
+}
+
+main>section.student-home,
+main>section.admin-section {
+  max-width: none;
+}
+
+footer {
+  text-align: center;
+  padding: 30px 20px;
+  color: #7d8ca3;
+  font-size: var(--text-xs);
+}
+
+footer a {
+  color: inherit;
+}
+
+footer a:hover {
+  color: var(--color-link);
+}
+
+.account-exit {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 12px;
+}
+
+.account-exit button {
+  font-size: var(--text-xs);
+}
+
+.skip-link {
+  position: fixed;
+  z-index: 100;
+  top: 8px;
+  left: 8px;
+  padding: 12px;
+  background: var(--white);
+}
+
+.skip-link:not(:focus) {
+  clip-path: inset(50%);
+  height: 1px;
+  width: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 0;
+}
+
+/* Route progress bar: hidden unless motion.css animates it. */
+.route-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0;
+  transform-origin: 0 50%;
+  background: linear-gradient(90deg,#57b0ff,var(--blue-500) 60%,#7c5cff);
+}
+
+@media (max-width: 1100px) {
+  .app-layout {
+    grid-template-columns: 224px minmax(0,1fr);
+  }
+
+  main {
+    width: calc(100% - 36px);
+  }
+}
+
+@media (max-width: 720px) {
+  .app-layout {
+    display: block;
+    /* The navy fill only exists for the desktop rail. */
+    background: transparent;
+  }
+
+  .app-workspace {
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  main {
+    width: calc(100% - 24px);
+    padding-top: 12px;
+    margin: auto;
+    min-height: 65vh;
+  }
+
+  footer {
+    padding: 26px 15px;
+  }
+
+  .account-exit {
+    margin-bottom: 8px;
+  }
+
+  .account-exit button {
+    min-height: 34px;
+    padding: 4px 7px;
+  }
+}
+
+/* ---------------------------------------------------------------- top bar */
+.topbar {
+  height: 64px;
+  padding: 12px 34px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--blue-100);
+  background: #ffffffad;
+}
+
+.brand {
+  font-family: var(--font-brush);
+  font-size: 21px;
+  font-weight: 750;
+  letter-spacing: 1px;
+  text-decoration: none;
+  color: #244d86;
+}
+
+.brand span {
+  display: block;
+  font-family: var(--font-sans);
+  font-weight: 400;
+  letter-spacing: .5px;
+  font-size: var(--text-xs);
+  color: #7688a1;
+}
+
+.topbar nav {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-left: auto;
+  font-size: var(--text-sm);
+}
+
+.topbar nav a {
+  position: relative;
+  padding: 8px 2px;
+  color: #4f6b90;
+  font-weight: 550;
+  text-decoration: none;
+}
+
+.topbar nav a:hover {
+  color: #1660c4;
+}
+
+.topbar nav a.active {
+  color: var(--blue-500);
+  font-weight: 700;
+}
+
+.topbar nav a::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 1px;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  transform: scaleX(0);
+}
+
+.topbar nav a.active::after {
+  transform: scaleX(1);
+}
+
+.topbar nav a.topbar-admin {
+  padding: 6px 14px;
+  border: 1px solid var(--blue-200);
+  border-radius: var(--radius-pill);
+  background: var(--blue-50);
+  color: #245ea8;
+}
+
+.topbar nav a.topbar-admin::after {
+  display: none;
+}
+
+.topbar nav a.topbar-admin:hover {
+  background: var(--blue-100);
+  border-color: var(--blue-300);
+}
+
+/* Sticky and frosted wherever there is room, with a separator once the page is scrolled. */
+@media (min-width: 721px) {
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: #ffffffd6;
+    -webkit-backdrop-filter: saturate(1.4) blur(10px);
+    backdrop-filter: saturate(1.4) blur(10px);
+    border-bottom-color: transparent;
+  }
+
+  body.is-scrolled .topbar {
+    border-bottom-color: var(--blue-150);
+    box-shadow: 0 6px 24px #1f4d8a12;
+  }
+
+  /* The rail already shows the school name right next to it. */
+  .topbar .brand {
+    display: none;
+  }
+}
+
+@media (min-width: 1650px) {
+  .topbar {
+    padding-left: 44px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .topbar nav {
+    gap: 12px;
+  }
+}
+
+/* Phones: brand on the left, icon utilities on the right; messages and the admin entry move to the tab bar / footer. */
+@media (max-width: 720px) {
+  .topbar {
+    height: 64px;
+    padding: 10px 16px;
+  }
+
+  .topbar nav {
+    gap: 8px;
+  }
+
+  .topbar nav a.topbar-messages,
+  .topbar nav a.topbar-admin {
+    display: none;
+  }
+}
+
+/* ---------------------------------------------------------------- campus rail (desktop navigation) */
+.campus-rail {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 640px;
+  min-width: 0;
+  padding: 24px 18px 0;
+  background: linear-gradient(165deg,#245f9f 0%,var(--navy-700) 62%,var(--navy-800) 100%);
+  color: var(--white);
+  box-shadow: 4px 0 20px #123c6910;
+  overflow: auto;
+}
+
+.rail-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 0 0 18px;
+  border-bottom: 1px solid #ffffff21;
+  color: var(--white);
+  text-decoration: none;
+}
+
+.rail-brand:hover {
+  color: var(--white);
+}
+
+.brand-emblem {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 43px;
+  height: 47px;
+  border: 1px solid #b7d9ff75;
+  border-radius: 12px 12px 17px 17px;
+  background: linear-gradient(145deg,#ffffff20,#ffffff05);
+  font-size: var(--text-xs);
+  font-weight: 800;
+  letter-spacing: .4px;
+}
+
+.rail-brand-copy {
+  min-width: 0;
+}
+
+.rail-brand-copy strong {
+  display: block;
+  white-space: nowrap;
+  font-family: var(--font-brush);
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.rail-brand-copy small {
+  margin-top: 3px;
+  color: #bcd7f1;
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  letter-spacing: 1px;
+}
+
+.rail-campus {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  color: var(--blue-200);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.rail-campus>span:last-child {
+  margin-left: auto;
+  color: #9fbee2;
+}
+
+.campus-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #76c0ff;
+  box-shadow: 0 0 0 3px #76c0ff18;
+}
+
+.rail-label {
+  margin: 20px 12px 8px;
+  color: #89acd5;
+  font-size: var(--text-xs);
+  letter-spacing: 2px;
+}
+
+.campus-rail nav {
+  display: grid;
+  gap: 4px;
+}
+
+.campus-rail nav a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 42px;
+  padding: 10px 14px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--blue-200);
+  font-size: var(--text-base);
+  line-height: 1.4;
+  text-decoration: none;
+}
+
+.campus-rail nav a>.symbol-icon {
+  width: 20px;
+  height: 20px;
+  opacity: .9;
+}
+
+.campus-rail nav a>b {
+  margin-left: auto;
+  font-size: var(--text-xl);
+  font-weight: 400;
+  opacity: 0;
+}
+
+.campus-rail nav a .unread-dot {
+  margin-left: 0;
+}
+
+.campus-rail nav a:hover {
+  background: #ffffff10;
+  border-color: #ffffff12;
+  color: var(--white);
+}
+
+.campus-rail nav a.active {
+  background: linear-gradient(110deg,var(--white),var(--blue-75));
+  color: #165aab;
+  box-shadow: 0 4px 14px #06285530;
+  font-weight: 700;
+}
+
+.campus-rail nav a.active>b {
+  opacity: 1;
+}
+
+/* The active highlight is a separate layer that slides between links (see useRailIndicator). */
+.campus-rail nav.has-indicator {
+  position: relative;
+}
+
+.campus-rail nav.has-indicator>a {
+  position: relative;
+  z-index: 1;
+}
+
+.campus-rail nav.has-indicator>a.active {
+  background: transparent;
+  box-shadow: none;
+}
+
+.rail-indicator {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: var(--rail-h,42px);
+  transform: translateY(var(--rail-y,0));
+  opacity: var(--rail-o,0);
+  border-radius: var(--radius-md);
+  background: linear-gradient(110deg,var(--white),var(--blue-75));
+  box-shadow: 0 4px 14px #06285530;
+  pointer-events: none;
+}
+
+.rail-bottom {
+  margin-top: auto;
+  padding-top: 20px;
+}
+
+.rail-admin {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 11px;
+  border-top: 1px solid #ffffff20;
+  color: var(--blue-300);
+  font-size: var(--text-xs);
+  text-decoration: none;
+}
+
+.rail-admin .symbol-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.rail-admin>span {
+  margin-left: auto;
+}
+
+.rail-admin:hover {
+  color: var(--white);
+  background: #ffffff08;
+}
+
+.rail-landscape {
+  position: relative;
+  isolation: isolate;
+  min-height: 128px;
+  margin: 0 -18px;
+  padding: 18px 27px 16px;
+  background: linear-gradient(180deg,#17477ff2,#164b86ba),url('/images/qust-laoshan.jpg') 67% 73%/cover;
+}
+
+/* WebP landscape with the JPEG above as fallback for browsers without image-set() type hints. */
+@supports (background-image: image-set(url('/images/qust-laoshan-960.webp') type('image/webp'))) {
+  .rail-landscape {
+    background-image: linear-gradient(180deg,#17477ff2,#164b86ba),image-set(url('/images/qust-laoshan-960.webp') type('image/webp'),url('/images/qust-laoshan.jpg') type('image/jpeg'));
+  }
+}
+
+.rail-landscape p {
+  margin: 0;
+  color: var(--blue-150);
+  font-family: var(--font-brush);
+  font-size: var(--text-xl);
+  line-height: 1.8;
+}
+
+.rail-landscape strong {
+  font-size: var(--text-2xl);
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.rail-landscape>span {
+  display: block;
+  margin-top: 10px;
+  color: #9dbbdf;
+  font-size: var(--text-xs);
+  letter-spacing: 1.7px;
+}
+
+.rail-disclosure {
+  margin: 0 -18px;
+  padding: 12px 7px;
+  background: var(--navy-800);
+  color: #94b2d5;
+  font-size: var(--text-xs);
+  text-align: center;
+}
+
+@media (max-width: 1100px) {
+  .campus-rail {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .rail-brand {
+    gap: 9px;
+  }
+
+  .brand-emblem {
+    width: 36px;
+    height: 42px;
+  }
+
+  .rail-brand-copy strong {
+    font-size: 21px;
+    letter-spacing: 0;
+  }
+
+  .rail-landscape,
+  .rail-disclosure {
+    margin-left: -14px;
+    margin-right: -14px;
+  }
+
+  .rail-landscape {
+    padding-left: 25px;
+  }
+}
+
+/* Short windows: tighten the list and drop the decorative landscape so every link stays visible. */
+@media (max-height: 860px) and (min-width: 721px) {
+  .campus-rail {
+    min-height: 0;
+    padding-top: 18px;
+  }
+
+  .rail-brand {
+    padding-bottom: 14px;
+  }
+
+  .rail-label {
+    margin-top: 14px;
+  }
+
+  .campus-rail nav {
+    gap: 2px;
+  }
+
+  .campus-rail nav a {
+    min-height: 38px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .rail-landscape {
+    display: none;
+  }
+
+  .rail-bottom {
+    padding-top: 12px;
+  }
+}
+
+@media (max-width: 720px) {
+  .campus-rail {
+    display: none;
+  }
+}
+
+/* ---------------------------------------------------------------- mobile tab bar */
+.mobile-tabs {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .mobile-tabs:not(.hidden) {
+    position: fixed;
+    z-index: 10;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-around;
+    gap: 4px;
+    padding: 8px 4px max(8px,env(safe-area-inset-bottom));
+    border-top: 1px solid var(--blue-150);
+    background: #fffffff2;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 -4px 20px #1f549010;
+  }
+
+  .mobile-tabs a {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    min-width: 0;
+    padding: 6px 4px;
+    border-radius: var(--radius-md);
+    color: var(--ink-500);
+    font-size: var(--text-xs);
+    line-height: 1.3;
+    text-decoration: none;
+  }
+
+  .mobile-tabs a.active {
+    background: var(--blue-100);
+    color: var(--blue-600);
+    font-weight: 700;
+  }
+
+  .mobile-tabs .tab-icon {
+    position: relative;
+    display: block;
+  }
+
+  .mobile-tabs .symbol-icon {
+    width: 22px;
+    height: 22px;
+  }
+
+  .mobile-tabs a.active .symbol-icon {
+    color: #1f6fe0;
+  }
+
+  .mobile-tabs .unread-dot {
+    position: absolute;
+    top: -4px;
+    left: 14px;
+    margin: 0;
+  }
+
+  body.student-view {
+    padding-bottom: 84px;
+  }
+}

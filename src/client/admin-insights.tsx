@@ -1,3 +1,4 @@
+import './zod-config';
 import {useId,useState,type FormEvent} from 'react';
 import {downloadText,toCsv} from './csv';
 import {Link} from 'react-router-dom';
@@ -7,7 +8,8 @@ import {api} from './api';
 import {toast} from './effects';
 import {useResource} from './student-delivery';
 import {StalledOrders} from './admin-alerts';
-import {STATUS_LABELS,type OrderStatus} from '../shared/delivery';
+import {STATUS_LABELS} from '../shared/constants';
+import type {OrderStatus} from '../shared/delivery';
 import {ANNOUNCEMENT_LEVEL_LABELS,announcementCreate,type Analytics,type Announcement,type AnnouncementLevel} from '../shared/engagement';
 import type {Admin} from '../shared/contracts';
 

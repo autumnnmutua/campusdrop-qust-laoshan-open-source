@@ -1,7 +1,7 @@
 import {Link,useParams} from 'react-router-dom';
 import {LoadingState} from './components';
 import {money,Notice,useStudentResource,type Details} from './student-delivery';
-import {STATUS_LABELS} from '../shared/delivery';
+import {STATUS_LABELS} from '../shared/constants';
 
 const PAYMENT_LABELS={DELIVERY:'配送费',UPGRADE:'升级到寝补款',TIP:'感谢打赏',REFUND:'退款'} as const;
 const time=(t:number)=>new Date(t*1000).toLocaleString('zh-CN',{hour12:false});

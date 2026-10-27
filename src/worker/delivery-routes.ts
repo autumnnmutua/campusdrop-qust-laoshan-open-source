@@ -15,6 +15,7 @@ import { bulkPickup,adminOrder,adminTasks,batchOrders,batchTransition,changeStat
 import { noteUpdateSchema,orderActionSchema } from '../shared/delivery';
 import { availableOrders,claimOrder,updateOrderNote,upgradeOrder,deleteStudentOrder } from './order-self-service';
 import { rateLimit } from './rate-limit';
+import { handoffCodeFor } from './live-delivery';
 export async function deliveryRoutes(request:Request,env:Env):Promise<Response|null> {
   const path=new URL(request.url).pathname.replace('/api/v1','');const method=request.method;
   if(path==='/quotes'&&method==='POST'){
@@ -36,7 +37,7 @@ export async function deliveryRoutes(request:Request,env:Env):Promise<Response|n
     const user=await requireStudent(request,env);
     if(path==='/orders'&&method==='POST'){
       await rateLimit(env,`order:${user.id}`,60);const data=await body(request,orderSchema);
-      return json({order:await createOrder(env,user,data.parcelId,data.deliveryMode)},201);
+      return json({order:await createOrder(env,user,data.parcelId,data.deliveryMode,data.slotDate&&data.slotCode?{date:data.slotDate,code:data.slotCode}:undefined)},201);
     }
     if(path==='/orders'&&method==='GET'){
       const parsed=listPageSchema.safeParse(Object.fromEntries(new URL(request.url).searchParams));if(!parsed.success)throw new ApiError(400,'INVALID_FILTER','分页条件不正确');
@@ -54,7 +55,7 @@ export async function deliveryRoutes(request:Request,env:Env):Promise<Response|n
       if(!action&&method==='DELETE'){const data=await body(request,orderActionSchema);return json(await deleteStudentOrder(env,user.id,id,data.version));}
       if(action==='note'&&method==='PATCH'){const data=await body(request,noteUpdateSchema);return json({order:await updateOrderNote(env,user.id,id,data.note,data.version)});}
       if(action==='upgrade'&&method==='POST'){const data=await body(request,orderActionSchema);return json({order:await upgradeOrder(env,user.id,id,data.version),message:'已按服务端报价模拟补付，未发生真实扣款'});}
-      if(!action&&method==='GET')return json(await orderDetails(env,await ownOrder(env,user.id,id)));
+      if(!action&&method==='GET'){const row=await ownOrder(env,user.id,id),details=await orderDetails(env,row);return json({...details,order:{...details.order,handoffCode:await handoffCodeFor(env,row)}});}
       if(action==='mock-pay'&&method==='POST'){
         await rateLimit(env,`payment:${user.id}`,60);
         return json({order:await new MockPaymentProvider().pay(env,user.id,id),message:MOCK_MESSAGE});

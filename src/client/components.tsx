@@ -4,12 +4,13 @@ import {SymbolIcon} from './campus-design';
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import type { Building } from '../shared/contracts';
-import { MOCK_MESSAGE, pickupCodeSchema, STATUS_LABELS, type DeliveryMode, type Order, type OrderEvent, type Parcel } from '../shared/delivery';
+import {MOCK_MESSAGE,STATUS_LABELS,pickupCodeRegex} from '../shared/constants';
+import type {DeliveryMode,Order,OrderEvent,Parcel} from '../shared/delivery';
 import { api } from './api';
 import { useCountUp } from './motion';
 import { toast } from './effects';
 
-const money = (fen: number) => `¥${(fen / 100).toFixed(2)}`;
+import { money } from './format';
 
 /** Replace this component's contents when approved campus imagery is available. */
 export function ImagePlaceholder({ label, compact = false }: { label: string; compact?: boolean }) {
@@ -17,7 +18,7 @@ export function ImagePlaceholder({ label, compact = false }: { label: string; co
 }
 
 export function PickupCodeInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  const id = useId(), invalid = value.length > 0 && !pickupCodeSchema.safeParse(value).success;
+  const id = useId(), invalid = value.length > 0 && !pickupCodeRegex.test(value.trim());
   return <div><label htmlFor={id}>取件码</label><input id={id} value={value} onChange={e => onChange(e.target.value)} placeholder="87-5-2739" required maxLength={20} autoComplete="off" spellCheck={false} aria-invalid={invalid} aria-describedby={`${id}-help`} className="code-input" />
     <small id={`${id}-help`}>第一段 1–3 位数字，第二段 1 位，最后一段 4 位。</small>{invalid && <p role="alert">取件码格式不正确，例如 107-2-6382</p>}</div>;
 }
@@ -32,7 +33,7 @@ export function DormSelector({ buildings, zone, building, room, onZone, onBuildi
 }
 
 export function DeliveryModeSelector({ value, onChange }: { value: DeliveryMode; onChange: (value: DeliveryMode) => void }) {
- return <ChoiceSelector label="配送方式" value={value} onChange={v=>onChange(v as DeliveryMode)} options={[{value:'DOWNSTAIRS',label:'楼下配送',icon:'person',hint:'至宿舍楼下'},{value:'ROOM',label:'送至寝室',icon:'room',hint:'至已保存的寝室'}]}/>;
+ return <ChoiceSelector label="配送方式" value={value} onChange={v=>onChange(v as DeliveryMode)} options={[{value:'DOWNSTAIRS',label:'楼下配送',icon:'person',hint:'宿舍楼下'},{value:'ROOM',label:'送至寝室',icon:'room',hint:'已存寝室'}]}/>;
 }
 /**
  * Card-style single choice. One accessible radio group (arrow keys, Home/End, roving tabindex) replaces the earlier

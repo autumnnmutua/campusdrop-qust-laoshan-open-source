@@ -12,10 +12,17 @@ import { authRateLimit, rateLimit } from './rate-limit';
 import { deleteAddress, readAddress, saveAddress } from './addresses';
 import { adminBuildings, createAdmin,updateAdminScopes } from './admin';
 import { deliveryRoutes } from './delivery-routes';
+import { fanOut, inboxWatermark, liveRoute } from './live';
+import { liveDeliveryRoutes } from './live-delivery';
+import { pushRoutes } from './push';
+import { accountRoutes, cleanupStatements } from './account';
+import { background, withBackground } from './background';
+export { LiveHub } from './live';
 
 async function route(request: Request, env: Env): Promise<Response> {
   const { pathname } = new URL(request.url);
   const method = request.method;
+  const live = await liveRoute(request, env); if (live) return live;
   checkOrigin(request, env);
   if (method === 'GET' && pathname === '/api/v1/health') return json({ service: 'CampusDrop', stage: 5 });
   if (method === 'GET' && pathname === '/api/v1/dorm-buildings') {
@@ -77,6 +84,7 @@ async function route(request: Request, env: Env): Promise<Response> {
     if (method === 'DELETE') { await deleteAddress(env, user.id); return json({ ok: true }); }
   }
   const recoveryResponse=await recoveryRoutes(request,env);if(recoveryResponse)return recoveryResponse;
+  for(const routes of [accountRoutes,pushRoutes,liveDeliveryRoutes]){const response=await routes(request,env);if(response)return response;}
   const engagementResponse=await engagementRoutes(request,env);if(engagementResponse)return engagementResponse;
   const serviceResponse=await serviceRoutes(request,env);if(serviceResponse)return serviceResponse;
   const deliveryResponse=await deliveryRoutes(request,env);
@@ -134,14 +142,19 @@ async function route(request: Request, env: Env): Promise<Response> {
   throw new ApiError(404, 'NOT_FOUND', '接口不存在');
 }
 export default {
- async scheduled(_event:ScheduledController,env:Env){await env.DB.batch([env.DB.prepare('DELETE FROM rate_limits WHERE expires_at<=unixepoch()'),env.DB.prepare('DELETE FROM recovery_tokens WHERE expires_at<=unixepoch() OR used_at IS NOT NULL'),env.DB.prepare('DELETE FROM error_events WHERE created_at<unixepoch()-604800')]);},
- async fetch(request:Request,env:Env):Promise<Response>{
+ async scheduled(_event:ScheduledController,env:Env){await env.DB.batch([env.DB.prepare('DELETE FROM rate_limits WHERE expires_at<=unixepoch()'),env.DB.prepare('DELETE FROM recovery_tokens WHERE expires_at<=unixepoch() OR used_at IS NOT NULL'),env.DB.prepare('DELETE FROM error_events WHERE created_at<unixepoch()-604800'),...cleanupStatements(env)]);},
+ fetch(request:Request,env:Env,ctx:ExecutionContext):Promise<Response>{return withBackground(ctx,()=>handle(request,env));}
+};
+async function handle(request:Request,env:Env):Promise<Response>{
   const requestId=crypto.randomUUID();let response:Response;
+  // Mutations may create inbox rows through triggers; remember where they start so the fan-out sends only those.
+  const mutating=!['GET','HEAD','OPTIONS'].includes(request.method),watermark=mutating?await inboxWatermark(env).catch(()=>null):null;
   try{response=await route(request,env);}catch(error){
    const expected=error instanceof ApiError?error:expectedConstraint(error);
    if(expected)response=json({error:{code:expected.code,message:expected.message,requestId}},expected.status,expected.status===429?{'Retry-After':'900'}:undefined);
    else{const category=classifyError(error),status=category==='DATABASE_TRANSIENT'?503:500;await recordError(env,request,requestId,category,status);response=json({error:{code:category,message:'服务暂时不可用，请刷新查询操作结果；请提供问题编号以便处理。',requestId}},status,status===503?{'Retry-After':'2'}:undefined);}
   }
+  if(response.status===101)return response;
+  if(watermark!==null&&response.ok)background(fanOut(env,watermark,!new URL(request.url).pathname.startsWith('/api/v1/admin/')));
   response.headers.set('X-Request-Id',requestId);return response;
- }
-};
+}

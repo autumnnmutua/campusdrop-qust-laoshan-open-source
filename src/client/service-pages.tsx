@@ -4,7 +4,7 @@ import {api} from './api';
 import {SignInPrompt,useStudentResource} from './student-delivery';
 import {ConfirmAction} from './components';
 import type {Order} from '../shared/delivery';
-import {STATUS_LABELS} from '../shared/delivery';
+import {STATUS_LABELS} from '../shared/constants';
 import type {Ticket,TicketMessage,InboxMessage} from '../shared/support';
 export {RoundHistory,MessageLink} from './service-links';
 /** 401 on a ticket page: students get the sign-in card, staff get a pointer to the admin login. */

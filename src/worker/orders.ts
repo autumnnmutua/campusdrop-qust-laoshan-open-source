@@ -5,10 +5,14 @@ import type { DeliveryMode, Order, OrderEvent, Payment, Station, DormSnapshot } 
 import { priceFen } from '../domain/commerce';
 import { ownParcel } from './parcels';
 import { readAddress } from './addresses';
+import { slotByCode, slotOpen, type SlotCode } from '../shared/slots';
+
+/** Four random digits from the CSPRNG; shown to the student, entered by the courier at the door. */
+const handoffCode = () => String(crypto.getRandomValues(new Uint32Array(1))[0] % 10000).padStart(4, '0');
 export interface OrderRow extends Omit<Order,'dormSnapshot'|'stationSnapshot'> {
   returnsJson:string;userId:string; dormJson:string; stationJson:string;
 }
-export const orderColumns=`EXISTS(SELECT 1 FROM batch_items WHERE order_id=o.id) AS hasAssignee,o.received_at AS receivedAt,(SELECT count(*) FROM order_releases WHERE order_id=o.id) AS returnCount,(SELECT json_group_array(json_object('version',r.order_version,'reason',r.reason,'createdAt',r.created_at,'adminName',COALESCE(a.username,'已移除管理员'))) FROM (SELECT * FROM order_releases WHERE order_id=o.id ORDER BY order_version) r LEFT JOIN admin_users a ON a.id=r.admin_id) AS returnsJson,o.custody_state AS custodyState,CASE WHEN o.package_size='LARGE' THEN 200 ELSE 100 END AS upgradeQuoteFen,(SELECT id FROM parcel_handoffs WHERE order_id=o.id AND status='PENDING' AND rejected=0) AS pendingHandoff,o.id,o.parcel_id AS parcelId,o.user_id AS userId,o.package_size AS packageSize,CASE WHEN o.delivery_upgrade_fen=100 THEN 'ROOM' ELSE o.delivery_mode END AS deliveryMode,
+export const orderColumns=`o.slot_date AS slotDate,o.slot_code AS slotCode,o.handoff_verified_at AS handoffVerifiedAt,(SELECT count(*) FROM order_messages m WHERE m.order_id=o.id AND m.sender_kind='ADMIN' AND m.read_at IS NULL) AS chatUnreadStudent,(SELECT count(*) FROM order_messages m WHERE m.order_id=o.id AND m.sender_kind='STUDENT' AND m.read_at IS NULL) AS chatUnreadCourier,EXISTS(SELECT 1 FROM batch_items WHERE order_id=o.id) AS hasAssignee,o.received_at AS receivedAt,(SELECT count(*) FROM order_releases WHERE order_id=o.id) AS returnCount,(SELECT json_group_array(json_object('version',r.order_version,'reason',r.reason,'createdAt',r.created_at,'adminName',COALESCE(a.username,'已移除管理员'))) FROM (SELECT * FROM order_releases WHERE order_id=o.id ORDER BY order_version) r LEFT JOIN admin_users a ON a.id=r.admin_id) AS returnsJson,o.custody_state AS custodyState,CASE WHEN o.package_size='LARGE' THEN 200 ELSE 100 END AS upgradeQuoteFen,(SELECT id FROM parcel_handoffs WHERE order_id=o.id AND status='PENDING' AND rejected=0) AS pendingHandoff,o.id,o.parcel_id AS parcelId,o.user_id AS userId,o.package_size AS packageSize,CASE WHEN o.delivery_upgrade_fen=100 THEN 'ROOM' ELSE o.delivery_mode END AS deliveryMode,
   o.amount_fen+o.delivery_upgrade_fen+o.upgrade_surcharge_fen AS amountFen,o.delivery_upgrade_fen+o.upgrade_surcharge_fen AS upgradeFen,o.order_note AS note,CASE WHEN o.status IN ('DELIVERED_DOWNSTAIRS','DELIVERED_TO_ROOM','COMPLETED') THEN 0 ELSE COALESCE((SELECT amount_fen FROM payments WHERE order_id=o.id AND type='DELIVERY'),0)+o.delivery_upgrade_fen+o.upgrade_surcharge_fen-COALESCE((SELECT amount_fen FROM order_adjustments WHERE order_id=o.id AND kind='REFUND'),0) END AS refundableFen,o.status,o.version,o.created_at AS createdAt,o.dorm_snapshot_json AS dormJson,o.station_snapshot_json AS stationJson,o.exception_code AS exceptionCode,o.exception_note AS exceptionNote,o.service_notice AS serviceNotice,
   (SELECT a.phone FROM batch_items bi JOIN delivery_batches b ON b.id=bi.batch_id JOIN admin_users a ON a.id=b.assignee_admin_id WHERE bi.order_id=o.id AND a.status='ACTIVE') AS assigneePhone`;
 export function serializeOrder(row:OrderRow):Order {
@@ -28,7 +32,8 @@ export async function orderDetails(env:Env,row:OrderRow) {
   ]);
   return {order:serializeOrder(row),events:events.results,payments:payments.results};
 }
-export async function createOrder(env:Env,user:Student,parcelId:string,mode:DeliveryMode):Promise<Order> {
+export async function createOrder(env:Env,user:Student,parcelId:string,mode:DeliveryMode,slot?:{date:string;code:SlotCode}):Promise<Order> {
+  if(slot&&!slotOpen(slot.date,slot.code,Math.floor(Date.now()/1000))) throw new ApiError(409,'SLOT_CLOSED','该时段已停止预约，请选择其他时段');
   const parcel=await ownParcel(env,user.id,parcelId);
   if(parcel.status!=='ACTIVE') throw new ApiError(409,'PARCEL_CLOSED','包裹已经结束');
   const address=await readAddress(env,user.id);
@@ -38,13 +43,20 @@ export async function createOrder(env:Env,user:Student,parcelId:string,mode:Deli
   if(!active||!station) throw new ApiError(409,'LOCATION_INACTIVE','宿舍楼或站点已停用，请更新资料');
   const id=crypto.randomUUID(), amount=priceFen(parcel.packageSize,mode);
   try {
+    // The slot capacity check sits in the same INSERT, so two students cannot both take the last place.
     const result=await env.DB.prepare(`INSERT INTO delivery_orders(id,parcel_id,user_id,campus_id,zone,dorm_building_code,station_code,package_size,delivery_mode,amount_fen,
-      price_snapshot_json,dorm_snapshot_json,station_snapshot_json,last_actor_type,last_actor_id,order_note)
-      SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,'STUDENT',?,? WHERE EXISTS(SELECT 1 FROM parcels WHERE id=? AND user_id=? AND status='ACTIVE')`)
+      price_snapshot_json,dorm_snapshot_json,station_snapshot_json,last_actor_type,last_actor_id,order_note,handoff_code,slot_date,slot_code)
+      SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,'STUDENT',?,?,?,?,? WHERE EXISTS(SELECT 1 FROM parcels WHERE id=? AND user_id=? AND status='ACTIVE')
+      AND (? IS NULL OR (SELECT count(*) FROM delivery_orders WHERE slot_date=? AND slot_code=? AND status<>'CANCELLED')<?)`)
       .bind(id,parcelId,user.id,CAMPUS_ID,address.zone,address.buildingCode,parcel.stationCode,parcel.packageSize,mode,amount,
         JSON.stringify({version:1,packageSize:parcel.packageSize,deliveryMode:mode,amountFen:amount}),
-        JSON.stringify({...address,name:user.name,phone:user.phone}),JSON.stringify(station),user.id,parcel.note,parcelId,user.id).run();
-    if(!result.meta.changes) throw new ApiError(409,'PARCEL_CLOSED','包裹状态已更新，请刷新');
+        JSON.stringify({...address,name:user.name,phone:user.phone}),JSON.stringify(station),user.id,parcel.note,handoffCode(),slot?.date??null,slot?.code??null,parcelId,user.id,
+        slot?.date??null,slot?.date??null,slot?.code??null,slot?slotByCode(slot.code).capacity:0).run();
+    if(!result.meta.changes){
+      const booked=slot?await env.DB.prepare("SELECT count(*) AS n FROM delivery_orders WHERE slot_date=? AND slot_code=? AND status<>'CANCELLED'").bind(slot.date,slot.code).first<number>('n'):0;
+      if(slot&&(booked??0)>=slotByCode(slot.code).capacity) throw new ApiError(409,'SLOT_FULL','这个时段刚刚约满了，请换一个时段，或选择尽快送达');
+      throw new ApiError(409,'PARCEL_CLOSED','包裹状态已更新，请刷新');
+    }
   }catch(error){
     if(String(error).includes('UNIQUE constraint')) throw new ApiError(409,'ORDER_EXISTS','这个包裹已有订单，请前往我的订单继续');
     throw error;

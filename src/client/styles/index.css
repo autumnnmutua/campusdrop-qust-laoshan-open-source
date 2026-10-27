@@ -1,0 +1,12 @@
+/* CampusDrop stylesheet entry. Order is the cascade: later files may refine earlier ones, never the other way round.
+   tokens → base → layout → components → pages → motion → feature layers (live delivery and map last). Vite inlines these imports at build time. */
+@import './tokens.css';
+@import './base.css';
+@import './layout.css';
+@import './components.css';
+@import './pages.css';
+@import './motion.css';
+@import './features-shell.css';
+@import './features-student.css';
+@import './features-admin.css';
+@import './features-live.css';

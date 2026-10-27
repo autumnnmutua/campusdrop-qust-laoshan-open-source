@@ -24,6 +24,12 @@
       "/api/*"
     ]
   },
+  // Realtime hub (one Durable Object per signed-in user). Durable Object bindings are not inherited, so each
+  // environment below repeats it. SQLite-backed classes are available on the Workers free plan.
+  "durable_objects": {
+    "bindings": [{ "name": "LIVE", "class_name": "LiveHub" }]
+  },
+  "migrations": [{ "tag": "v1-live-hub", "new_sqlite_classes": ["LiveHub"] }],
   "vars": {
     "APP_ENV": "development",
     "APP_ORIGIN": "http://127.0.0.1:5173"
@@ -52,6 +58,9 @@
         }
       ],
       "workers_dev": true,
+      "durable_objects": {
+        "bindings": [{ "name": "LIVE", "class_name": "LiveHub" }]
+      },
       "triggers": {
         "crons": [
           "17 3 * * *"
@@ -73,6 +82,9 @@
         }
       ],
       "workers_dev": true,
+      "durable_objects": {
+        "bindings": [{ "name": "LIVE", "class_name": "LiveHub" }]
+      },
       "triggers": {
         "crons": [
           "17 3 * * *"
