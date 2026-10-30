@@ -9,6 +9,7 @@ import { adminOrder,orderScope } from './order-access';
 import { nextStatuses } from '../domain/commerce';
 import { taskQuerySchema, type OrderStatus, type transitionSchema } from '../shared/delivery';
 import { orderColumns, serializeOrder, type OrderRow } from './orders';
+import { planRoute } from '../shared/campus-map';
 export { adminOrder,orderScope } from './order-access';
 export async function adminTasks(env:Env,admin:Admin,request:Request) {
   const parsed=taskQuerySchema.safeParse(Object.fromEntries(new URL(request.url).searchParams));
@@ -53,7 +54,21 @@ export async function changeStatus(env:Env,admin:Admin,id:string,data:z.infer<ty
   if(data.status==='CANCELLED')return releaseOrder(env,admin,id,data.version,data.exceptionNote||'配送员取消接单');
   const result=await transitionStatement(env,admin,row,data).all();
   if(!result.results.length) throw new ApiError(409,'STALE_ORDER','订单已更新，请刷新后重试');
+  if(row.groupId&&GROUP_STEPS.includes(data.status))await advanceGroup(env,admin,row,data.status);
   return serializeOrder(await adminOrder(env,admin,id));
+}
+/** Merged delivery: the regular steps of one trip move every parcel of the group in the same batch along. Exceptions stay per parcel. */
+const GROUP_STEPS:OrderStatus[]=['PICKED_UP','OUT_FOR_DELIVERY','DELIVERED_DOWNSTAIRS','DELIVERED_TO_ROOM'];
+async function advanceGroup(env:Env,admin:Admin,row:OrderRow,to:OrderStatus){
+  const siblings=(await env.DB.prepare(`SELECT s.id FROM delivery_orders s JOIN batch_items bi ON bi.order_id=s.id JOIN batch_items tb ON tb.order_id=? AND tb.batch_id=bi.batch_id
+    WHERE s.group_id=? AND s.id<>? AND s.status=? AND s.student_deleted=0`).bind(row.id,row.groupId,row.id,row.status).all<{id:string}>()).results;
+  for(const {id} of siblings){
+    try{
+      const sib=await adminOrder(env,admin,id);
+      const status:OrderStatus=to.startsWith('DELIVERED')?(sib.deliveryMode==='ROOM'?'DELIVERED_TO_ROOM':'DELIVERED_DOWNSTAIRS'):to;
+      await transitionStatement(env,admin,sib,{status,version:sib.version}).all();
+    }catch{/* a sibling that changed meanwhile (exception, hand-back) keeps its own state */}
+  }
 }
 export async function pickupCode(env:Env,admin:Admin,id:string,action:'VIEW'|'COPY') {
   const row=await adminOrder(env,admin,id);
@@ -81,10 +96,10 @@ export async function createBatch(env:Env,admin:Admin,ids:string[],assigneeId:st
   const assignee=await env.DB.prepare("SELECT id,username,role FROM admin_users WHERE id=? AND status='ACTIVE'").bind(assigneeId).first<Omit<Admin,'scopes'>>();
   if(!assignee) throw new ApiError(400,'INVALID_ASSIGNEE','配送负责人不存在或已停用');
   if(assignee.role!=='DELIVERY_STAFF') for(const row of rows) await adminOrder(env,{...assignee,scopes:[]},row.id);
-  rows.sort((a,b)=>{
-    const da=JSON.parse(a.dormJson),db=JSON.parse(b.dormJson);
-    return da.zone.localeCompare(db.zone)||da.buildingCode.localeCompare(db.buildingCode)||a.createdAt-b.createdAt||a.id.localeCompare(b.id);
-  });
+  // Walking order (一键排线): stops are visited along the campus roads from the station, so sort_order is the route.
+  const dest=(r:OrderRow)=>r.dropPlace??(JSON.parse(r.dormJson) as {buildingCode:string}).buildingCode;
+  const rank=new Map(planRoute(JSON.parse(rows[0].stationJson).code,rows.map(dest)).order.map((code,i)=>[code,i]));
+  rows.sort((a,b)=>(rank.get(dest(a))??99)-(rank.get(dest(b))??99)||a.createdAt-b.createdAt||a.id.localeCompare(b.id));
   const id=crypto.randomUUID();
   const creatorScope=orderScope(admin),assigneeScope=orderScope({...assignee,scopes:[]});
   const grant=assignee.role==='DELIVERY_STAFF'

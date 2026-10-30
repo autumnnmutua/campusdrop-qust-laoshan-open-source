@@ -128,11 +128,9 @@ function snapToRoad(p: Point): { edge: [string, string]; at: Point } {
   return best;
 }
 
-/** Walking route from a station to a dorm building along campus roads (Dijkstra over the small road graph). */
-export function campusRoute(stationCode: string, buildingCode: string): Point[] | null {
-  const from = placeById(stationCode), to = buildingByCode(buildingCode);
-  if (!from?.door || !to) return null;
-  const start = snapToRoad(from.door), end = snapToRoad(to.door);
+/** Shortest walk along campus roads between two doors (Dijkstra over the small road graph), door to door. */
+function walkBetween(fromDoor: Point, toDoor: Point): Point[] | null {
+  const start = snapToRoad(fromDoor), end = snapToRoad(toDoor);
   const points: Record<string, Point> = { ...NODES, FROM: start.at, TO: end.at };
   const adjacency = new Map<string, [string, number][]>();
   const link = (a: string, b: string) => {
@@ -157,25 +155,156 @@ export function campusRoute(stationCode: string, buildingCode: string): Point[] 
   if (!previous.has('TO')) return null;
   const nodes = ['TO'];
   while (nodes[0] !== 'FROM') nodes.unshift(previous.get(nodes[0])!);
-  const path = [center(from), from.door, ...nodes.map(n => points[n]), to.door, center(to)];
+  const path = [fromDoor, ...nodes.map(n => points[n]), toDoor];
   return path.filter((p, i) => i === 0 || dist(p, path[i - 1]) > 1);
+}
+
+/** Drop-off points a student may choose instead of their dorm (priced as downstairs). */
+export const DROP_PLACES = ['LIBRARY', 'SOUTH_CANTEEN', 'NORTH_CANTEEN', 'STADIUM', 'SOUTH_GATE', 'WEST_GATE', 'EAST_GATE'] as const;
+export type DropPlace = typeof DROP_PLACES[number];
+export const DROP_PLACE_LABELS: Record<DropPlace, string> = {
+  LIBRARY: '图书馆门口', SOUTH_CANTEEN: '南苑餐厅门口', NORTH_CANTEEN: '北苑餐厅门口', STADIUM: '体育场入口',
+  SOUTH_GATE: '南门', WEST_GATE: '西门', EAST_GATE: '东门',
+};
+/** Where a destination code (dorm building or drop-off place) is on the plan: its door and its centre. */
+function destination(code: string): { door: Point; centre: Point } | null {
+  const b = buildingByCode(code);
+  if (b) return { door: b.door, centre: center(b) };
+  const p = placeById(code);
+  if (p && (DROP_PLACES as readonly string[]).includes(code)) return { door: p.door ?? center(p), centre: center(p) };
+  return null;
+}
+export const hasLocation = (code: string) => destination(code) !== null;
+
+/** Walking route from a station to a dorm building or drop-off place, centre to centre. Null when not on the plan. */
+export function campusRoute(stationCode: string, destinationCode: string): Point[] | null {
+  const from = placeById(stationCode), to = destination(destinationCode);
+  if (!from?.door || !to) return null;
+  const walk = walkBetween(from.door, to.door);
+  if (!walk) return null;
+  const path = [center(from), ...walk, to.centre];
+  return path.filter((p, i) => i === 0 || dist(p, path[i - 1]) > 1);
+}
+
+export interface RoutePlan {
+  /** Destination codes in walking order. */
+  order: string[];
+  /** One leg per stop: metres and minutes from the previous stop (the station for the first). */
+  legs: { code: string; meters: number; minutes: number }[];
+  totalMeters: number;
+  totalMinutes: number;
+  /** Codes that are not on the plan (no hotspot); they go last in their original order. */
+  unplaced: string[];
+}
+const metersOf = (path: Point[]) => pathLength(path) * METERS_PER_UNIT;
+/**
+ * Visiting order for a delivery run: nearest stop first, then a 2-opt pass to remove crossings. With at most a couple
+ * of dozen stops this is instant and close to optimal; it is a walking estimate, not a promise.
+ */
+export function planRoute(stationCode: string, codes: string[]): RoutePlan {
+  const unique = [...new Set(codes)], placed = unique.filter(hasLocation), unplaced = unique.filter(c => !hasLocation(c));
+  const station = placeById(stationCode);
+  if (!station?.door || !placed.length) return { order: [...placed, ...unplaced], legs: [], totalMeters: 0, totalMinutes: 0, unplaced };
+  const doors: Record<string, Point> = { START: station.door };
+  for (const c of placed) doors[c] = destination(c)!.door;
+  const cache = new Map<string, number>();
+  const cost = (a: string, b: string) => {
+    const key = a < b ? `${a}|${b}` : `${b}|${a}`;
+    if (!cache.has(key)) { const w = walkBetween(doors[a], doors[b]); cache.set(key, w ? metersOf(w) : dist(doors[a], doors[b]) * METERS_PER_UNIT * 1.4); }
+    return cache.get(key)!;
+  };
+  // Nearest neighbour from the station.
+  const order: string[] = [], left = new Set(placed);
+  let at = 'START';
+  while (left.size) {
+    const next = [...left].reduce((a, b) => (cost(at, a) <= cost(at, b) ? a : b));
+    order.push(next); left.delete(next); at = next;
+  }
+  // 2-opt on the open path START → order[0] → … → order[n-1].
+  const length = (seq: string[]) => seq.reduce((sum, c, i) => sum + cost(i ? seq[i - 1] : 'START', c), 0);
+  let improved = order.length > 2;
+  for (let round = 0; improved && round < 20; round++) {
+    improved = false;
+    for (let i = 0; i < order.length - 1; i++) for (let j = i + 1; j < order.length; j++) {
+      const candidate = [...order.slice(0, i), ...order.slice(i, j + 1).reverse(), ...order.slice(j + 1)];
+      if (length(candidate) + 0.5 < length(order)) { order.splice(0, order.length, ...candidate); improved = true; }
+    }
+  }
+  const legs = order.map((code, i) => { const meters = cost(i ? order[i - 1] : 'START', code); return { code, meters: Math.round(meters / 10) * 10, minutes: Math.max(1, Math.round(meters / WALK_SPEED / 60)) }; });
+  const totalMeters = legs.reduce((s, l) => s + l.meters, 0);
+  return { order: [...order, ...unplaced], legs, totalMeters, totalMinutes: Math.round(legs.reduce((s, l) => s + l.meters, 0) / WALK_SPEED / 60) + legs.length * 2, unplaced };
 }
 export function routeMinutes(path: Point[]): number {
   return Math.max(3, Math.round((pathLength(path) * METERS_PER_UNIT) / WALK_SPEED / 60) + 2);
 }
 export const routeMeters = (path: Point[]) => Math.round((pathLength(path) * METERS_PER_UNIT) / 10) * 10;
 
-/** Two GPS fixes at two map landmarks. Positions are projected per axis, which suits a north-up campus plan. */
-export interface Calibration { a: Point & { lat: number; lng: number }; b: Point & { lat: number; lng: number } }
+/**
+ * GPS → plan calibration. Two fixes at two landmarks project each axis separately (the original v2.6 method, which
+ * assumes the plan is drawn north-up). Three to five fixes fit a full affine transform by least squares, which also
+ * absorbs a rotated or skewed plan, and report how far each landmark lands from where it should (the residual).
+ */
+export type CalibrationPoint = Point & { lat: number; lng: number; landmark?: string };
+export interface Calibration { a?: CalibrationPoint; b?: CalibrationPoint; points?: CalibrationPoint[]; affine?: number[]; residualMeters?: number }
+const pointsOf = (c: Calibration): CalibrationPoint[] => c.points ?? [c.a, c.b].filter((p): p is CalibrationPoint => !!p);
+function solve3(m: number[][], v: number[]): number[] | null {
+  // Cramer's rule for a 3×3 system.
+  const det = (a: number[][]) => a[0][0] * (a[1][1] * a[2][2] - a[1][2] * a[2][1]) - a[0][1] * (a[1][0] * a[2][2] - a[1][2] * a[2][0]) + a[0][2] * (a[1][0] * a[2][1] - a[1][1] * a[2][0]);
+  const d = det(m);
+  if (Math.abs(d) < 1e-18) return null;
+  return [0, 1, 2].map(col => det(m.map((row, r) => row.map((x, c) => (c === col ? v[r] : x)))) / d);
+}
+/** Least-squares affine fit [ax, bx, cx, ay, by, cy]: x = ax·lng + bx·lat + cx, y = ay·lng + by·lat + cy. */
+export function fitAffine(points: CalibrationPoint[]): number[] | null {
+  if (points.length < 3) return null;
+  // Centre the coordinates so the normal equations stay well conditioned at campus scale (~0.01°).
+  const lng0 = points.reduce((s, p) => s + p.lng, 0) / points.length, lat0 = points.reduce((s, p) => s + p.lat, 0) / points.length;
+  const rows = points.map(p => [(p.lng - lng0) * 1e4, (p.lat - lat0) * 1e4, 1]);
+  const ata = [0, 1, 2].map(i => [0, 1, 2].map(j => rows.reduce((s, r) => s + r[i] * r[j], 0)));
+  const fx = solve3(ata, [0, 1, 2].map(i => rows.reduce((s, r, k) => s + r[i] * points[k].x, 0)));
+  const fy = solve3(ata, [0, 1, 2].map(i => rows.reduce((s, r, k) => s + r[i] * points[k].y, 0)));
+  if (!fx || !fy) return null;
+  // Back to raw degrees.
+  const ax = fx[0] * 1e4, bx = fx[1] * 1e4, ay = fy[0] * 1e4, by = fy[1] * 1e4;
+  return [ax, bx, fx[2] - ax * lng0 - bx * lat0, ay, by, fy[2] - ay * lng0 - by * lat0];
+}
+function rawProject(c: Calibration, lat: number, lng: number): Point | null {
+  if (c.affine?.length === 6) { const [ax, bx, cx, ay, by, cy] = c.affine; return { x: ax * lng + bx * lat + cx, y: ay * lng + by * lat + cy }; }
+  const [a, b] = pointsOf(c);
+  if (!a || !b) return null;
+  return { x: a.x + ((lng - a.lng) * (b.x - a.x)) / (b.lng - a.lng), y: a.y + ((lat - a.lat) * (b.y - a.y)) / (b.lat - a.lat) };
+}
+/** Builds a stored calibration from 2–5 landmark fixes, or explains why it cannot be used. */
+export function buildCalibration(points: CalibrationPoint[]): { calibration: Calibration } | { error: string } {
+  if (points.length === 2) {
+    const [a, b] = points, c: Calibration = { a, b };
+    return calibrationUsable(c) ? { calibration: c } : { error: '两个地标相距太近或方向一致，请选择地图上横向和纵向都相隔较远的两个地标' };
+  }
+  const xs = points.map(p => p.x), ys = points.map(p => p.y);
+  if (Math.max(...xs) - Math.min(...xs) < 160 || Math.max(...ys) - Math.min(...ys) < 160) return { error: '地标分布太集中，请选择东西、南北都相距较远的地标' };
+  const affine = fitAffine(points);
+  if (!affine) return { error: '这几个地标几乎在一条直线上，请换一个不在同一直线上的地标' };
+  const residuals = points.map(p => { const q = rawProject({ affine }, p.lat, p.lng)!; return dist(p, q) * METERS_PER_UNIT; });
+  const residualMeters = Math.round(Math.max(...residuals));
+  if (residualMeters > 60) return { error: `定位误差约 ${residualMeters} 米，偏大。请在开阔处重新记录，或检查是否选错了地标` };
+  return { calibration: { points, affine, residualMeters } };
+}
 export function calibrationUsable(c: Calibration): boolean {
-  return Math.abs(c.a.lat - c.b.lat) > 0.0004 && Math.abs(c.a.lng - c.b.lng) > 0.0004 && Math.abs(c.a.x - c.b.x) > 160 && Math.abs(c.a.y - c.b.y) > 160;
+  if (c.affine?.length === 6) return c.affine.every(Number.isFinite);
+  const [a, b] = pointsOf(c);
+  return !!a && !!b && Math.abs(a.lat - b.lat) > 0.0004 && Math.abs(a.lng - b.lng) > 0.0004 && Math.abs(a.x - b.x) > 160 && Math.abs(a.y - b.y) > 160;
 }
 /** Map position for a GPS fix, or null when it falls well outside the campus plan. */
 export function projectGps(c: Calibration, lat: number, lng: number): Point | null {
   if (!calibrationUsable(c)) return null;
-  const x = c.a.x + ((lng - c.a.lng) * (c.b.x - c.a.x)) / (c.b.lng - c.a.lng);
-  const y = c.a.y + ((lat - c.a.lat) * (c.b.y - c.a.y)) / (c.b.lat - c.a.lat);
+  const p = rawProject(c, lat, lng);
+  if (!p) return null;
   const margin = 0.12;
-  if (x < -MAP_WIDTH * margin || x > MAP_WIDTH * (1 + margin) || y < -MAP_HEIGHT * margin || y > MAP_HEIGHT * (1 + margin)) return null;
-  return { x: Math.round(Math.min(MAP_WIDTH, Math.max(0, x))), y: Math.round(Math.min(MAP_HEIGHT, Math.max(0, y))) };
+  if (p.x < -MAP_WIDTH * margin || p.x > MAP_WIDTH * (1 + margin) || p.y < -MAP_HEIGHT * margin || p.y > MAP_HEIGHT * (1 + margin)) return null;
+  return { x: Math.round(Math.min(MAP_WIDTH, Math.max(0, p.x))), y: Math.round(Math.min(MAP_HEIGHT, Math.max(0, p.y))) };
+}
+/** Straight-line metres from a plan point to a destination's door (buildings and drop-off places). */
+export function metersToDestination(p: Point, code: string): number | null {
+  const d = destination(code);
+  return d ? Math.round(dist(p, d.door) * METERS_PER_UNIT) : null;
 }

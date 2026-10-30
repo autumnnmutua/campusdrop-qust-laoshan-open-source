@@ -12,11 +12,12 @@ const AMBIENT_KEY='campusdrop:ambient';
 const MODES=Object.keys(AMBIENT_LABELS) as AmbientMode[];
 /** Campus seasons in Qingdao: Dec–Feb snow, Mar–May cherry blossom, Jun–Aug summer light, Sep–Nov falling leaves. */
 export function seasonScene(date=new Date()):Scene{const m=date.getMonth()+1;return m===12||m<=2?'snow':m<=5?'sakura':m<=8?'bokeh':'leaves';}
-function readMode():AmbientMode{const v=getItem(AMBIENT_KEY);return MODES.includes(v as AmbientMode)?v as AmbientMode:'auto';}
-let ambientMode:AmbientMode=typeof window==='undefined'?'auto':readMode();
+/** v2.8: particles are off until the student turns them on in 氛围 (the chart is the page's only decoration). */
+function readMode():AmbientMode{const v=getItem(AMBIENT_KEY);return MODES.includes(v as AmbientMode)?v as AmbientMode:'off';}
+let ambientMode:AmbientMode=typeof window==='undefined'?'off':readMode();
 const ambientListeners=new Set<()=>void>();
 export function setAmbientMode(next:AmbientMode){ambientMode=next;setItem(AMBIENT_KEY,next);ambientListeners.forEach(l=>l());}
-export function useAmbientMode(){return useSyncExternalStore(l=>{ambientListeners.add(l);return()=>ambientListeners.delete(l);},()=>ambientMode,()=>'auto' as AmbientMode);}
+export function useAmbientMode(){return useSyncExternalStore(l=>{ambientListeners.add(l);return()=>ambientListeners.delete(l);},()=>ambientMode,()=>'off' as AmbientMode);}
 export function resolveScene(mode:AmbientMode):Scene|null{return mode==='off'?null:mode==='auto'?seasonScene():mode;}
 
 /* ------------------------------------------------------------------ sprites

@@ -15,7 +15,16 @@ import { deliveryRoutes } from './delivery-routes';
 import { fanOut, inboxWatermark, liveRoute } from './live';
 import { liveDeliveryRoutes } from './live-delivery';
 import { pushRoutes } from './push';
-import { accountRoutes, cleanupStatements } from './account';
+import { accountRoutes } from './account';
+import { orderExtraRoutes } from './order-extras';
+import { sendRoutes } from './send-service';
+import { operationsRoutes } from './operations';
+import { scheduled } from './jobs';
+import { groupRoutes } from './order-groups';
+import { ruleRoutes, runRules } from './rules';
+import { weatherRoutes } from './weather';
+import { punctualityRoutes } from './punctuality';
+import { publish } from './live';
 import { background, withBackground } from './background';
 export { LiveHub } from './live';
 
@@ -25,6 +34,8 @@ async function route(request: Request, env: Env): Promise<Response> {
   const live = await liveRoute(request, env); if (live) return live;
   checkOrigin(request, env);
   if (method === 'GET' && pathname === '/api/v1/health') return json({ service: 'CampusDrop', stage: 5 });
+  // Development only (compiled out of production builds): run the standing-rule step as if it were a given time.
+  if (import.meta.env.DEV && method === 'POST' && pathname === '/api/v1/__dev/rules') return json({ created: await runRules(env, Number(new URL(request.url).searchParams.get('at')) || undefined) });
   if (method === 'GET' && pathname === '/api/v1/dorm-buildings') {
     const rows = await env.DB.prepare('SELECT code, display_name AS displayName, zone FROM dorm_buildings WHERE campus_id = ? AND active = 1 ORDER BY zone DESC, sort_order').bind(CAMPUS_ID).all();
     return json({ buildings: rows.results });
@@ -63,7 +74,11 @@ async function route(request: Request, env: Env): Promise<Response> {
     return json({ ok: true }, 200, { 'Set-Cookie': await createSession(request, env, kind, account.id) });
   }
   if (method === 'POST' && ['/api/v1/auth/logout', '/api/v1/admin/auth/logout'].includes(pathname)) {
-    return json({ ok: true }, 200, { 'Set-Cookie': await revokeSession(request, env, pathname.includes('/admin/') ? 'admin' : 'student') });
+    const kind = pathname.includes('/admin/') ? 'admin' : 'student';
+    // Close this account's live sockets too, so a shared computer stops receiving its order events.
+    const actor = await (kind === 'admin' ? requireAdmin(request, env) : requireStudent(request, env)).catch(() => null);
+    if (actor) await publish(env, `${kind}:${actor.id}`, { type: 'bye' }).catch(() => {});
+    return json({ ok: true }, 200, { 'Set-Cookie': await revokeSession(request, env, kind) });
   }
   if (pathname === '/api/v1/me') {
     const user = await requireStudent(request, env);
@@ -84,7 +99,7 @@ async function route(request: Request, env: Env): Promise<Response> {
     if (method === 'DELETE') { await deleteAddress(env, user.id); return json({ ok: true }); }
   }
   const recoveryResponse=await recoveryRoutes(request,env);if(recoveryResponse)return recoveryResponse;
-  for(const routes of [accountRoutes,pushRoutes,liveDeliveryRoutes]){const response=await routes(request,env);if(response)return response;}
+  for(const routes of [accountRoutes,pushRoutes,liveDeliveryRoutes,orderExtraRoutes,sendRoutes,operationsRoutes,groupRoutes,ruleRoutes,weatherRoutes,punctualityRoutes]){const response=await routes(request,env);if(response)return response;}
   const engagementResponse=await engagementRoutes(request,env);if(engagementResponse)return engagementResponse;
   const serviceResponse=await serviceRoutes(request,env);if(serviceResponse)return serviceResponse;
   const deliveryResponse=await deliveryRoutes(request,env);
@@ -136,13 +151,14 @@ async function route(request: Request, env: Env): Promise<Response> {
         env.DB.prepare("INSERT INTO audit_logs(id, actor_type, actor_id, action, resource_id) VALUES (?, 'ADMIN', ?, 'ADMIN_DISABLED', ?)")
           .bind(crypto.randomUUID(), admin.id, id),
       ]);
+      await publish(env, `admin:${id}`, { type: 'bye' }).catch(() => {});
       return json({ ok: true });
     }
   }
   throw new ApiError(404, 'NOT_FOUND', '接口不存在');
 }
 export default {
- async scheduled(_event:ScheduledController,env:Env){await env.DB.batch([env.DB.prepare('DELETE FROM rate_limits WHERE expires_at<=unixepoch()'),env.DB.prepare('DELETE FROM recovery_tokens WHERE expires_at<=unixepoch() OR used_at IS NOT NULL'),env.DB.prepare('DELETE FROM error_events WHERE created_at<unixepoch()-604800'),...cleanupStatements(env)]);},
+ async scheduled(controller:ScheduledController,env:Env,ctx:ExecutionContext){await withBackground(ctx,()=>scheduled(controller,env));},
  fetch(request:Request,env:Env,ctx:ExecutionContext):Promise<Response>{return withBackground(ctx,()=>handle(request,env));}
 };
 async function handle(request:Request,env:Env):Promise<Response>{
@@ -152,7 +168,7 @@ async function handle(request:Request,env:Env):Promise<Response>{
   try{response=await route(request,env);}catch(error){
    const expected=error instanceof ApiError?error:expectedConstraint(error);
    if(expected)response=json({error:{code:expected.code,message:expected.message,requestId}},expected.status,expected.status===429?{'Retry-After':'900'}:undefined);
-   else{const category=classifyError(error),status=category==='DATABASE_TRANSIENT'?503:500;await recordError(env,request,requestId,category,status);response=json({error:{code:category,message:'服务暂时不可用，请刷新查询操作结果；请提供问题编号以便处理。',requestId}},status,status===503?{'Retry-After':'2'}:undefined);}
+   else{if(import.meta.env.DEV)console.error('DEV-UNHANDLED',String(error));const category=classifyError(error),status=category==='DATABASE_TRANSIENT'?503:500;await recordError(env,request,requestId,category,status);response=json({error:{code:category,message:'服务暂时不可用，请刷新查询操作结果；请提供问题编号以便处理。',requestId}},status,status===503?{'Retry-After':'2'}:undefined);}
   }
   if(response.status===101)return response;
   if(watermark!==null&&response.ok)background(fanOut(env,watermark,!new URL(request.url).pathname.startsWith('/api/v1/admin/')));

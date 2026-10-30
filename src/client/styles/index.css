@@ -1,5 +1,5 @@
 /* CampusDrop stylesheet entry. Order is the cascade: later files may refine earlier ones, never the other way round.
-   tokens → base → layout → components → pages → motion → feature layers (live delivery and map last). Vite inlines these imports at build time. */
+   tokens → base → layout → components → pages → motion → feature layers → chart (the sea chart and intro) → dark theme. Vite inlines these imports at build time. */
 @import './tokens.css';
 @import './base.css';
 @import './layout.css';
@@ -10,3 +10,10 @@
 @import './features-student.css';
 @import './features-admin.css';
 @import './features-live.css';
+@import './features-ops.css';
+@import './chart-pages.css';
+@import './v3.css';
+@import './chart.css';
+@import './ambient.css';
+@import './theme-dark-auto.css';
+@import './theme-dark.css';

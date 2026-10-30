@@ -29,8 +29,10 @@ function open(){
     if(message.data==='pong')return;
     try{const event=JSON.parse(String(message.data)) as LiveEvent;handlers.forEach(h=>h(event));}catch{/* not an event */}
   };
-  socket.onclose=()=>{
+  socket.onclose=event=>{
     window.clearInterval(pingTimer);socket=null;setConnected(false);
+    // 4001: the account signed out (here or on another tab) or was disabled — do not reconnect with a dead session.
+    if(event.code===4001){failures=MAX_FAILURES;return;}
     if(!opened)failures++;
     if(!users||!channel)return;
     // Back off 2 s, 4 s, 8 s… up to a minute; a socket that was up reconnects quickly after a network blip.

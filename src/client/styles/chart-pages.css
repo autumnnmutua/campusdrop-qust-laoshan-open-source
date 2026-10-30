@@ -1,0 +1,218 @@
+/* v2.8 page compositions and feature restyles, layered over the older feature files.
+   Rules here re-draw earlier components in the chart language: hairlines over boxes, ink over gradients,
+   magenta only for the route and the current step. */
+
+/* ================================================================ page frame */
+.page-head { display: grid; gap: var(--space-2); margin-bottom: var(--space-8); padding-bottom: var(--space-5); border-bottom: var(--hairline); }
+.page-head h1 { margin: 0; }
+.back-link, main>section>a:first-child:not(.button) { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-sm); color: var(--sounding); text-decoration: none; margin-bottom: var(--space-2); }
+.back-link:hover, main>section>a:first-child:not(.button):hover { color: var(--abyss); }
+.section-title { font-family: var(--font-display); font-weight: 500; font-size: var(--text-2xl); margin: var(--space-10) 0 var(--space-2); padding-top: var(--space-5); border-top: var(--hairline); }
+
+/* Reading-width pages: forms and short pages keep a comfortable measure. */
+main>section:not(.student-home):not(.admin-section):not(.order-page):not(.auth-page):not(.map-page):not(.report-page) { max-width: 880px; }
+
+/* ================================================================ order detail */
+.order-layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: var(--space-10); align-items: start; }
+.order-main { min-width: 0; }
+.order-main>*:first-child { margin-top: 0; }
+.order-aside { position: sticky; top: 88px; display: grid; gap: var(--space-4); align-content: start; }
+.order-aside>* { margin: 0; }
+
+/* The waybill: price on top, facts in a ruled grid, as on a parcel label. */
+.waybill { padding: var(--space-5); border: 1px solid var(--abyss); border-radius: var(--radius-sm); background: var(--paper); }
+.waybill .price { margin: 0 0 var(--space-4); font-size: var(--text-6xl); }
+.order-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin: 0; border-top: 1px solid var(--abyss); }
+.order-facts>div { padding: 10px 10px 10px 0; border: 0; border-bottom: var(--hairline); border-radius: 0; background: none; min-width: 0; }
+.order-facts>div:nth-child(even) { padding-left: 12px; border-left: var(--hairline); }
+.order-facts>div.wide { grid-column: 1 / -1; padding-left: 0; border-left: 0; }
+.order-facts>div:last-child { border-bottom: 0; }
+.order-facts dt { display: flex; align-items: center; gap: 4px; margin: 0; color: var(--sounding); font-size: var(--text-xs); font-weight: 500; }
+.order-facts dt .symbol-icon { width: 14px; height: 14px; color: var(--ink-400); }
+.order-facts dd { margin: 2px 0 0; color: var(--abyss); font-size: var(--text-sm); font-weight: 600; overflow-wrap: anywhere; }
+
+.order-links { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); padding: var(--space-3) 0; border-top: var(--hairline); border-bottom: var(--hairline); }
+.order-links a { padding: 0; border: 0; border-radius: 0; background: none; color: var(--sea); font-weight: 500; font-size: var(--text-sm); box-shadow: none; }
+.order-links a:hover { color: var(--abyss); text-decoration: underline; }
+.order-links .symbol-icon { width: 15px; height: 15px; }
+
+/* Handoff code: four figures to read out at the door, on a shallow-water card with paper flaps. */
+.handoff-code-card { margin: 0 0 var(--space-5); padding: var(--space-5) var(--space-6); border: 1px solid var(--color-line); border-radius: var(--radius-lg); background: linear-gradient(160deg, var(--chart), var(--shoal-soft)); color: var(--abyss); box-shadow: 0 12px 30px #0f283314; }
+.handoff-code-card.is-near { box-shadow: inset 4px 0 0 var(--route), 0 12px 30px #0f283314; }
+.handoff-code-head h2 { font-family: var(--font-sans); font-size: var(--text-base); font-weight: 600; }
+.handoff-code-head .text-button { color: var(--sea); }
+.handoff-code-head .text-button:not(:disabled):hover { color: var(--abyss); }
+.handoff-code-card .muted { color: var(--sounding); font-size: var(--text-sm); }
+.courier-code { border-radius: var(--radius-md); background: var(--paper); border-color: var(--abyss); }
+.code-boxes input { font: 450 28px/1 var(--font-figure); border-radius: var(--radius-sm); }
+
+.near-banner { margin: 0 0 var(--space-4); padding: 12px 16px; border: 0; border-left: 2px solid var(--route); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; background: var(--route-soft); }
+.near-banner strong { color: var(--route-strong); font-size: var(--text-base); }
+.near-pulse { width: 10px; height: 10px; background: var(--route); }
+.near-pulse::after { border-color: var(--route); border-width: 1px; }
+
+/* ETA and the live map */
+.order-live { margin: 0 0 var(--space-5); gap: 0; border: var(--hairline); border-radius: var(--radius-lg); background: var(--chart); overflow: hidden; }
+.eta-card { padding: var(--space-5) var(--space-6); border: 0; border-bottom: var(--hairline); border-radius: 0; background: none; }
+.eta-copy small { color: var(--sounding); font-weight: 500; font-size: var(--text-sm); }
+.eta-minutes { color: var(--abyss); gap: 6px; }
+.eta-minutes strong { font-family: var(--font-figure); font-weight: 450; font-size: 56px; line-height: 1; font-variant-numeric: lining-nums tabular-nums; }
+.eta-source { padding: 2px 10px; border: var(--hairline); background: none; font-weight: 500; color: var(--ink-600); }
+.eta-source.source-gps { border-color: var(--green-700); color: var(--green-700); }
+.order-live .campus-map svg { border: 0; border-radius: 0; }
+.order-live .campus-map figcaption { padding: 0 var(--space-4) var(--space-3); }
+.live-map-skeleton { border-radius: var(--radius-lg); background: var(--shoal-soft); animation: none; }
+
+/* The official campus plan is quieted into the chart palette; the route on it is the chart magenta. */
+.campus-map svg { border-radius: var(--radius-lg); border: var(--hairline); background: #eef1ef; box-shadow: none; }
+.map-plan { filter: saturate(.28) contrast(.84) brightness(1.16); }
+.route-glow { stroke: color-mix(in srgb, var(--route) 22%, transparent); }
+.route-line { stroke: var(--route); }
+.route-ants { stroke: #ffffffd0; }
+.route-start { fill: var(--paper); stroke: var(--abyss); }
+.route-end path { fill: var(--abyss); stroke: var(--paper); }
+.route-end circle { fill: var(--paper); }
+.map-place.kind-station > rect { fill: color-mix(in srgb, var(--abyss) 10%, transparent); stroke: var(--abyss); }
+.station-tag { fill: var(--paper); stroke: var(--abyss); }
+.map-place.kind-station text { fill: var(--abyss); }
+.station-pulse { fill: var(--abyss); }
+.map-building rect { fill: color-mix(in srgb, var(--abyss) calc(var(--heat, 0) * 50%), transparent); }
+.map-building.is-clickable:hover rect, .map-building.is-clickable:focus-visible rect { fill: color-mix(in srgb, var(--abyss) 14%, transparent); stroke: var(--abyss); }
+.map-building.is-target rect { fill: color-mix(in srgb, var(--route) 24%, transparent); stroke: var(--route); animation: none; }
+.load-badge circle { fill: var(--abyss); }
+.courier-dot { fill: var(--route); }
+.courier-halo { fill: color-mix(in srgb, var(--route) 22%, transparent); }
+.map-courier.source-estimate .courier-dot { fill: var(--amber-500); }
+.map-compass circle { fill: var(--paper); stroke: var(--contour-strong); }
+.map-compass path { fill: var(--abyss); }
+.map-pick { border-radius: var(--radius-lg); animation: none; }
+.map-minutes { color: var(--abyss); }
+.map-minutes strong { font-family: var(--font-figure); font-weight: 450; font-size: 48px; }
+.map-legend { border: var(--hairline); border-radius: var(--radius-sm); background: var(--chart); }
+.lg-station { background: var(--paper); border: 1.5px solid var(--abyss); }
+.lg-route { background: var(--route); }
+.lg-courier { background: var(--route); }
+
+/* Chat: ruled thread, ink for my messages. */
+.order-chat { margin: 0 0 var(--space-5); border-radius: var(--radius-lg); }
+.order-chat-toggle { background: var(--chart); color: var(--abyss); font-weight: 600; }
+.order-chat-toggle:not(:disabled):hover { background: var(--shoal-soft); color: var(--abyss); border-color: transparent; }
+.chat-list li p { border-radius: 12px; }
+.chat-list .theirs p { background: var(--shoal-soft); }
+.chat-list .mine p { background: var(--abyss); }
+.chat-phrases button { border-radius: var(--radius-pill); background: transparent; color: var(--abyss); border: 1px solid var(--color-line-strong); font-weight: 500; }
+.chat-phrases button:not(:disabled):hover { background: var(--shoal-soft); color: var(--abyss); border-color: var(--abyss); }
+
+.roommate-panel { padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg); }
+.roommate-panel summary { font-weight: 600; color: var(--abyss); }
+.share-link code { border-radius: var(--radius-sm); border: var(--hairline); background: var(--paper); }
+.delivery-photo img { border-radius: var(--radius-md); }
+
+/* ================================================================ slots and drop-off points */
+.slot-picker legend { font-size: var(--text-sm); font-weight: 600; color: var(--ink-700); }
+.slot-asap, .slot-card { border-color: var(--color-line-strong); border-radius: var(--radius-lg); background: var(--paper); }
+.slot-asap.selected, .slot-card.selected { border-color: var(--abyss); box-shadow: inset 0 0 0 1px var(--abyss); background: var(--chart); }
+.slot-asap:hover:not(:disabled), .slot-card:hover:not(:disabled) { transform: none; border-color: var(--ink-400); background: var(--shoal-soft); }
+.slot-asap:not(:disabled):hover, .slot-card:not(:disabled):hover { color: var(--abyss); }
+.slot-days { gap: 0; border-bottom: var(--hairline); }
+.slot-days button { min-width: 84px; padding: 8px 14px 10px; border: 0; border-radius: 0; background: none; color: var(--ink-600); position: relative; }
+.slot-days button:not(:disabled):hover { background: none; color: var(--abyss); border-color: transparent; }
+.slot-days button.active { background: none; color: var(--abyss); font-weight: 600; }
+.slot-days button.active::after { content: ""; position: absolute; left: 14px; right: 14px; bottom: -1px; height: 2px; background: var(--route); }
+.slot-days button.active small { color: var(--ink-600); }
+.slot-card strong { font-weight: 600; }
+.slot-meter { height: 2px; border-radius: 0; background: var(--color-line); }
+.slot-meter::after { background: var(--abyss); }
+.slot-summary { color: var(--abyss); }
+.drop-options [role=radio] { border-color: var(--color-line-strong); border-radius: var(--radius-lg); background: var(--paper); }
+.drop-options [role=radio]:not(:disabled):hover { background: var(--shoal-soft); color: var(--abyss); }
+.drop-options .selected { border-color: var(--abyss); background: var(--chart); box-shadow: inset 0 0 0 1px var(--abyss); }
+.segmented { border-radius: var(--radius-sm); background: var(--shoal-soft); }
+.segmented [role=radio] { border-radius: var(--radius-xs); }
+.segmented [role=radio]:not(:disabled):hover { background: color-mix(in srgb, var(--paper) 60%, transparent); color: var(--abyss); }
+.segmented [role=radio][aria-checked=true] { background: var(--paper); color: var(--abyss); box-shadow: 0 0 0 1px var(--color-line); }
+
+.pause-note { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; border-left: 2px solid var(--red-700); }
+.chip-tag { background: var(--shoal-soft); color: var(--abyss); }
+
+@media (max-width: 1060px) {
+  .order-layout { grid-template-columns: 1fr; gap: var(--space-6); }
+  .order-aside { position: static; }
+}
+@media (max-width: 720px) {
+  .page-head { margin-bottom: var(--space-5); }
+    .eta-minutes strong { font-size: 44px; }
+  .order-facts { grid-template-columns: 1fr 1fr; }
+}
+
+/* ================================================================ messages: a ruled log */
+.inbox-page .inbox-item { display: grid; grid-template-columns: 1fr auto; column-gap: var(--space-4); align-items: baseline; margin: 0; padding: var(--space-4) 0 var(--space-4) var(--space-5); border: 0; border-bottom: var(--hairline); border-radius: 0; background: none; position: relative; }
+.inbox-page .inbox-item:first-of-type { border-top: 1px solid var(--abyss); margin-top: var(--space-5); }
+.inbox-page .inbox-item strong { font-weight: 500; color: var(--ink-600); }
+.inbox-page .inbox-item.is-unread strong { font-weight: 600; color: var(--abyss); }
+.inbox-page .inbox-item.is-unread::before { content: ""; position: absolute; left: 4px; top: 25px; width: 7px; height: 7px; border-radius: 50%; background: var(--route); }
+.inbox-page .inbox-item p { grid-column: 1; margin: 2px 0 0; font-size: var(--text-xs); color: var(--sounding); font-variant-numeric: tabular-nums; }
+.inbox-page .inbox-item .actions { grid-column: 2; grid-row: 1 / span 2; margin: 0; gap: var(--space-3); flex-wrap: nowrap; }
+@media (max-width: 720px) { .inbox-page .inbox-item { grid-template-columns: 1fr; } .inbox-page .inbox-item .actions { grid-column: 1; grid-row: auto; margin-top: var(--space-2); } }
+
+/* ================================================================ fee calculator: the result reads like a fare slip */
+.fee-result { padding: var(--space-5); border: 1px solid var(--abyss); border-radius: var(--radius-sm); background: var(--paper); color: var(--abyss); box-shadow: none; }
+.fee-result>small { opacity: 1; color: var(--sounding); font-weight: 500; }
+.fee-result>strong { font-family: var(--font-figure); font-weight: 450; font-size: 52px; letter-spacing: -.01em; }
+.fee-result .muted { color: var(--sounding); }
+.contact-illustration { display: none; }
+
+/* ================================================================ stalled orders: a warning ledger */
+.stalled { padding: var(--space-4) 0 0; border: 0; border-top: 2px solid var(--amber-700); border-radius: 0; background: none; }
+.stalled h2 { color: var(--amber-700); font-size: var(--text-lg); }
+.stalled h2 b { background: var(--amber-700); color: var(--on-color); }
+.stalled ul { gap: 0; }
+.stalled li { border: 0; border-bottom: var(--hairline); border-radius: 0; background: none; padding: 10px 0; }
+.stalled-time { border-radius: var(--radius-xs); background: var(--amber-50); color: var(--amber-700); }
+
+/* ================================================================ split-flap handoff code */
+.split-flap { display: flex; gap: 10px; margin: var(--space-4) 0; }
+.flap { position: relative; display: block; width: 62px; height: 80px; perspective: 260px; font: 450 54px/80px var(--font-figure); font-variant-numeric: lining-nums tabular-nums; text-align: center; color: currentColor; }
+.flap-half { position: absolute; left: 0; right: 0; height: 50%; overflow: hidden; background: var(--paper); box-shadow: inset 0 0 0 1px var(--color-line); }
+.flap-half i { display: block; height: 200%; font-style: normal; }
+.flap-half.top, .flap-half.front { top: 0; border-radius: 5px 5px 0 0; }
+.flap-half.bottom { bottom: 0; border-radius: 0 0 5px 5px; }
+.flap-half.bottom i, .flap-half.back i { transform: translateY(-50%); }
+/* the seam */
+.flap { filter: drop-shadow(0 4px 6px #0f283317); }
+.flap::after { content: ""; position: absolute; left: 0; right: 0; top: calc(50% - .5px); height: 1px; background: var(--color-line-strong); opacity: .7; z-index: 3; }
+.flap-fold { position: absolute; left: 0; right: 0; top: 0; height: 50%; z-index: 2; transform-origin: 50% 100%; transform-style: preserve-3d; animation: flap-fold 92ms cubic-bezier(.4,0,.9,.6) forwards; }
+.flap-fold .flap-half { height: 100%; -webkit-backface-visibility: hidden; backface-visibility: hidden; background: color-mix(in srgb, var(--abyss) 5%, var(--paper)); }
+.flap-fold .flap-half.back { top: 0; transform: rotateX(180deg); border-radius: 0 0 5px 5px; }
+@keyframes flap-fold { to { transform: rotateX(-180deg); } }
+:root[data-theme=dark] .flap { filter: none; }
+@media (max-width: 720px) { .flap { width: 54px; height: 70px; font-size: 46px; line-height: 70px; } }
+
+/* ================================================================ route progress (route-progress.tsx) */
+.route-progress-chart { position: relative; margin: var(--space-5) 0 var(--space-2); }
+.route-progress-chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.rp-track { fill: none; stroke: var(--color-line-strong); stroke-width: 1.2; stroke-dasharray: 3 4; }
+.rp-done { fill: none; stroke: var(--route); stroke-width: 3; stroke-linecap: round; }
+.rp-fix circle { fill: var(--color-surface); stroke: var(--color-line-strong); stroke-width: 1.4; }
+.rp-fix.is-passed circle { fill: var(--abyss); stroke: var(--abyss); }
+.rp-fix.is-current circle { fill: var(--route); stroke: var(--route); }
+.rp-fix.is-current .rp-ping { fill: none; stroke: var(--route); transform-box: fill-box; transform-origin: center; }
+@media (prefers-reduced-motion: no-preference) { .rp-ping { animation: rp-ping 2.2s var(--ease-out) infinite; } }
+@keyframes rp-ping { from { transform: scale(1); opacity: .9; } to { transform: scale(3.2); opacity: 0; } }
+.rp-parcel rect { fill: var(--paper); stroke: var(--abyss); stroke-width: 1.5; }
+.rp-parcel path { fill: none; stroke: var(--abyss); stroke-width: 1.2; }
+.route-progress-chart ol { position: relative; height: 20px; margin: 4px 0 0; padding: 0; list-style: none; font-size: var(--text-xs); color: var(--sounding); }
+.route-progress-chart li { position: absolute; left: var(--x); transform: translateX(-50%); white-space: nowrap; }
+.route-progress-chart li:first-child { transform: translateX(-12%); }
+.route-progress-chart li:last-child { transform: translateX(-88%); }
+.route-progress-chart li.is-reached { color: var(--abyss); font-weight: 600; }
+
+/* ---------------------------------------------------------------- odometer (rolling price) */
+.odometer { display: inline-flex; align-items: baseline; font-variant-numeric: tabular-nums; }
+.odometer>[aria-hidden] { display: inline-flex; align-items: baseline; }
+.odo-col { display: inline-block; height: 1.15em; line-height: 1.15em; overflow: hidden; vertical-align: baseline; }
+.odo-reel { display: flex; flex-direction: column; transform: translateY(calc(var(--d) * -1.15em)); }
+.odo-reel>span { display: block; height: 1.15em; text-align: center; }
+@media (prefers-reduced-motion: no-preference) {
+  .odo-reel { transition: transform calc(520ms + var(--k) * 110ms) cubic-bezier(.2,.9,.25,1.12); }
+}

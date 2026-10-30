@@ -1,12 +1,17 @@
 /* First-paint splash shown inside #root until React renders (React replaces it). External file because the CSP is
-   style-src 'self'. It fades in after a short delay, so fast loads never flash it. */
-.boot{min-height:100vh;min-height:100dvh;display:grid;place-items:center;background:linear-gradient(165deg,#f5f9ff,#e6f0ff);color:#17477f;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;animation:boot-in .35s ease-out .18s both}
+   style-src 'self'. It fades in after a short delay, so fast loads never flash it. Colours follow html[data-theme]. */
+.boot{min-height:100vh;min-height:100dvh;display:grid;place-items:center;background:#eef3f2;color:#0f2833;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;animation:boot-in .35s ease-out .18s both}
+html[data-theme=dark] .boot{background:#0c181d;color:#dce7e6}
 .boot-inner{display:grid;justify-items:center;gap:14px}
-.boot-emblem{display:grid;place-items:center;width:56px;height:62px;border-radius:14px 14px 20px 20px;background:linear-gradient(160deg,#2a6db3,#123f77);color:#fff;font:800 13px/1 system-ui,sans-serif;letter-spacing:.5px;box-shadow:0 12px 30px #123f7733}
-.boot-title{font:500 16px/1.4 KaiTi,STKaiti,"Microsoft YaHei",serif;letter-spacing:2px}
-.boot-bar{position:relative;width:120px;height:3px;overflow:hidden;border-radius:3px;background:#d6e4f7}
-.boot-bar::after{content:'';position:absolute;top:0;bottom:0;left:0;width:40%;border-radius:3px;background:#1f6fe0;animation:boot-slide 1.1s ease-in-out infinite}
-.boot noscript,.boot-noscript{font-size:13px;color:#5d6f91}
+.boot-emblem{width:44px;height:44px}
+.boot-emblem circle{fill:none;stroke:currentColor;stroke-width:1.6}
+.boot-emblem .dot{fill:currentColor;stroke:none}
+.boot-emblem path{fill:none;stroke:#a3245a;stroke-width:2.2;stroke-linecap:round}
+html[data-theme=dark] .boot-emblem path{stroke:#e77aa8}
+.boot-title{font:italic 500 22px/1.2 "Songti SC","Noto Serif SC",Georgia,serif;letter-spacing:.01em}
+.boot-bar{position:relative;width:120px;height:1px;overflow:hidden;background:#b9c9c8}
+.boot-bar::after{content:'';position:absolute;top:-.5px;bottom:-.5px;left:0;width:40%;background:#a3245a;animation:boot-slide 1.1s ease-in-out infinite}
+.boot noscript,.boot-noscript{font-size:13px;color:#4d646b}
 @keyframes boot-in{from{opacity:0}to{opacity:1}}
 @keyframes boot-slide{from{transform:translateX(-100%)}to{transform:translateX(250%)}}
 @media (prefers-reduced-motion:reduce){.boot{animation:none}.boot-bar::after{animation:none;width:100%;opacity:.4}}

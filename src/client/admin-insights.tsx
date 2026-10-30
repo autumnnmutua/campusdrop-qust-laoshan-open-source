@@ -1,5 +1,5 @@
 import './zod-config';
-import {useId,useState,type FormEvent} from 'react';
+import {useId,useState,type CSSProperties,type FormEvent} from 'react';
 import {downloadText,toCsv} from './csv';
 import {Link} from 'react-router-dom';
 import {AdminShell} from './admin-delivery';
@@ -11,7 +11,8 @@ import {StalledOrders} from './admin-alerts';
 import {STATUS_LABELS} from '../shared/constants';
 import type {OrderStatus} from '../shared/delivery';
 import {ANNOUNCEMENT_LEVEL_LABELS,announcementCreate,type Analytics,type Announcement,type AnnouncementLevel} from '../shared/engagement';
-import type {Admin} from '../shared/contracts';
+import type {Admin,Building} from '../shared/contracts';
+import type {InsightsExtra} from '../shared/operations-rules';
 
 const STATUS_COLORS:Partial<Record<OrderStatus,string>>={WAITING_PICKUP:'#f5a524',PICKED_UP:'#7c6cf2',OUT_FOR_DELIVERY:'#1568e9',DELIVERED_DOWNSTAIRS:'#22a6b3',DELIVERED_TO_ROOM:'#18a77a',COMPLETED:'#2fbf71',CANCELLED:'#a5b2c5',FAILED_PICKUP:'#ef5d5d',DELIVERY_EXCEPTION:'#e5484d'};
 const niceMax=(n:number)=>{if(n<=4)return 4;const p=Math.pow(10,Math.floor(Math.log10(n)));const m=n/p;return (m<=2?2:m<=5?5:10)*p;};
@@ -88,7 +89,7 @@ export function AdminAnalytics(){
   const a=r.data?.analytics;const role=me.data?.admin.role;
   const mixTotal=a?.mix.reduce((s,m)=>s+m.count,0)??0,mix=(size:string,mode:string)=>a?.mix.find(m=>m.size===size&&m.mode===mode)?.count??0;
   const ratingTotal=a?.ratings.distribution.reduce((s,n)=>s+n,0)??0;
-  return <AdminShell><div className="row"><div><p className="eyebrow">运营数据</p><h1>数据看板</h1></div><div className="analytics-tools"><div className="range-chips" role="group" aria-label="统计范围">{[7,14,30].map(n=><button key={n} type="button" className="chip" aria-pressed={days===n} onClick={()=>setDays(n)}>近 {n} 天</button>)}</div><button className="text-button" disabled={!a} onClick={()=>a&&exportAnalytics(a)}>导出 CSV</button><button className="text-button" disabled={r.loading} onClick={()=>void r.refresh()}>{r.loading?'正在刷新…':'刷新'}</button></div></div>
+  return <AdminShell><div className="row"><div><h1>数据看板</h1></div><div className="analytics-tools"><div className="range-chips" role="group" aria-label="统计范围">{[7,14,30].map(n=><button key={n} type="button" className="chip" aria-pressed={days===n} onClick={()=>setDays(n)}>近 {n} 天</button>)}</div><button className="text-button" disabled={!a} onClick={()=>a&&exportAnalytics(a)}>导出 CSV</button><button className="text-button" disabled={r.loading} onClick={()=>void r.refresh()}>{r.loading?'正在刷新…':'刷新'}</button></div></div>
     <p className="muted">统计你授权范围内的已支付订单{role==='DELIVERY_STAFF'?'（配送人员仅统计分配给自己的批次）':''}。{r.data&&`更新于 ${new Date(r.data.generatedAt*1000).toLocaleTimeString('zh-CN')}`}</p>
     <p role="alert">{r.error}</p>{r.loading&&!a&&<LoadingState label="正在汇总数据…"/>}
     {a&&<div className="analytics">
@@ -110,6 +111,7 @@ export function AdminAnalytics(){
             {a.ratings.tags.length>0&&<p className="tag-cloud">{a.ratings.tags.map(t=><span key={t.tag} className="chip">{t.tag}<b>{t.count}</b></span>)}</p>}</>:<p className="muted">还没有学生评价。确认收货后的订单可以评价。</p>}
         </figure>
       </div>
+      <InsightsPanel days={days}/>
       <StaffTable staff={a.staff} days={a.days}/>
       {a.ratings.recent.length>0&&<section className="recent-ratings"><h2>最新评价</h2><ul>{a.ratings.recent.map((x,i)=><li key={i}><span className="rating-stars" aria-label={`${x.stars} 星`}>{'★'.repeat(x.stars)}<span aria-hidden="true">{'★'.repeat(5-x.stars)}</span></span><p>{x.comment||<span className="muted">（未留言）</span>}</p><small>{x.building} · {new Date(x.createdAt*1000).toLocaleString('zh-CN')}{x.tags.length>0&&` · ${x.tags.join('、')}`}</small></li>)}</ul></section>}
     </div>}
@@ -124,19 +126,22 @@ const TEMPLATES:{name:string;level:AnnouncementLevel;title:string;body:string;du
   {name:'站点调整',level:'NOTICE',title:'取件站点临时调整',body:'站点临时调整营业安排，部分包裹取件可能延迟，配送员会在订单中更新说明。',duration:3},
 ];
 const DURATIONS:[string,number|undefined][]=[['直到手动下线',undefined],['6 小时',6],['24 小时',24],['3 天',72],['7 天',168]];
-function announcementState(a:Announcement){const now=Date.now()/1000;return a.status==='ARCHIVED'?'已下线':a.endsAt&&a.endsAt<=now?'已到期':'生效中';}
+function announcementState(a:Announcement){const now=Date.now()/1000;return a.status==='ARCHIVED'?'已下线':a.endsAt&&a.endsAt<=now?'已到期':a.startsAt>now?'待发布':'生效中';}
 export function AdminAnnouncements(){
   const list=useResource<{announcements:(Announcement&{author:string})[]}>('/admin/announcements');
   const [level,setLevel]=useState<AnnouncementLevel>('INFO'),[title,setTitle]=useState(''),[body,setBody]=useState(''),[duration,setDuration]=useState(2),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
+  const [startAt,setStartAt]=useState(''),[targets,setTargets]=useState<string[]>([]);const buildings=useResource<{buildings:Building[]}>('/dorm-buildings');
   const id=useId();
   async function publish(e:FormEvent){
     e.preventDefault();setMessage('');
-    const parsed=announcementCreate.safeParse({level,title,body,...(DURATIONS[duration][1]?{durationHours:DURATIONS[duration][1]}:{})});
+    const start=startAt?Math.floor(new Date(startAt).getTime()/1000):null;
+    if(start!==null&&(Number.isNaN(start)||start<Date.now()/1000-60)){setMessage('定时发布时间需要晚于现在');return;}
+    const parsed=announcementCreate.safeParse({level,title,body,...(DURATIONS[duration][1]?{durationHours:DURATIONS[duration][1]}:{}),...(start?{startsAt:start}:{}),...(targets.length?{targets}:{})});
     if(!parsed.success){setMessage('请填写 1–40 字标题，正文不超过 200 字，且不要包含尖括号等特殊字符');return;}
-    setBusy(true);try{await api('/admin/announcements','POST',parsed.data);toast('公告已发布','success','学生端首页会立即显示');setTitle('');setBody('');await list.refresh();}catch(err){setMessage((err as Error).message);}finally{setBusy(false);}
+    setBusy(true);try{await api('/admin/announcements','POST',parsed.data);toast(start?'公告已定时':'公告已发布','success',start?`将于 ${new Date(start*1000).toLocaleString('zh-CN',{hour12:false})} 自动显示`:targets.length?`仅 ${targets.length} 栋楼的同学可见`:'学生端首页会立即显示');setTitle('');setBody('');setStartAt('');setTargets([]);await list.refresh();}catch(err){setMessage((err as Error).message);}finally{setBusy(false);}
   }
   async function archive(target:string){setBusy(true);try{await api(`/admin/announcements/${target}/archive`,'POST',{confirmed:true});toast('公告已下线','info');await list.refresh();}catch(err){setMessage((err as Error).message);}finally{setBusy(false);}}
-  return <AdminShell><p className="eyebrow">运营广播</p><h1>公告管理</h1><p className="muted">公告显示在学生端顶部，最多同时展示 3 条。“暂停服务”级别会置顶且学生无法关闭，请仅在确实暂停配送时使用。</p>
+  return <AdminShell><h1>公告管理</h1><p className="muted">公告显示在学生端顶部，最多同时展示 3 条。“暂停服务”级别会置顶且学生无法关闭，请仅在确实暂停配送时使用。</p>
     {list.unauthorized||list.error.includes('超级管理员')?<p role="alert">{list.error}</p>:<>
     <form className="announce-form" onSubmit={publish}>
       <div className="templates" role="group" aria-label="公告模板"><span>快速套用：</span>{TEMPLATES.map(t=><button key={t.name} type="button" className="chip" onClick={()=>{setLevel(t.level);setTitle(t.title);setBody(t.body);setDuration(t.duration);toast(`已套用“${t.name}”模板`,'info','发布前请按实际情况修改内容和有效期');}}>{t.name}</button>)}</div>
@@ -144,14 +149,41 @@ export function AdminAnnouncements(){
       <label>标题<input required maxLength={40} value={title} onChange={e=>setTitle(e.target.value)} placeholder="例如：今晚 22:00 后暂停接单"/></label><small>{title.length}/40</small>
       <label>正文（选填）<textarea maxLength={200} rows={3} value={body} onChange={e=>setBody(e.target.value)} placeholder="补充原因、恢复时间或替代安排"/></label><small>{body.length}/200</small>
       <label htmlFor={`${id}-d`}>有效期</label><select id={`${id}-d`} value={duration} onChange={e=>setDuration(Number(e.target.value))}>{DURATIONS.map(([l],i)=><option key={l} value={i}>{l}</option>)}</select>
+      <label>定时发布（选填，14 天内）<input type="datetime-local" value={startAt} onChange={e=>setStartAt(e.target.value)}/></label><small>{startAt?'到时间自动出现，有效期从发布时间起算':'留空则立即发布'}</small>
+      <details className="target-picker"><summary>只发给部分楼栋{targets.length?`（已选 ${targets.length} 栋）`:'（默认全部同学）'}</summary>
+        <p className="muted">只有寝室保存在这些楼栋的同学能看到，例如某栋楼停水停电、楼下快递架调整。</p>
+        <div className="check-grid">{buildings.data?.buildings.map(b=><label key={b.code} className="check"><input type="checkbox" checked={targets.includes(b.code)} onChange={e=>setTargets(e.target.checked?[...targets,b.code]:targets.filter(c=>c!==b.code))}/>{b.displayName}</label>)}</div>
+        {targets.length>0&&<button type="button" className="text-button" onClick={()=>setTargets([])}>清空，发给全部同学</button>}
+      </details>
       <p className="eyebrow">学生端预览</p>
       <div className="announcements is-preview" aria-label="公告预览"><div className={`announcement level-${level.toLowerCase()}`}><span className="announcement-tag">{ANNOUNCEMENT_LEVEL_LABELS[level]}</span><p><strong>{title||'公告标题'}</strong>{body&&<span>{body}</span>}</p></div></div>
       <p role="alert">{message}</p><button className={busy?'is-busy':undefined} disabled={busy||!title.trim()}>{busy?'正在发布…':'发布公告'}</button>
     </form>
     <h2>历史公告</h2>{list.loading&&!list.data&&<LoadingState/>}{list.data?.announcements.length===0&&<EmptyState title="还没有发布过公告" icon="chat"><p>天气、节假日或站点调整时，可以在这里通知所有同学。</p></EmptyState>}
     <div className="card-list">{list.data?.announcements.map(a=>{const state=announcementState(a);return <article key={a.id} className={`parcel-card announcement-card level-${a.level.toLowerCase()}`}><div className="row"><strong>{a.title}</strong><span className="badge" data-state={state}>{state}</span></div>{a.body&&<p>{a.body}</p>}
-      <p className="muted">{ANNOUNCEMENT_LEVEL_LABELS[a.level]} · {a.author} · 发布于 {new Date(a.createdAt*1000).toLocaleString('zh-CN')}{a.endsAt?` · 至 ${new Date(a.endsAt*1000).toLocaleString('zh-CN')}`:''}</p>
-      {state==='生效中'&&<ConfirmAction label="下线公告" title="确认下线这条公告？" busy={busy} onConfirm={()=>archive(a.id)}><p>下线后学生端立即不再显示，记录会保留在历史中。</p></ConfirmAction>}</article>;})}</div></>}
+      <p className="muted">{ANNOUNCEMENT_LEVEL_LABELS[a.level]} · {a.author} · {a.startsAt>a.createdAt+60?`定时 ${new Date(a.startsAt*1000).toLocaleString('zh-CN')}`:`发布于 ${new Date(a.createdAt*1000).toLocaleString('zh-CN')}`}{a.endsAt?` · 至 ${new Date(a.endsAt*1000).toLocaleString('zh-CN')}`:''}{a.targets?.length?` · 仅 ${a.targets.length} 栋楼`:''}</p>
+      {(state==='生效中'||state==='待发布')&&<ConfirmAction label="下线公告" title="确认下线这条公告？" busy={busy} onConfirm={()=>archive(a.id)}><p>下线后学生端立即不再显示，记录会保留在历史中。</p></ConfirmAction>}</article>;})}</div></>}
     <p><Link to="/admin">返回配送工作台</Link></p>
   </AdminShell>;
+}
+
+// ---------------------------------------------------------------- v2.7: funnel, repeat rate, reach, forecast
+const WEEKDAYS=['周日','周一','周二','周三','周四','周五','周六'];
+function InsightsPanel({days}:{days:number}){
+  const r=useResource<{insights:InsightsExtra}>(`/admin/insights?days=${days}`);const x=r.data?.insights;
+  if(!x)return r.error?<p role="alert">{r.error}</p>:null;
+  const f=x.funnel,stages:[string,number|null][]=[['登记包裹',f.parcels],['创建订单',f.orders],['完成支付',f.paid],['已送达',f.delivered],['确认收货',f.completed],['留下评价',f.rated]];
+  const shown=stages.filter((s):s is [string,number]=>s[1]!==null),top=Math.max(1,...shown.map(s=>s[1]));
+  return <section className="insights-panel"><div className="chart-row">
+    <figure className="chart funnel"><figcaption><strong>转化漏斗</strong><small>近 {days} 天创建的订单{f.parcels===null?'（登记包裹数仅超级管理员可见）':''}</small></figcaption>
+      <ol>{shown.map(([label,n],i)=><li key={label}><span>{label}</span><i style={{'--w':`${Math.max(n?4:0,Math.round(n/top*100))}%`} as CSSProperties}/><b>{n}</b>{i>0&&<small>{shown[i-1][1]?`${Math.round(n/shown[i-1][1]*100)}%`:'—'}</small>}</li>)}</ol></figure>
+    <figure className="chart repeat"><figcaption><strong>复购与覆盖</strong><small>近 {days} 天 · 已支付订单</small></figcaption>
+      <p className="big-number">{x.repeatRate===null?'—':`${x.repeatRate}%`}<small>下单 2 次及以上的同学占比（共 {x.students} 位同学）</small></p>
+      {x.buildingsReached.length?<ol className="reach-list">{x.buildingsReached.map(b=><li key={b.building}><span>{b.building}</span><b>{b.students} 人</b><small>{b.orders} 单</small></li>)}</ol>:<p className="muted">暂无数据</p>}
+      <p className="muted small">学校未提供各楼住宿人数，这里只统计下过单的同学人数，不计算渗透率。</p></figure>
+  </div>
+    <figure className="chart forecast"><figcaption><strong>未来三天订单预估</strong><small>按近 4 周同一星期的平均值；历史不足时不预估</small></figcaption>
+      <ol>{x.forecast.map(d=><li key={d.date}><strong>{d.date.slice(5).replace('-','/')} {WEEKDAYS[d.weekday]}</strong>{d.samples?<><b>约 {d.expected} 单</b><small>参考 {d.samples} 周{d.peakHour!==null?` · 高峰 ${d.peakHour}:00–${d.peakHour+1}:00`:''}</small></>:<small>历史数据不足</small>}</li>)}</ol>
+    </figure>
+  </section>;
 }

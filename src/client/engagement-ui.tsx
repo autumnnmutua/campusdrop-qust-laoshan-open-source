@@ -1,9 +1,11 @@
+import {t} from './i18n';
 import dialogPolyfill from 'dialog-polyfill';
 import {Suspense,lazy,useCallback,useEffect,useId,useMemo,useRef,useState,useSyncExternalStore,type ReactNode} from 'react';
 import {Link,useLocation} from 'react-router-dom';
 import {api,RequestError} from './api';
 import {SymbolIcon} from './campus-design';
 import {CountUp} from './components';
+import {Odometer} from './odometer';
 import {celebrate,celebrateFrom,toast} from './effects';
 import {appendChip,removeChip} from './note-text';
 import {imageFiles} from './image-files';
@@ -24,19 +26,19 @@ import {yuan} from './format';
 const DISMISSED_KEY='campusdrop:dismissed-announcements';
 /** Campus-wide notices from operations. Pause notices cannot be dismissed; failures are silent (the banner is optional). */
 export function AnnouncementBanner(){
-  const [items,setItems]=useState<Announcement[]>([]),[dismissed,setDismissed]=useState(()=>readList(DISMISSED_KEY));
+  const [items,setItems]=useState<Announcement[]>([]),[dismissed,setDismissed]=useState(()=>readList(DISMISSED_KEY)),[pause,setPause]=useState<{paused:boolean;reason:string}|null>(null);
   // Fetched on first load, then again on navigation or when the tab returns if the last fetch is over 5 minutes old,
   // so a notice published (or taken down) mid-session reaches students without a full reload.
   const {pathname}=useLocation(),last=useRef(0);
   useEffect(()=>{
     let on=true;
-    const load=()=>{if(document.hidden||Date.now()-last.current<300000)return;last.current=Date.now();api<{announcements:Announcement[]}>('/announcements').then(r=>{if(on)setItems(r.announcements);}).catch(()=>{last.current=0;});};
+    const load=()=>{if(document.hidden||Date.now()-last.current<300000)return;last.current=Date.now();api<{announcements:Announcement[];pause?:{paused:boolean;reason:string}}>('/announcements').then(r=>{if(on){setItems(r.announcements);setPause(r.pause??null);}}).catch(()=>{last.current=0;});};
     load();document.addEventListener('visibilitychange',load);
     return()=>{on=false;document.removeEventListener('visibilitychange',load);};
   },[pathname]);
   const visible=items.filter(a=>a.level==='PAUSE'||!dismissed.includes(a.id));
-  if(!visible.length)return null;
-  return <div className="announcements">{visible.map(a=><div key={a.id} className={`announcement level-${a.level.toLowerCase()}`} role={a.level==='PAUSE'?'alert':undefined}>
+  if(!visible.length&&!pause?.paused)return null;
+  return <div className="announcements">{pause?.paused&&<div className="announcement level-pause" role="alert"><span className="announcement-tag">{t('暂停接单')}</span><p><strong>{t('暂时不能新下单和预约')}</strong><span>{pause.reason}</span></p></div>}{visible.map(a=><div key={a.id} className={`announcement level-${a.level.toLowerCase()}`} role={a.level==='PAUSE'?'alert':undefined}>
     <span className="announcement-tag"><BounceText text={ANNOUNCEMENT_LEVEL_LABELS[a.level]}/></span>
     <p><strong>{a.title}</strong>{a.body&&<span>{a.body}</span>}{a.endsAt&&<small>有效至 {new Date(a.endsAt*1000).toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</small>}</p>
     {a.level!=='PAUSE'&&<button type="button" className="announcement-close" aria-label={`关闭公告：${a.title}`} onClick={()=>{const next=[...dismissed,a.id];setDismissed(next);writeList(DISMISSED_KEY,next);}}>×</button>}
@@ -123,7 +125,7 @@ export function FeeCalculator(){
   const mode=room?'ROOM':'DOWNSTAIRS';const total=small*priceFen('SMALL',mode)+large*priceFen('LARGE',mode);
   return <div className="fee-calculator"><div className="fee-inputs"><Stepper label="小件" value={small} onChange={setSmall}/><Stepper label="大件" value={large} onChange={setLarge}/>
     <label className="switch"><input type="checkbox" checked={room} onChange={e=>setRoom(e.target.checked)}/><span>送到寝室门口</span></label></div>
-    <div className="fee-result"><small>预计费用</small><strong><CountUp value={total} format={yuan}/></strong>
+    <div className="fee-result"><small>预计费用</small><strong><Odometer value={total} format={yuan}/></strong>
       <ul>{small>0&&<li>小件 × {small} · {yuan(priceFen('SMALL',mode))}/件</li>}{large>0&&<li>大件 × {large} · {yuan(priceFen('LARGE',mode))}/件</li>}{!small&&!large&&<li>加一件包裹试试</li>}</ul>
       {!room&&(small||large)?<p className="muted">下单后仍可升级到寝：小件补 {yuan(upgradePriceFen('SMALL'))}，大件补 {yuan(upgradePriceFen('LARGE'))}。</p>:null}
       <p className="muted">每件包裹单独下单计费，不设打包折扣；实际金额以下单时的服务端报价为准。</p></div></div>;
@@ -186,17 +188,17 @@ export function FootprintPanel(){
   if(!stats)return null;
   const badges=badgesFor(stats),earned=badges.filter(b=>b.earned).length;
   const since=stats.firstOrderAt?Math.max(1,Math.ceil((Date.now()/1000-stats.firstOrderAt)/86400)):0;
-  return <section className="footprint" aria-labelledby="footprint-title"><div className="footprint-head"><h2 id="footprint-title">我的配送足迹</h2>{since>0&&<small>第一次下单至今 {since} 天</small>}</div>
+  return <section className="footprint" aria-labelledby="footprint-title"><div className="footprint-head"><h2 id="footprint-title">{t('我的配送足迹')}</h2>{since>0&&<small>{t('第一次下单至今 {0} 天',{0:since})}</small>}</div>
     <div className="footprint-tiles">
-      <div><small>累计下单</small><strong><CountUp value={stats.paidOrders} from={0}/></strong></div>
-      <div><small>少跑驿站</small><strong><CountUp value={stats.completed} from={0}/><em>次</em></strong></div>
-      <div><small>送到寝室</small><strong><CountUp value={stats.roomDeliveries} from={0}/><em>次</em></strong></div>
-      <div><small>大件配送</small><strong><CountUp value={stats.largeParcels} from={0}/><em>件</em></strong></div>
+      <div><small>{t('累计下单')}</small><strong><CountUp value={stats.paidOrders} from={0}/></strong></div>
+      <div><small>{t('少跑驿站')}</small><strong><CountUp value={stats.completed} from={0}/><em>{t('次')}</em></strong></div>
+      <div><small>{t('送到寝室')}</small><strong><CountUp value={stats.roomDeliveries} from={0}/><em>{t('次')}</em></strong></div>
+      <div><small>{t('大件配送')}</small><strong><CountUp value={stats.largeParcels} from={0}/><em>{t('件')}</em></strong></div>
     </div>
-    <div className="badge-head"><h3>成就徽章</h3><small>{earned} / {badges.length}</small></div>
+    <div className="badge-head"><h3>{t('成就徽章')}</h3><small>{earned} / {badges.length}</small></div>
     <ul className="badge-grid">{badges.map((b,i)=><li key={b.id} className={b.earned?(fresh.includes(b.id)?'is-earned is-new':'is-earned'):undefined} data-badge={b.id} data-index={i}><span className="badge-medal" aria-hidden="true">{b.earned?'★':'☆'}</span><strong>{fresh.includes(b.id)?<BounceText text={b.label}/>:b.label}</strong><small>{b.hint}</small><span className="sr-only">{b.earned?'已获得':'未获得'}</span></li>)}</ul>
     {stats.paidOrders>0&&<Suspense fallback={null}><ShareCardButton stats={stats} badges={badges}/></Suspense>}
-    {stats.paidOrders===0&&<p className="muted">还没有配送记录。<Link to="/parcel/new">登记第一件快递 →</Link></p>}
+    {stats.paidOrders===0&&<p className="muted">{t('还没有配送记录。')}<Link to="/parcel/new">{t('登记第一件快递 →')}</Link></p>}
   </section>;
 }
 
@@ -237,7 +239,10 @@ export function Onboarding({autoOpen}:{autoOpen:boolean}){
   const open=useSyncExternalStore(l=>{onboardingListeners.add(l);return()=>onboardingListeners.delete(l);},()=>onboardingOpen,()=>false);
   const ref=useRef<HTMLDialogElement>(null),[step,setStep]=useState(0),titleId=useId();
   useEffect(()=>{if(!autoOpen)return;// Without storage the guide could not remember being seen and would reopen on every visit, so skip it there.
-    const seen=getItem(ONBOARD_KEY)==='1'||!storageAvailable();if(!seen){const t=setTimeout(openOnboarding,900);return()=>clearTimeout(t);}},[autoOpen]);
+    const seen=getItem(ONBOARD_KEY)==='1'||!storageAvailable();if(seen)return;
+    // Wait for the opening sequence to finish (html.intro-open), then give the page a moment before the guide.
+    let t=0;const tryOpen=()=>{t=window.setTimeout(()=>{if(document.documentElement.classList.contains('intro-open'))tryOpen();else openOnboarding();},900);};
+    tryOpen();return()=>clearTimeout(t);},[autoOpen]);
   useEffect(()=>{const d=ref.current;if(!d)return;if(typeof d.showModal!=='function')dialogPolyfill.registerDialog(d);if(open&&!d.open){setStep(0);d.showModal();}if(!open&&d.open)d.close();},[open]);
   const s=STEPS[step],last=step===STEPS.length-1;
   return <dialog ref={ref} className="onboarding" aria-labelledby={titleId} onClose={()=>{if(onboardingOpen)closeOnboarding();}}>

@@ -77,3 +77,24 @@ HANDOFF_REQUIRED：包裹仍由配送员持有，需归还核验。HANDOFF_PENDI
 ## 任务分类与工单订单信息
 
 GET /admin/tasks增加group：ALL、ACTIVE、AWAITING_RECEIPT、CLOSED；非ALL时不能同时指定status，切换分类需重置cursor。Ticket新增可选orderContext（status、building、room、station），仅在原有owner/scope校验后返回。实现决策见feature-integration.md。
+
+## v3.0：合并配送、常用配送规则、天气联动、准时率
+
+| 方法/路径 | 请求 schema | 成功响应 | 语义 |
+|---|---|---|---|
+| POST /order-groups | groupOrder | 201 `{group}` | 同一学生、同一站点的 2–6 件 ACTIVE 包裹一次建单；每件仍是独立订单（独立计价、取消、退款、交接），共享 group_id 与收货码。任一包裹已有订单返回 409 ORDER_EXISTS，不同站点 400 GROUP_STATION；中途失败会撤销本次已建的订单 |
+| GET /order-groups/:id | 无 | `{group:{id,createdAt,origin,orders,totalFen,unpaidFen,unpaidCount}}` | 仅所有者；不属于当前用户返回 404 |
+| POST /order-groups/:id/mock-pay | 无 | `{group,paid,missed,message}` | 支付全部未付款成员；预约时段先检查剩余名额是否够全部成员（不够 409 SLOT_FULL），每件仍用与单件相同的条件写入，名额不会超订 |
+| POST /order-groups/:id/cancel-unpaid | 无 | `{group}` | 取消仍未付款的成员；已付款成员请在各自订单页取消 |
+| GET /me/rules | 无 | `{rules}` | 常用配送规则，最多 3 条 |
+| POST /me/rules | ruleCreate | 201 `{rules}` | weekdays 为位掩码（bit0=周一 … bit6=周日）；dropPlace 只能配合 DOWNSTAIRS |
+| PATCH /me/rules/:id | ruleUpdate | `{rules}` | 可改任意字段或 active 暂停/恢复 |
+| DELETE /me/rules/:id | 无 | `{rules}` | 删除 |
+| GET /weather | 无 | `{weather:{enabled,level,source,observed,notice,paddingMinutes}}` | 公开；level 为 CLEAR/WET/SEVERE；observed 来自 Open-Meteo（显示时须注明来源） |
+| GET /admin/weather | 无 | `{weather,setting,fetchedAt,failedAt}` | 管理员 |
+| PUT /admin/weather | weatherSetting | `{weather}` | 仅超级管理员；override 为 AUTO/CLEAR/WET/SEVERE，写审计 |
+| GET /admin/punctuality?days=7\|14\|30&asap=45\|60\|90 | 无 | `{report}` | 按授权范围统计已送达订单的准时率（按配送员、楼栋、时段、天、天气） |
+
+Order 新增 groupId、groupSize（同组未取消的订单数）、ruleId；待接订单（GET /admin/available）新增 groupId、groupSize。管理员认领（POST /admin/orders/:id/claim）合并配送中的一件时，同组其余已支付、未被接走的订单进入同一批次；推进 PICKED_UP / OUT_FOR_DELIVERY / DELIVERED_* 时同批次的同组订单一起推进（异常只作用于当前订单）；收货码核验（POST /admin/orders/:id/handoff-code）一次签收同批次中已出发或已送达的同组订单。合并配送订单不支持单件升级到寝（409 GROUP_UPGRADE）。
+
+常用配送由每 10 分钟的定时任务执行：时段开始前 3 小时起至截止预约前 10 分钟，为规则所属学生已登记、无订单的包裹生成该时段的未付款订单（同一站点多件自动合并），发站内消息（kind RULE_ORDER，link 指向支付页）。规则生成的未付款订单在该时段截止预约时自动取消。

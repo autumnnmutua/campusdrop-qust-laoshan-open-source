@@ -1,4 +1,5 @@
 import {Link,useParams} from 'react-router-dom';
+import { OpenInBrowserHint,inWeChat } from './wechat';
 import {LoadingState} from './components';
 import {money,Notice,useStudentResource,type Details} from './student-delivery';
 import {STATUS_LABELS} from '../shared/constants';
@@ -13,7 +14,7 @@ export function OrderReceipt(){
   const {id}=useParams();const {data,error,loading,unauthorized}=useStudentResource<Details>(`/orders/${id}`);
   const o=data?.order;
   const paid=data?.payments.filter(p=>p.type!=='REFUND').reduce((s,p)=>s+p.amountFen,0)??0,refunded=data?.payments.filter(p=>p.type==='REFUND').reduce((s,p)=>s+p.amountFen,0)??0;
-  return <section className="receipt-page"><div className="receipt-tools"><Link to={`/orders/${id}`}>← 返回订单</Link>{o&&<button type="button" onClick={()=>window.print()}>打印 / 另存为 PDF</button>}</div>
+  return <section className="receipt-page"><div className="receipt-tools"><Link to={`/orders/${id}`}>← 返回订单</Link>{o&&!inWeChat&&<button type="button" onClick={()=>window.print()}>打印 / 另存为 PDF</button>}</div><OpenInBrowserHint what="打印或另存为 PDF"/>
     <Notice error={error} unauthorized={unauthorized}/>{loading&&!data&&<LoadingState/>}
     {o&&data&&<article className="receipt" aria-labelledby="receipt-title">
       <header><div><p className="eyebrow">CAMPUSDROP · 崂山校区</p><h1 id="receipt-title">校园配送凭证</h1></div><span className="receipt-stamp" data-status={o.status}>{STATUS_LABELS[o.status]}</span></header>

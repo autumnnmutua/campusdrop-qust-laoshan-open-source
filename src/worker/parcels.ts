@@ -2,7 +2,7 @@ import type { Env } from './types';
 import type { Parcel, ParcelInput } from '../shared/delivery';
 import { ApiError } from './http';
 import { CAMPUS_ID } from '../shared/contracts';
-export const parcelColumns = 'id, pickup_code AS pickupCode, station_code AS stationCode, size AS packageSize, carrier, note, status, created_at AS createdAt';
+export const parcelColumns = "id, pickup_code AS pickupCode, station_code AS stationCode, size AS packageSize, carrier, note, status, created_at AS createdAt, EXISTS(SELECT 1 FROM delivery_orders o WHERE o.parcel_id=parcels.id AND o.status<>'CANCELLED') AS hasOrder";
 export async function ownParcel(env: Env, userId: string, id: string): Promise<Parcel> {
   const parcel = await env.DB.prepare(`SELECT ${parcelColumns} FROM parcels WHERE id=? AND user_id=?`).bind(id,userId).first<Parcel>();
   if (!parcel) throw new ApiError(404,'NOT_FOUND','包裹不存在');

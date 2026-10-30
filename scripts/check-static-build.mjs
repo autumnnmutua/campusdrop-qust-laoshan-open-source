@@ -6,5 +6,6 @@ assert.equal(cloudbase.hosting?.[0]?.outputDir,'dist','CloudBase output director
 assert.ok(existsSync('dist/index.html'),'Missing dist/index.html');
 const files=readdirSync('dist/assets').filter(f=>/\.(js|css)$/.test(f));
 for(const file of files){const s=readFileSync(`dist/assets/${file}`,'utf8');assert.ok(!/https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?\/api/.test(s),`Local API leaked into ${file}`);assert.ok(!s.includes('/v1/ai/cloudbase'),'AI gateway incorrectly used as business API');}
+assert.ok(!readFileSync('dist/sw.js','utf8').includes('__SW_BUILD__'),'dist/sw.js still has the __SW_BUILD__ placeholder; the release cache name would never change');
 assert.ok(!existsSync('dist/campusdrop_qust_laoshan'),'Worker must not be uploaded as static content');
-console.log('PASS: CloudBase static dist/index.html, bundled assets, no localhost business API or Worker server artifacts.');
+console.log('PASS: CloudBase static dist/index.html, bundled assets, no localhost business API or Worker server artifacts, service worker stamped.');

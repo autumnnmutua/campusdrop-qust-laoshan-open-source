@@ -24,8 +24,11 @@ export class LiveHub extends DurableObject<Env> {
       return new Response(null, { status: 101, webSocket: client });
     }
     const event = await request.text();
+    // "bye" (sign-out, account deletion, admin disabled): tell open tabs, then close their sockets for good (4001 = do
+    // not reconnect); a later sign-in opens a fresh socket.
+    const bye = event === '{"type":"bye"}';
     for (const socket of this.ctx.getWebSockets()) {
-      try { socket.send(event); } catch { /* socket is closing */ }
+      try { socket.send(event); if (bye) socket.close(4001, 'signed out'); } catch { /* socket is closing */ }
     }
     return new Response(null, { status: 204 });
   }
@@ -63,16 +66,18 @@ export async function inboxWatermark(env: Env): Promise<number> {
  * live socket and, unless the student caused it themselves, sent as a web push.
  */
 export async function fanOut(env: Env, after: number, causedByStudent: boolean): Promise<void> {
-  const rows = (await env.DB.prepare('UPDATE inbox_messages SET pushed_at=unixepoch() WHERE id>? AND pushed_at IS NULL RETURNING user_id AS userId,order_id AS orderId,kind,title')
-    .bind(after).all<{ userId: string; orderId: string | null; kind: string; title: string }>()).results;
+  const rows = (await env.DB.prepare('UPDATE inbox_messages SET pushed_at=unixepoch() WHERE id>? AND pushed_at IS NULL RETURNING user_id AS userId,order_id AS orderId,kind,title,link')
+    .bind(after).all<{ userId: string; orderId: string | null; kind: string; title: string; link: string | null }>()).results;
   await Promise.all(rows.map(async row => {
-    await publish(env, `student:${row.userId}`, row.kind === 'CHAT' && row.orderId ? { type: 'chat', orderId: row.orderId } : { type: 'order', orderId: row.orderId, kind: row.kind });
+    await publish(env, `student:${row.userId}`, row.kind === 'CHAT' && row.orderId ? { type: 'chat', orderId: row.orderId }
+      : row.kind.startsWith('SEND_') ? { type: 'send', id: row.link?.split('/').pop() ?? null } : { type: 'order', orderId: row.orderId, kind: row.kind });
     if (causedByStudent) return;
     const status = STATUS_LABELS[row.kind as keyof typeof STATUS_LABELS];
+    // The inbox title already names the building and what happened ("南苑7号楼 · 配送员已出发").
     await sendPush(env, 'STUDENT', row.userId, {
-      title: row.kind === 'CHAT' ? '配送员发来新消息' : 'CampusDrop 校园快递',
-      body: status ? `订单进度：${status}` : row.title,
-      url: row.orderId ? `/orders/${row.orderId}` : '/messages',
+      title: row.kind === 'CHAT' ? '配送员发来新消息' : row.kind === 'NEAR' ? '配送员快到了' : 'CampusDrop 校园快递',
+      body: row.title || (status ? `订单进度：${status}` : '你有一条新消息'),
+      url: row.link ?? (row.orderId ? `/orders/${row.orderId}` : '/messages'),
       tag: row.orderId ?? 'inbox',
     });
   }));

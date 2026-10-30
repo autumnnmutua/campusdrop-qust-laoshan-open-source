@@ -5,7 +5,8 @@
  * - /api/* is never cached or touched.
  * - push: shows the notification the Worker sent; clicking it opens (or focuses) the site on that page.
  */
-const VERSION = 'campusdrop-2.6.0';
+// The placeholder below is replaced at build time (scripts/sw-version.mjs) with a hash of this release's assets.
+const VERSION = 'campusdrop-__SW_BUILD__';
 const SHELL = `${VERSION}-shell`, ASSETS = `${VERSION}-assets`;
 
 self.addEventListener('install', () => self.skipWaiting());

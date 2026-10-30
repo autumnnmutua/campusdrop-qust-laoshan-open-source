@@ -1,4 +1,5 @@
 import {useSyncExternalStore} from 'react';
+import { inWeChat } from './wechat';
 import {getItem,removeItem,setItem} from './storage';
 import {api} from './api';
 
@@ -13,7 +14,8 @@ const listeners=new Set<()=>void>();
 const emit=()=>listeners.forEach(l=>l());
 export type NotifyState='unsupported'|'denied'|'off'|'on';
 
-export function notifySupported(){return typeof window!=='undefined'&&'Notification' in window;}
+/** In-app browsers (WeChat) do not deliver web notifications reliably, so the switch is not offered there. */
+export function notifySupported(){return typeof window!=='undefined'&&'Notification' in window&&!inWeChat;}
 function stored(){return getItem(KEY)==='1';}
 export function notifyState():NotifyState{
   if(!notifySupported())return 'unsupported';
