@@ -61,10 +61,9 @@
       "durable_objects": {
         "bindings": [{ "name": "LIVE", "class_name": "LiveHub" }]
       },
-      // Daily clean-up at 11:17 Beijing; every 10 minutes: unpaid-order expiry, parcel reminders, group alerts.
+      // One trigger: frequent work every 10 minutes; daily cleanup at 11:20 Beijing.
       "triggers": {
         "crons": [
-          "17 3 * * *",
           "*/10 * * * *"
         ]
       }
@@ -87,10 +86,9 @@
       "durable_objects": {
         "bindings": [{ "name": "LIVE", "class_name": "LiveHub" }]
       },
-      // Daily clean-up at 11:17 Beijing; every 10 minutes: unpaid-order expiry, parcel reminders, group alerts.
+      // One trigger: frequent work every 10 minutes; daily cleanup at 11:20 Beijing.
       "triggers": {
         "crons": [
-          "17 3 * * *",
           "*/10 * * * *"
         ]
       }

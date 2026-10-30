@@ -73,8 +73,14 @@ export async function dailyJobs(env: Env): Promise<void> {
   ]);
 }
 
-/** Cron entry: "*\/10 * * * *" runs the frequent job; the daily trigger runs the daily one. */
+/** One ten-minute trigger also runs daily cleanup at 03:20 UTC (11:20 Beijing). */
 export async function scheduled(controller: ScheduledController, env: Env): Promise<void> {
-  if (controller.cron.startsWith('*/')) await frequentJobs(env);
-  else await dailyJobs(env);
+  if (controller.cron.startsWith('*/')) {
+    const scheduledAt = new Date(controller.scheduledTime);
+    try {
+      await frequentJobs(env);
+    } finally {
+      if (scheduledAt.getUTCHours() === 3 && scheduledAt.getUTCMinutes() === 20) await dailyJobs(env);
+    }
+  } else await dailyJobs(env);
 }
