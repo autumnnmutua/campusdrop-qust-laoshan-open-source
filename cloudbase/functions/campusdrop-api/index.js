@@ -22,10 +22,14 @@ exports.createHandler=(settings,fetchImpl=fetch)=>async event=>{
  // Pass only this app's session cookies. Never forward CloudBase/admin gateway credentials.
  if(headers.cookie){const cookies=headers.cookie.split(';').map(v=>v.trim()).filter(v=>/^__Host-campusdrop_(student|admin)=[a-f0-9]{64}$/.test(v));
   const names=cookies.map(v=>v.split('=')[0]);if(new Set(names).size!==names.length)return failure(401,'SESSION_INVALID','登录状态异常，请重新登录');outgoing.Cookie=cookies.join('; ');}
+ // The Worker permits delivery-photo uploads up to 200 KiB; all other requests retain the 8 KiB limit.
+ const photoUpload=method==='PUT'&&/^\/api\/v1\/admin\/orders\/[a-f0-9-]{36}\/photo$/.test(path)&&
+  ['image/jpeg','image/webp'].includes((headers['content-type']||'').split(';')[0].trim());
+ const maxBytes=photoUpload?200*1024:8192;
  const encoded=event.body||'';
- if(typeof encoded!=='string'||encoded.length>12000)return failure(413,'BODY_TOO_LARGE','提交内容过长');
+ if(typeof encoded!=='string'||encoded.length>(photoUpload?Math.ceil(maxBytes/3)*4:12000))return failure(413,'BODY_TOO_LARGE','提交内容过长');
  const body=event.isBase64Encoded?Buffer.from(encoded,'base64'):Buffer.from(encoded);
- if(body.length>8192)return failure(413,'BODY_TOO_LARGE','提交内容过长');
+ if(body.length>maxBytes)return failure(413,'BODY_TOO_LARGE','提交内容过长');
  try{
   const r=await fetchImpl(url,{method,headers:outgoing,body:['GET','HEAD'].includes(method)||!encoded?undefined:body,redirect:'manual',signal:AbortSignal.timeout(24000)});
   if(r.status>=300&&r.status<400)return failure(502,'UPSTREAM_UNAVAILABLE','业务服务暂时不可用，请稍后查询订单状态');

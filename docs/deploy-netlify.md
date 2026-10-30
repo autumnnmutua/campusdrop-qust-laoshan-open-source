@@ -9,5 +9,7 @@ Netlify发布静态界面与同域 `/api/*` 函数，业务数据由已有Worker
 - API路由匹配优先于静态资源；函数验证实际Origin和请求大小后转发，不接收客户端指定的上游或凭据。
 - Netlify静态版使用哈希路由，正式地址形如 /#/orders、/#/messages、/#/admin。根站点和函数应一起发布。
 - 代理返回问题编号；不转发平台身份令牌和伪造的客户端IP。其余权限仍由后端实时校验。
+- 送达照片上传单独允许 JPEG / WebP，大小上限与 Worker 一致为 200 KiB；其他请求仍限制为 8 KiB。
+- Netlify Functions 不承载 WebSocket 升级，页面使用已有的轮询机制更新订单信息。
 
 本仓库仍支持独立Cloudflare构建，GitHub Actions检查默认静态构建。发布两个前端时先保证后端迁移完成，再验证两侧的登录、订单、消息、签收和工单。
