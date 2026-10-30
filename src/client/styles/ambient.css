@@ -1,0 +1,60 @@
+/* Page background (ambient.tsx). Fixed behind the content of .site; every moving part is transform / opacity only. */
+.site { position: relative; isolation: isolate; }
+.page-ambient {
+  --amb-ink: #0f2833;
+  --amb-ink-alpha: .075;
+  --amb-tint-a: #cfe5ea;
+  --amb-tint-b: #f3dbe5;
+  --amb-ping: #1f6680;
+  --amb-light: #ffffff;
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+:root[data-theme=dark] .page-ambient { --amb-ink: #9fd4cc; --amb-ink-alpha: .06; --amb-tint-a: #12323d; --amb-tint-b: #2a1824; --amb-ping: #7ec3db; --amb-light: #7ec3db; }
+
+.amb-glow { position: absolute; width: 85vmax; height: 85vmax; border-radius: 50%; opacity: .75; }
+.amb-glow-a { left: -30vmax; top: -38vmax; background: radial-gradient(closest-side, var(--amb-tint-a), transparent); }
+.amb-glow-b { right: -34vmax; bottom: -42vmax; background: radial-gradient(closest-side, var(--amb-tint-b), transparent); opacity: .6; }
+
+.amb-scroll { position: absolute; inset: -12vh -6vw; }
+.amb-contours {
+  position: absolute;
+  inset: 0;
+  background: var(--amb-ink);
+  opacity: var(--amb-ink-alpha);
+  -webkit-mask: url(../art/page-contours.svg) center / cover no-repeat;
+  mask: url(../art/page-contours.svg) center / cover no-repeat;
+}
+
+.amb-ping { position: absolute; width: 0; height: 0; }
+.amb-ping::before { content: ""; position: absolute; left: -2px; top: -2px; width: 4px; height: 4px; border-radius: 50%; background: var(--amb-ping); opacity: 0; }
+.amb-ping i { position: absolute; left: -140px; top: -140px; width: 280px; height: 280px; border-radius: 50%; border: 1.5px solid var(--amb-ping); opacity: 0; transform: scale(.05); }
+
+.amb-light { position: absolute; left: -260px; top: -260px; width: 520px; height: 520px; border-radius: 50%; background: radial-gradient(closest-side, color-mix(in srgb, var(--amb-light) 70%, transparent), transparent); opacity: 0; transform: translate3d(-9999px, 0, 0); }
+:root[data-theme=dark] .amb-light { background: radial-gradient(closest-side, color-mix(in srgb, var(--amb-light) 12%, transparent), transparent); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .page-ambient:not(.is-still) .amb-glow-a { animation: amb-drift-a 46s ease-in-out infinite alternate; }
+  .page-ambient:not(.is-still) .amb-glow-b { animation: amb-drift-b 58s ease-in-out infinite alternate; }
+  .page-ambient:not(.is-still) .amb-contours { animation: amb-tide 90s ease-in-out infinite alternate; }
+  .amb-ping::before { animation: amb-contact 24s ease-out infinite; }
+  .amb-ping i { animation: amb-ring 24s cubic-bezier(.2,.6,.3,1) infinite; }
+  .amb-light { transition: transform 900ms cubic-bezier(.2,.8,.2,1), opacity 600ms ease; }
+  .amb-light.is-on { opacity: .9; }
+  @supports (animation-timeline: scroll()) {
+    .page-ambient:not(.is-still) .amb-scroll { animation: amb-parallax linear both; animation-timeline: scroll(root); }
+  }
+}
+@keyframes amb-drift-a { to { transform: translate(14vmax, 9vmax) scale(1.12); } }
+@keyframes amb-drift-b { to { transform: translate(-12vmax, -10vmax) scale(.92); } }
+@keyframes amb-tide { from { transform: translate3d(-1.5%, 0, 0) rotate(-.4deg); } to { transform: translate3d(1.5%, -2%, 0) rotate(.4deg) scale(1.03); } }
+@keyframes amb-parallax { to { transform: translateY(-10vh); } }
+/* A contact shows, the ring opens and fades; then a long quiet before the next one. */
+@keyframes amb-contact { 0% { opacity: 0; } 1.5% { opacity: .55; } 14% { opacity: .18; } 20%, 100% { opacity: 0; } }
+@keyframes amb-ring { 0% { opacity: 0; transform: scale(.05); } 2% { opacity: .5; } 16% { opacity: 0; transform: scale(1); } 100% { opacity: 0; transform: scale(1); } }
+
+/* Printed pages stay plain (the admin workspace does not render the layer at all). */
+@media print { .page-ambient { display: none; } }

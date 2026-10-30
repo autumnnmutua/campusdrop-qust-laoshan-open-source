@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { CARRIERS,ORDER_STATUSES,pickupCodeRegex } from './constants.ts';
 import { SLOT_CODES,type SlotCode } from './slots.ts';
+import { DROP_PLACES,type DropPlace } from './campus-map.ts';
 export { CARRIERS,MOCK_MESSAGE,ORDER_STATUSES,pickupCodeRegex,STATUS_LABELS,TASK_GROUP_LABELS } from './constants.ts';
 export const pickupCodeSchema = z.string().trim().regex(pickupCodeRegex, '取件码格式应为 87-5-2739 或 107-2-6382');
 export const sizeSchema = z.enum(['SMALL','LARGE']);
@@ -12,14 +13,17 @@ export const parcelSchema = z.object({
 }).strict();
 export const noteUpdateSchema=z.object({note:parcelSchema.shape.note.unwrap(),version:z.number().int().nonnegative(),confirmed:z.literal(true)}).strict();
 export const orderActionSchema=z.object({version:z.number().int().nonnegative(),confirmed:z.literal(true)}).strict();
-export interface AvailableOrder { id:string; buildingName:string; stationName:string; packageSize:PackageSize; deliveryMode:DeliveryMode; amountFen:number }
+export interface AvailableOrder { groupId?:string|null; groupSize?:number; id:string; buildingName:string; buildingCode?:string; stationName:string; packageSize:PackageSize; deliveryMode:DeliveryMode; amountFen:number; slotDate?:string|null; slotCode?:SlotCode|null; dropPlace?:DropPlace|null }
 export const quoteSchema = z.object({ packageSize: sizeSchema, deliveryMode: modeSchema });
 // Unknown price fields are stripped; they never affect the price computed by the server.
 export const orderSchema = z.object({
   parcelId: z.uuid(), deliveryMode: modeSchema,
   // Optional booked window; omitted means "as soon as possible". Both fields or neither.
   slotDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), slotCode: z.enum(SLOT_CODES).optional(),
-}).refine(v => (v.slotDate === undefined) === (v.slotCode === undefined), '预约时段需同时提供日期和时段');
+  // Optional campus drop-off point instead of the dorm; only with downstairs delivery.
+  dropPlace: z.enum(DROP_PLACES).optional(),
+}).refine(v => (v.slotDate === undefined) === (v.slotCode === undefined), '预约时段需同时提供日期和时段')
+  .refine(v => v.dropPlace === undefined || v.deliveryMode === 'DOWNSTAIRS', '送到约定地点时请选择楼下配送价');
 export const statusSchema = z.enum(ORDER_STATUSES);
 export const exceptionSchema = z.enum(['CODE_INVALID','SIZE_MISMATCH','UNREACHABLE','OTHER']);
 export const exceptionNoteSchema = z.string().trim().max(240).refine(v=>!/[<>\p{Cc}]/u.test(v),'请使用普通文字说明问题');
@@ -41,13 +45,20 @@ export type OrderStatus = z.infer<typeof statusSchema>;
 export type PackageSize = z.infer<typeof sizeSchema>;
 export type DeliveryMode = z.infer<typeof modeSchema>;
 export type ParcelInput = z.infer<typeof parcelSchema>;
-export interface Parcel { id: string; pickupCode: string; stationCode: string; packageSize: PackageSize; carrier: string|null; note: string; status: string; createdAt: number }
+export interface Parcel { id: string; pickupCode: string; stationCode: string; packageSize: PackageSize; carrier: string|null; note: string; status: string; createdAt: number; hasOrder?: number|boolean }
 export interface DormSnapshot { campusId: string; zone: string; buildingCode: string; buildingName: string; roomNo: string; name: string; phone: string }
 export interface Station { code: string; canonicalName: string; relativeLocation: string; lat: number|null; lng: number|null }
 export interface Order {
+  /** v3.0 merged delivery: the group this order belongs to and how many of its orders are not cancelled. */
+  groupId?:string|null; groupSize?:number; ruleId?:string|null;
   /** Shown to the student while the order is in progress; the courier enters it at the door to sign for them. */
   handoffCode?:string|null; handoffVerifiedAt?:number|null;
   slotDate?:string|null; slotCode?:SlotCode|null;
+  /** Campus drop-off point instead of the dorm (priced as downstairs). */
+  dropPlace?:DropPlace|null;
+  /** Roommate who will collect the parcel, shown to the courier; and the student's own tracking link token. */
+  proxyName?:string; shareToken?:string|null;
+  nearNotifiedAt?:number|null; hasPhoto?:boolean;
   /** Unread chat messages: from the courier (for the student) and from the student (for the courier). */
   chatUnreadStudent?:number; chatUnreadCourier?:number;
   hasAssignee?:boolean; receivedAt?:number|null;returnCount?:number;returnHistory?:{reason:string;createdAt:number;adminName:string}[]; custodyState?:'NONE'|'STAFF'|'RETURNED'|'DELIVERED'; upgradeQuoteFen?:number; pendingHandoff?:string|null; assigneePhone?:string|null; serviceNotice?:string; exceptionNote?:string; refundableFen:number; note:string; upgradeFen:number; id: string; parcelId: string; packageSize: PackageSize; deliveryMode: DeliveryMode; amountFen: number; status: OrderStatus; version: number; createdAt: number; dormSnapshot: DormSnapshot; stationSnapshot: Station; exceptionCode: string|null }

@@ -16,15 +16,15 @@ export interface ChatMessage { id: number; senderKind: 'STUDENT' | 'ADMIN'; mine
 // ---------------------------------------------------------------- courier location and map
 export const locationSchema = z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180), accuracy: z.number().min(0).max(5000) }).strict();
 export const calibrationSchema = z.object({
-  points: z.array(z.object({ landmark: z.enum(CALIBRATION_LANDMARKS), lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }).strict()).length(2)
-    .refine(p => p[0].landmark !== p[1].landmark, '请选择两个不同的地标'),
+  points: z.array(z.object({ landmark: z.enum(CALIBRATION_LANDMARKS), lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }).strict()).min(2).max(5)
+    .refine(p => new Set(p.map(x => x.landmark)).size === p.length, '请选择不同的地标'),
 }).strict();
 export interface CourierPosition { x: number; y: number; source: 'gps' | 'estimate'; updatedAt: number | null }
-export interface OrderEta { minutes: number; basis: 'history' | 'distance' | 'slot'; arriveBy: number; label: string }
-export interface OrderLive { eta: OrderEta | null; courier: CourierPosition | null; calibrated: boolean }
+export interface OrderEta { minutes: number; basis: 'history' | 'distance' | 'slot'; arriveBy: number; label: string; weatherPadding?: number }
+export interface OrderLive { eta: OrderEta | null; courier: CourierPosition | null; calibrated: boolean; residualMeters?: number | null }
 export interface MapCourier { id: string; username: string; x: number; y: number; updatedAt: number; active: number }
 export interface MapBuildingLoad { code: string; active: number; exceptions: number; awaitingReceipt: number }
-export interface LiveMapData { buildings: MapBuildingLoad[]; couriers: MapCourier[]; calibrated: boolean; slots: { date: string; code: string; booked: number }[] }
+export interface LiveMapData { buildings: MapBuildingLoad[]; couriers: MapCourier[]; calibrated: boolean; slots: { date: string; code: string; booked: number; capacity: number }[]; residualMeters?: number | null; mileage?: import('./operations-rules.ts').MileageRow[] }
 
 // ---------------------------------------------------------------- web push
 export const pushSubscriptionSchema = z.object({
@@ -43,4 +43,6 @@ export type LiveEvent =
   | { type: 'order'; orderId: string | null; kind: string }
   | { type: 'chat'; orderId: string }
   | { type: 'location'; orderId: string }
+  | { type: 'send'; id: string | null }
+  | { type: 'bye' }
   | { type: 'hello' };

@@ -6,6 +6,7 @@ import { orderScope } from './order-access';
 import { STALL_RULES, announcementArchive, announcementCreate, ratingCreate, type Analytics, type StalledOrder, type StudentStats } from '../shared/engagement';
 import type { Admin } from '../shared/contracts';
 import type { OrderStatus } from '../shared/delivery';
+import { orderingPause } from './settings';
 
 const DAY = 86400, CN_OFFSET = 8 * 3600;
 const PAID = "EXISTS(SELECT 1 FROM payments p WHERE p.order_id=o.id AND p.type='DELIVERY')";
@@ -33,7 +34,8 @@ async function write<T>(run: () => Promise<T>): Promise<T> {
 }
 
 interface AnnouncementRow { id: string; level: string; title: string; body: string; status: string; startsAt: number; endsAt: number | null; createdAt: number; archivedAt: number | null; author?: string }
-const announcementColumns = 'a.id,a.level,a.title,a.body,a.status,a.starts_at AS startsAt,a.ends_at AS endsAt,a.created_at AS createdAt,a.archived_at AS archivedAt';
+const announcementColumns = 'a.id,a.level,a.title,a.body,a.status,a.starts_at AS startsAt,a.ends_at AS endsAt,a.created_at AS createdAt,a.archived_at AS archivedAt,a.target_json AS targetsJson';
+const withTargets = ({ targetsJson, ...row }: AnnouncementRow & { targetsJson?: string | null }) => ({ ...row, targets: targetsJson ? JSON.parse(targetsJson) as string[] : null });
 
 async function studentStats(env: Env, userId: string): Promise<StudentStats> {
   const row = await env.DB.prepare(`SELECT count(*) AS paidOrders,
@@ -141,10 +143,15 @@ export async function engagementRoutes(request: Request, env: Env): Promise<Resp
 
   if (path === '/announcements' && method === 'GET') {
     const t = now();
+    // Building-targeted announcements reach only students whose saved dorm is in the list; visitors see the rest.
+    const student = await requireStudent(request, env).catch(() => null);
+    const building = student ? await env.DB.prepare('SELECT dorm_building_code AS code FROM user_addresses WHERE user_id=? AND valid_to IS NULL').bind(student.id).first<string>('code') : null;
     const rows = await orEmpty(async () => (await env.DB.prepare(`SELECT ${announcementColumns} FROM announcements a
-      WHERE a.status='ACTIVE' AND a.starts_at<=? AND (a.ends_at IS NULL OR a.ends_at>?) ORDER BY CASE a.level WHEN 'PAUSE' THEN 0 WHEN 'NOTICE' THEN 1 ELSE 2 END,a.starts_at DESC LIMIT 3`)
-      .bind(t, t).all<AnnouncementRow>()).results, [] as AnnouncementRow[]);
-    return json({ announcements: rows });
+      WHERE a.status='ACTIVE' AND a.starts_at<=? AND (a.ends_at IS NULL OR a.ends_at>?)
+      AND (a.target_json IS NULL OR EXISTS(SELECT 1 FROM json_each(a.target_json) j WHERE j.value=?))
+      ORDER BY CASE a.level WHEN 'PAUSE' THEN 0 WHEN 'NOTICE' THEN 1 ELSE 2 END,a.starts_at DESC LIMIT 3`)
+      .bind(t, t, building ?? '').all<AnnouncementRow>()).results, [] as AnnouncementRow[]);
+    return json({ announcements: rows.map(withTargets), pause: await orderingPause(env) });
   }
 
   if (path === '/me/stats' && method === 'GET') {
@@ -191,14 +198,17 @@ export async function engagementRoutes(request: Request, env: Env): Promise<Resp
     if (method === 'GET') {
       const rows = await orEmpty(async () => (await env.DB.prepare(`SELECT ${announcementColumns},coalesce(u.username,'已移除管理员') AS author
         FROM announcements a LEFT JOIN admin_users u ON u.id=a.created_by ORDER BY a.created_at DESC,a.id DESC LIMIT 30`).all<AnnouncementRow>()).results, [] as AnnouncementRow[]);
-      return json({ announcements: rows });
+      return json({ announcements: rows.map(withTargets) });
     }
     if (method === 'POST') {
       await rateLimit(env, `announce:${admin.id}`, 20);
       const data = await body(request, announcementCreate), id = crypto.randomUUID(), t = now();
+      // Scheduled announcements: from now up to 14 days ahead; the duration counts from the start.
+      const start = data.startsAt ?? t;
+      if (start < t - 300 || start > t + 14 * 86400) throw new ApiError(400, 'INVALID_INPUT', '定时发布时间需在现在到 14 天内');
       await write(() => env.DB.batch([
-        env.DB.prepare('INSERT INTO announcements(id,level,title,body,starts_at,ends_at,created_by) VALUES(?,?,?,?,?,?,?)')
-          .bind(id, data.level, data.title, data.body, t, data.durationHours ? t + data.durationHours * 3600 : null, admin.id),
+        env.DB.prepare('INSERT INTO announcements(id,level,title,body,starts_at,ends_at,created_by,target_json) VALUES(?,?,?,?,?,?,?,?)')
+          .bind(id, data.level, data.title, data.body, Math.max(start, t), data.durationHours ? Math.max(start, t) + data.durationHours * 3600 : null, admin.id, data.targets ? JSON.stringify(data.targets) : null),
         env.DB.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,resource_id) VALUES(?,'ADMIN',?,'ANNOUNCEMENT_PUBLISHED',?)").bind(crypto.randomUUID(), admin.id, id),
       ]));
       return json({ id }, 201);

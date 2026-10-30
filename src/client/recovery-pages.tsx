@@ -1,3 +1,4 @@
+import {t} from './i18n';
 import {useState,type FormEvent} from 'react';
 import {Link} from 'react-router-dom';
 import {api} from './api';
@@ -8,7 +9,7 @@ export function RecoveryPage(){const [kind,setKind]=useState('student'),[message
 }
 export function RecoveryCode({admin=false}:{admin?:boolean}){const [code,setCode]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false);
  async function submit(e:FormEvent<HTMLFormElement>){e.preventDefault();const form=new FormData(e.currentTarget);setBusy(true);try{const r=await api<{code:string;expiresAt:number}>(admin?'/admin/me/recovery-code':'/me/recovery-code','POST',{currentPassword:form.get('password')});setCode(r.code);setMessage('有效至 '+new Date(r.expiresAt*1000).toLocaleString()+'。请私下保存，不要公开分享。');}catch(e){setMessage((e as Error).message);}finally{setBusy(false);}}
- return <details><summary>设置账号恢复码</summary><p>恢复码可重置密码，仅显示一次。重新生成会使旧码失效。</p><form onSubmit={submit}><label>验证当前密码<input name="password" type="password" required autoComplete="current-password"/></label><button disabled={busy}>生成恢复码</button></form>{code&&<code className="identifier">{code}</code>}<p role="status">{message}</p></details>;
+ return <details><summary>{t('设置账号恢复码')}</summary><p>恢复码可重置密码，仅显示一次。重新生成会使旧码失效。</p><form onSubmit={submit}><label>验证当前密码<input name="password" type="password" required autoComplete="current-password"/></label><button disabled={busy}>生成恢复码</button></form>{code&&<code className="identifier">{code}</code>}<p role="status">{message}</p></details>;
 }
 export function RecoveryAdmin(){const [kind,setKind]=useState('student'),[message,setMessage]=useState(''),[code,setCode]=useState(''),[busy,setBusy]=useState(false);
  async function submit(e:FormEvent<HTMLFormElement>){e.preventDefault();const f=new FormData(e.currentTarget);setBusy(true);try{const r=await api<{code:string}>('/admin/recovery/issue','POST',{kind,username:f.get('username'),currentPassword:f.get('password'),identityVerified:f.get('confirmed')==='on'});setCode(r.code);setMessage('恢复码有效15分钟，请通过核验后的私密渠道交给账号本人。');}catch(e){setMessage((e as Error).message);}finally{setBusy(false);}}

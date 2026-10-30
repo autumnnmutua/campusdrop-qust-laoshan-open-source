@@ -8,27 +8,14 @@
   padding: 18px 20px;
   border-radius: var(--radius-3xl);
   background: linear-gradient(150deg, var(--navy-700), var(--blue-600));
-  color: var(--white);
-  box-shadow: 0 16px 36px #123f7733;
+  color: var(--on-color);
+  box-shadow: 0 16px 36px #1f556a33;
 }
 .handoff-code-card.is-near { background: linear-gradient(150deg, #0d6b4c, var(--green-500)); box-shadow: 0 16px 36px #0d6b4c40; }
 .handoff-code-head { display: flex; align-items: center; justify-content: space-between; }
 .handoff-code-head h2 { display: flex; align-items: center; gap: 8px; margin: 0; color: inherit; font-size: var(--text-lg); }
 .handoff-code-head .text-button { color: #ffffffd9; }
 .handoff-code-card .muted { margin: 0; color: #ffffffcc; }
-.handoff-digits { display: flex; gap: 10px; margin: 14px 0 12px; perspective: 400px; }
-.handoff-digits span {
-  display: grid;
-  place-items: center;
-  width: 56px;
-  height: 68px;
-  border-radius: var(--radius-lg);
-  background: #ffffff1f;
-  border: 1px solid #ffffff33;
-  font: 750 36px/1 var(--font-mono);
-  letter-spacing: 0;
-  animation: digit-flip .55s var(--ease-out) backwards;
-}
 @keyframes digit-flip { from { transform: rotateX(-90deg); opacity: 0; } to { transform: none; opacity: 1; } }
 
 .courier-code { margin: 12px 0; padding: 12px 14px; border-radius: var(--radius-xl); background: var(--green-50); border: 1px solid #b7e4cb; }
@@ -79,8 +66,9 @@
   border: 1px solid transparent;
   box-shadow: none;
 }
-.slot-days button small { font-size: 11px; opacity: .8; }
-.slot-days button.active { background: var(--blue-500); color: var(--white); }
+.slot-days button small { font-size: 11px; color: var(--ink-600); }
+.slot-days button.active small { color: var(--on-color); }
+.slot-days button.active { background: var(--blue-500); color: var(--on-color); }
 .slot-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .slot-card { display: grid; gap: 4px; align-content: start; }
 .slot-card strong { font-size: var(--text-md); }
@@ -100,7 +88,7 @@
 @keyframes meter-grow { from { transform: scaleX(0); } }
 .slot-summary { margin: 0; color: var(--color-success); }
 .slot-tag { display: inline-flex; gap: 6px; align-items: center; margin: 4px 0; padding: 3px 10px 3px 4px; border-radius: var(--radius-pill); background: var(--amber-50); color: var(--amber-700); font-size: var(--text-sm); }
-.slot-tag span { padding: 1px 6px; border-radius: var(--radius-pill); background: var(--amber-500); color: var(--white); font-size: 11px; font-weight: 700; }
+.slot-tag span { padding: 1px 6px; border-radius: var(--radius-pill); background: var(--amber-700); color: var(--color-surface); font-size: 11px; font-weight: 700; }
 @media (max-width: 520px) { .slot-grid { grid-template-columns: 1fr; } .slot-card { grid-template-columns: auto 1fr auto; align-items: center; } .slot-meter { grid-column: 1 / -1; } }
 
 /* ---------------------------------------------------------------- 订单聊天 */
@@ -127,7 +115,7 @@
 .chat-list .theirs { justify-self: start; }
 .chat-list .theirs p { background: var(--blue-50); border-bottom-left-radius: 4px; }
 .chat-list .mine { justify-self: end; justify-items: end; }
-.chat-list .mine p { background: var(--blue-500); color: var(--white); border-bottom-right-radius: 4px; }
+.chat-list .mine p { background: var(--blue-500); color: var(--on-color); border-bottom-right-radius: 4px; }
 .chat-list .chat-empty { max-width: none; justify-self: center; color: var(--color-text-muted); font-size: var(--text-sm); }
 @keyframes bubble-in { from { opacity: 0; transform: translateY(8px) scale(.96); } }
 .chat-phrases { display: flex; gap: 6px; margin-bottom: 8px; overflow-x: auto; padding-bottom: 2px; }
@@ -145,7 +133,7 @@
   height: auto;
   border-radius: var(--radius-3xl);
   border: 1px solid var(--color-line);
-  background: #eef3f6;
+  background: #f1f3f2;
   color: var(--blue-800);
   box-shadow: var(--shadow-card);
 }
@@ -167,7 +155,7 @@
 .map-building { animation: building-in .5s var(--ease-out) backwards; animation-delay: calc(var(--i, 0) * 25ms); }
 @keyframes building-in { from { opacity: 0; } }
 .map-building.is-clickable { cursor: pointer; }
-.map-building.is-clickable:hover rect, .map-building.is-clickable:focus-visible rect { fill: #1568e92e; stroke: var(--blue-500); stroke-width: calc(var(--k, 2) * 3px); }
+.map-building.is-clickable:hover rect, .map-building.is-clickable:focus-visible rect { fill: #21647c2e; stroke: var(--blue-500); stroke-width: calc(var(--k, 2) * 3px); }
 .map-building:focus-visible { outline: none; }
 .map-building.is-target rect { fill: #f5b82e59; stroke: var(--gold-500); stroke-width: calc(var(--k, 2) * 4px); animation: target-glow 1.8s ease-in-out infinite alternate; }
 @keyframes target-glow { to { fill: #f5b82e1f; } }
@@ -175,7 +163,7 @@
 .load-badge text { fill: #fff; font-size: 11px; font-weight: 700; text-anchor: middle; }
 .exception-ring { fill: none; stroke: var(--red-500); stroke-width: calc(var(--k, 2) * 3px); transform-box: fill-box; transform-origin: center; animation: soft-pulse 1.8s ease-out infinite; }
 .map-route path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
-.route-glow { stroke: #1568e93d; stroke-width: calc(var(--k, 2) * 16px); }
+.route-glow { stroke: #21647c3d; stroke-width: calc(var(--k, 2) * 16px); }
 .route-line { stroke: var(--blue-500); stroke-width: calc(var(--k, 2) * 6px); stroke-dasharray: var(--len); animation: route-draw 1.4s var(--ease-in-out) backwards; }
 @keyframes route-draw { from { stroke-dashoffset: var(--len); } to { stroke-dashoffset: 0; } }
 .route-ants { stroke: #ffffffcc; stroke-width: calc(var(--k, 2) * 2px); animation: ants 1.2s linear infinite; }
@@ -192,7 +180,7 @@
 .map-courier.source-estimate .courier-halo { fill: #f5a52433; }
 .courier-glyph { fill: #fff; }
 .courier-name { fill: var(--color-text); font-size: 12px; font-weight: 700; text-anchor: middle; paint-order: stroke; stroke: #fff; stroke-width: 4px; }
-.map-compass circle { fill: #ffffffd9; stroke: #c9d8ec; }
+.map-compass circle { fill: #ffffffd9; stroke: #cfd8d8; }
 .map-compass path { fill: var(--red-500); }
 .map-compass text { fill: var(--color-text-secondary); font-size: 11px; font-weight: 700; text-anchor: middle; }
 
@@ -209,7 +197,7 @@
 .map-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 0; padding: 12px; border-radius: var(--radius-xl); background: var(--blue-25); list-style: none; font-size: var(--text-sm); }
 .map-legend i { display: inline-block; width: 14px; height: 10px; margin-right: 6px; border-radius: 3px; vertical-align: -1px; }
 .lg-station { background: #fff6df; border: 2px solid var(--gold-500); }
-.lg-building { background: #a37a45; border: 1.5px solid #fff; box-shadow: 0 0 0 1px #9fbbe4; }
+.lg-building { background: #a37a45; border: 1.5px solid #fff; box-shadow: 0 0 0 1px #b3c4c3; }
 .lg-route { background: var(--blue-500); height: 4px !important; }
 .lg-courier { background: var(--green-500); border-radius: 50% !important; width: 10px !important; }
 @media (max-width: 860px) { .map-layout { grid-template-columns: 1fr; } }
@@ -261,91 +249,3 @@
 .account-delete summary { color: var(--red-700); font-weight: 650; }
 .account-delete p { font-size: var(--text-sm); color: var(--color-text-secondary); }
 
-/* ---------------------------------------------------------------- opening animation */
-@property --reveal { syntax: '<length>'; inherits: false; initial-value: 0px; }
-.intro {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  padding: 16px;
-  background: radial-gradient(120% 90% at 50% 36%, #1c4f99 0%, #0e2d61 48%, #061634 100%);
-  color: #fff;
-  text-align: center;
-  cursor: pointer;
-  animation: intro-in .35s ease-out;
-}
-@keyframes intro-in { from { opacity: 0; } }
-/* Exit: a ripple opens from the mark and reveals the app underneath (falls back to a fade without @property). */
-.intro.is-leaving {
-  pointer-events: none;
-  -webkit-mask-image: radial-gradient(circle at var(--cx, 50%) var(--cy, 42%), transparent var(--reveal), #000 calc(var(--reveal) + 48px));
-  mask-image: radial-gradient(circle at var(--cx, 50%) var(--cy, 42%), transparent var(--reveal), #000 calc(var(--reveal) + 48px));
-  animation: intro-reveal .65s cubic-bezier(.65, 0, .35, 1) forwards;
-}
-@keyframes intro-reveal { 70% { opacity: 1; } to { --reveal: 150vmax; opacity: 0; } }
-/* Slow colour fields behind everything: deep blue light from the sea, a hint of dawn gold. */
-.intro-aurora { position: absolute; inset: -20%; background: radial-gradient(38% 32% at 32% 34%, #2f7de94d, #2f7de900), radial-gradient(30% 26% at 68% 58%, #eaa91b29, #eaa91b00), radial-gradient(26% 22% at 55% 20%, #4cc3e633, #4cc3e600); animation: intro-aurora 9s ease-in-out infinite alternate; }
-@keyframes intro-aurora { to { transform: rotate(8deg) scale(1.08); } }
-/* Laoshan ridgelines and the sea. */
-.intro-sea { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 36vh; }
-.intro-ridge { animation: intro-ridge 1.4s var(--ease-out) backwards; }
-.intro-ridge.near { animation-delay: .15s; }
-@keyframes intro-ridge { from { opacity: 0; transform: translateY(24px); } }
-.intro-water { animation: intro-fade-in 1.2s ease-out .2s backwards; }
-.intro-horizon { opacity: .7; animation: intro-horizon 2.4s ease-in-out .3s infinite alternate; }
-@keyframes intro-horizon { from { opacity: .25; } }
-.intro-glint { stroke: #cfe6ff; stroke-width: 2; stroke-linecap: round; opacity: .15; animation: intro-glint 2.6s ease-in-out infinite alternate; }
-@keyframes intro-glint { to { opacity: .7; transform: translateX(22px); } }
-@keyframes intro-fade-in { from { opacity: 0; } }
-/* Sea mist drifting over the water and between the ridges. */
-.intro-fog { position: absolute; left: -30%; width: 160%; height: 22vh; border-radius: 50%; background: radial-gradient(closest-side, #b9d6ff33, #b9d6ff14 55%, #b9d6ff00); pointer-events: none; transition: transform .65s var(--ease-in-out), opacity .65s; }
-.intro-fog.f1 { bottom: 4vh; animation: intro-fog 11s ease-in-out infinite alternate; }
-.intro-fog.f2 { bottom: 15vh; height: 16vh; opacity: .8; animation: intro-fog 14s ease-in-out -5s infinite alternate-reverse; }
-.intro-fog.f3 { top: 6vh; height: 18vh; opacity: .45; animation: intro-fog 17s ease-in-out -8s infinite alternate; }
-@keyframes intro-fog { from { translate: -8% 0; } to { translate: 8% -1vh; } }
-.intro.is-leaving .intro-fog.f1 { transform: translateX(-40%); opacity: 0; }
-.intro.is-leaving .intro-fog.f2 { transform: translateX(40%); opacity: 0; }
-.intro-particles { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-/* Centre stage. */
-.intro-stage { position: relative; display: grid; justify-items: center; margin-top: -5vh; }
-.intro.is-leaving .intro-stage { animation: intro-stage-out .65s cubic-bezier(.65, 0, .35, 1) forwards; }
-@keyframes intro-stage-out { to { transform: scale(1.08); opacity: 0; } }
-.intro-core { position: relative; display: grid; grid-template: 100% / 100%; place-items: center; width: 132px; height: 132px; }
-.intro-core > * { grid-area: 1 / 1; }
-/* Ripples: thin rings spreading over the water from the point of impact. */
-.intro-ripple { position: absolute; top: 50%; left: 50%; width: 92vmin; height: 92vmin; margin: -46vmin 0 0 -46vmin; border-radius: 50%; border: 1.5px solid #bcdcff8c; box-shadow: 0 0 24px #4aa3ff26, inset 0 0 24px #4aa3ff1a; opacity: 0; transform: scale(.04); pointer-events: none; animation: intro-ripple 2.4s cubic-bezier(.15, .6, .3, 1) backwards; }
-.intro-ripple:first-child { border-color: #ffd98ab3; }
-@keyframes intro-ripple { 0% { opacity: .95; transform: scale(.04); } 100% { opacity: 0; transform: scale(1); } }
-.intro-flash { position: absolute; top: 50%; left: 50%; width: 180px; height: 180px; margin: -90px 0 0 -90px; border-radius: 50%; background: radial-gradient(closest-side, #fffbe9, #ffe2a366 40%, #ffe2a300); opacity: 0; pointer-events: none; animation: intro-flash .9s ease-out .85s backwards; }
-@keyframes intro-flash { from { opacity: 1; transform: scale(.2); } to { opacity: 0; transform: scale(1.8); } }
-/* The falling drop with a short trail of light. */
-.intro-drop { position: relative; width: 18px; opacity: 0; filter: drop-shadow(0 0 8px #ffd98a) drop-shadow(0 0 18px #ffd98a80); animation: intro-drop .5s cubic-bezier(.5, 0, .9, .45) .35s; }
-.intro-drop::before { content: ""; position: absolute; left: 50%; bottom: 60%; width: 2px; height: 90px; margin-left: -1px; border-radius: 2px; background: linear-gradient(#ffe2a300, #ffe2a3cc); }
-.intro-drop svg { display: block; width: 100%; height: auto; }
-@keyframes intro-drop { from { opacity: 0; transform: translateY(-40vh) scaleY(1.3); } 18% { opacity: 1; } 96% { opacity: 1; transform: translateY(0) scaleY(1.15); } to { opacity: 0; transform: translateY(4px) scale(.4); } }
-/* The parcel mark rising from the rings: a glass disc, a gold orbit drawing round it and the cube drawing itself. */
-.intro-mark { width: 112px; height: 112px; border-radius: 50%; background: radial-gradient(circle at 35% 28%, #ffffff33, #ffffff0d 62%); border: 1px solid #ffffff38; box-shadow: 0 18px 50px #02081a66, 0 0 46px #4aa3ff33, inset 0 1px 0 #ffffff40; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); animation: intro-mark .9s cubic-bezier(.2, .9, .25, 1.15) 1s backwards; }
-@keyframes intro-mark { from { opacity: 0; transform: translateY(16px) scale(.6); filter: blur(8px); } }
-.intro-mark svg { display: block; width: 100%; height: 100%; overflow: visible; }
-.intro-orbit { fill: none; stroke: #ffffff1f; stroke-width: 1; }
-.intro-ring { fill: none; stroke: #f6c453; stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 1; transform: rotate(-90deg); filter: drop-shadow(0 0 6px #f6c45399); animation: intro-draw 1.1s cubic-bezier(.6, 0, .2, 1) 1.15s backwards; }
-.intro-parcel path { fill: none; stroke: #fff; stroke-width: 3.6; stroke-linejoin: round; stroke-linecap: round; stroke-dasharray: 1; animation: intro-draw .8s var(--ease-out) 1.2s backwards; }
-.intro-parcel path + path { animation-delay: 1.38s; }
-.intro-parcel .intro-strap { stroke: #f6c453; stroke-width: 3; animation-delay: 1.55s; }
-@keyframes intro-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
-/* Name and lines. */
-.intro-title { margin: 18px 0 0; font: 700 clamp(34px, 9vw, 54px)/1.05 var(--font-sans); letter-spacing: .02em; color: #fff; text-shadow: 0 6px 30px #02081a80; }
-.intro-title span { display: inline-block; animation: intro-letter .7s cubic-bezier(.2, .8, .2, 1) backwards; }
-.intro-title span.is-drop { color: #f6c453; }
-@keyframes intro-letter { from { opacity: 0; transform: translateY(14px); filter: blur(6px); } }
-.intro-rule { width: 120px; height: 1px; margin: 14px 0 12px; background: linear-gradient(90deg, #f6c45300, #f6c453, #f6c45300); animation: intro-rule .8s var(--ease-out) 1.85s backwards; }
-@keyframes intro-rule { from { transform: scaleX(0); opacity: 0; } }
-.intro-sub { margin: 0; color: #ffffffd9; font: 500 15px/1.4 var(--font-brush); letter-spacing: .42em; text-indent: .42em; animation: intro-rise-in .7s var(--ease-out) 1.95s backwards; }
-.intro-tagline { margin: 8px 0 0; color: #ffffff8c; font-size: 13px; letter-spacing: .24em; text-indent: .24em; animation: intro-rise-in .7s var(--ease-out) 2.15s backwards; }
-@keyframes intro-rise-in { from { opacity: 0; transform: translateY(8px); } }
-.intro-skip { position: absolute; top: max(16px, env(safe-area-inset-top)); right: 16px; z-index: 1; min-height: 32px; padding: 4px 16px; border-radius: var(--radius-pill); background: #ffffff14; color: #ffffffcc; border: 1px solid #ffffff33; box-shadow: none; font-size: var(--text-sm); letter-spacing: .1em; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
-.intro-skip:hover { background: #ffffff26; }
-@media (max-width: 520px) { .intro-core { width: 112px; height: 112px; } .intro-mark { width: 96px; height: 96px; } .intro-sea { height: 30vh; } }

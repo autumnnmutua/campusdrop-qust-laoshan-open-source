@@ -92,7 +92,7 @@
 }
 
 .trend-bar:hover rect {
-  fill: #8fbaf8;
+  fill: #b1cac9;
 }
 
 .trend-line {
@@ -214,7 +214,7 @@
 }
 
 .bar-fill {
-  fill: #3a86f5;
+  fill: #7ea8a7;
 }
 
 .bar-fill.rating {
@@ -359,7 +359,7 @@
 .announcement-card .badge[data-state=已下线],
 .announcement-card .badge[data-state=已到期] {
   background: var(--gray-100);
-  color: #6b7a90;
+  color: var(--ink-500);
 }
 
 .announcement-card .badge[data-state=生效中] {
@@ -411,7 +411,7 @@
 }
 
 .heat-cell.l2 {
-  fill: #93bdf7;
+  fill: #b3cbca;
 }
 
 .heat-cell.l3 {
@@ -419,7 +419,7 @@
 }
 
 .heat-cell.l4 {
-  fill: #1462dc;
+  fill: #1f5f76;
 }
 
 .heat-cell:hover {
@@ -449,7 +449,7 @@
 }
 
 .heat-legend .l2 {
-  background: #93bdf7;
+  background: #b3cbca;
 }
 
 .heat-legend .l3 {
@@ -457,7 +457,7 @@
 }
 
 .heat-legend .l4 {
-  background: #1462dc;
+  background: #1f5f76;
 }
 
 /* ---------------------------------------------------------------- v2.2 admin: stalled orders, staff table, templates */
@@ -498,7 +498,7 @@
   padding: 0 7px;
   border-radius: var(--radius-pill);
   background: #e8590c;
-  color: var(--white);
+  color: var(--on-color);
   font-size: var(--text-sm);
 }
 
@@ -534,7 +534,7 @@
 
 .stalled li[data-status^=DELIVERED] .stalled-time {
   background: var(--blue-100);
-  color: #1d5bb5;
+  color: #1c5469;
 }
 
 .stalled li[data-status=FAILED_PICKUP] .stalled-time,
@@ -643,20 +643,20 @@
   height: 22px;
   border-radius: 50%;
   font-size: var(--text-xs);
-  color: var(--white);
-  background: #8aa3c6;
+  color: var(--on-color);
+  background: #9caaa9;
 }
 
 .rank.r1 {
-  background: linear-gradient(150deg,#ffcf4d,#f0a500);
+  background: var(--route);
 }
 
 .rank.r2 {
-  background: linear-gradient(150deg,#c7d3e3,#93a5bf);
+  background: var(--abyss);
 }
 
 .rank.r3 {
-  background: linear-gradient(150deg,#e8b38a,#c07a45);
+  background: var(--ink-600);
 }
 
 .ratio {

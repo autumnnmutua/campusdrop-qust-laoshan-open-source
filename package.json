@@ -1,6 +1,6 @@
 {
   "name": "campusdrop-qust-laoshan",
-  "version": "2.6.0",
+  "version": "3.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -27,7 +27,9 @@
     "dev:static": "vite --host 127.0.0.1",
     "build:workers": "vite build --config vite.workers.config.ts",
     "deploy:cloudbase": "node scripts/deploy-cloudbase.mjs",
-    "push:keys": "node scripts/vapid-keys.mjs"
+    "push:keys": "node scripts/vapid-keys.mjs",
+    "theme:dark": "node scripts/dark-theme.mjs",
+    "theme:check": "node scripts/dark-theme.mjs --check"
   },
   "dependencies": {
     "@netlify/functions": "^6.0.0",

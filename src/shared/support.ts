@@ -7,4 +7,4 @@ export const ticketState=z.object({status:z.enum(['IN_PROGRESS','RESOLVED','CLOS
 export const bulkCodes=z.object({orderIds:z.array(z.uuid()).min(1).max(20).refine(v=>new Set(v).size===v.length),confirmed:z.literal(true)}).strict();
 export interface Ticket { orderContext?:{status:OrderStatus;building:string;room:string;station:string};id:string;orderId:string;userId:string;category:string;subject:string;status:'OPEN'|'IN_PROGRESS'|'RESOLVED'|'CLOSED';version:number;createdAt:number}
 export interface TicketMessage {id:number;actorKind:string;body:string;createdAt:number}
-export interface InboxMessage {id:number;orderId:string;kind:string;title:string;readAt:number|null;createdAt:number}
+export interface InboxMessage {id:number;orderId:string|null;kind:string;title:string;link:string|null;readAt:number|null;createdAt:number}

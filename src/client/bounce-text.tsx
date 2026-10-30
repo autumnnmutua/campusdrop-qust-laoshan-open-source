@@ -21,6 +21,13 @@ export function setBounceEnabled(on:boolean){enabled=on;setItem(KEY,on?'on':'off
 export const isBounceEnabled=()=>enabled;
 export function useBounceEnabled(){return useSyncExternalStore(l=>{listeners.add(l);return()=>listeners.delete(l);},()=>enabled,()=>true);}
 
+/** Latin words stay together (so English titles wrap between words); CJK characters and spaces stay single. */
+function words(chars:string[]):[number,string[]][]{
+  // Closing punctuation (。，！？…) never starts a line, so it is kept with the character before it.
+  const latin=/[A-Za-z0-9'’.,!?-]/,closing=/[，。！？、；：”’）》」』…]/,out:[number,string[]][]=[];
+  chars.forEach((ch,i)=>{const last=out.at(-1);if(last&&((latin.test(ch)&&latin.test(last[1].at(-1)!))||closing.test(ch)))last[1].push(ch);else out.push([i,[ch]]);});
+  return out;
+}
 export function BounceText({text,variant='pop',trigger,playOnMount=true,as:Tag='span',className}:{text:string;variant?:BounceVariant;trigger?:unknown;playOnMount?:boolean;as?:ElementType;className?:string}){
   const ref=useRef<HTMLElement>(null),lastTrigger=useRef(trigger);
   const chars=Array.from(text);
@@ -36,6 +43,8 @@ export function BounceText({text,variant='pop',trigger,playOnMount=true,as:Tag='
   const play=variant.includes('pop')&&playOnMount?' bt-play':'';
   return <Tag ref={ref} className={`bt ${variant.split(' ').map(v=>`bt-${v}`).join(' ')}${play}${className?' '+className:''}`}>
     <span className="sr-only">{text}</span>
-    <span className="bt-chars" aria-hidden="true">{chars.map((ch,i)=><span key={i} className="bt-c">{ch===' '?' ':ch}</span>)}</span>
+    <span className="bt-chars" aria-hidden="true">{words(chars).map(([start,word])=>word.length>1
+      ?<span key={start} className="bt-w">{word.map((ch,j)=><span key={j} className="bt-c">{ch}</span>)}</span>
+      :<span key={start} className="bt-c">{word[0]===' '?' ':word[0]}</span>)}</span>
   </Tag>;
 }

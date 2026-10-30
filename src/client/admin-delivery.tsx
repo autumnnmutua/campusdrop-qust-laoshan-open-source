@@ -14,21 +14,33 @@ import { api } from './api';
 import { exportTasksCsv } from './csv';
 import { StalledOrders } from './admin-alerts';
 import { flagTitle,toast } from './effects';
+import { SymbolIcon } from './campus-design';
 import { money,useResource } from './student-delivery';
+import { DeliveryPhotoView } from './order-extras';
+import { DROP_PLACE_LABELS,type RoutePlan } from '../shared/campus-map';
+import { slotLabel } from '../shared/slots';
 export function AdminShell({children}:{children:ReactNode}){const me=useResource<{admin:Admin}>('/admin/me');const {pathname}=useLocation();useLiveChannel(me.data?'admin':null);
   // On phones the nav is a swipeable row; keep the current tab visible after navigating.
   useEffect(()=>{const nav=document.querySelector<HTMLElement>('.admin-nav'),active=nav?.querySelector<HTMLElement>('a.active');if(nav&&active&&nav.scrollWidth>nav.clientWidth)nav.scrollLeft=active.offsetLeft-(nav.clientWidth-active.offsetWidth)/2;},[pathname,me.data]);
-  if(me.loading&&!me.data)return <LoadingState/>;if(me.error)return <section><p className="eyebrow">CAMPUSDROP / 工作空间</p><h1>{me.unauthorized?'请先登录管理员':'工作台暂时无法打开'}</h1>{me.unauthorized?<p className="muted">管理员工作台仅对已授权账号开放，登录后自动返回。</p>:<p role="alert">{me.error}</p>}<Link className="button" to="/admin/login">管理员登录</Link></section>;if(me.data&&!me.data.admin.phone)return <Navigate to="/admin/account" replace/>;return <section className="admin-section"><div className="admin-sidebar"><p className="eyebrow">CAMPUSDROP / 工作空间</p><nav className="admin-nav" aria-label="管理员导航"><NavLink to="/admin" end>配送任务</NavLink><NavLink to="/admin/map">作战地图</NavLink><NavLink to="/admin/analytics">数据看板</NavLink><NavLink to="/admin/batches">批次管理</NavLink><NavLink to="/admin/tickets">售后工单</NavLink>{me.data?.admin.role==='SUPER_ADMIN'&&<><NavLink to="/admin/announcements">公告管理</NavLink><NavLink to="/admin/admins">管理员</NavLink><NavLink to="/admin/audit">审计日志</NavLink><NavLink to="/admin/recovery">账号恢复</NavLink><NavLink to="/admin/errors">错误监控</NavLink></>}<NavLink to="/admin/account">我的授权</NavLink></nav><p className="muted">一人一号 · 授权范围内协作</p></div><div className="admin-content">{children}</div></section>;}
+  if(me.loading&&!me.data)return <LoadingState/>;if(me.error)return <section><p className="eyebrow">CAMPUSDROP / 工作空间</p><h1>{me.unauthorized?'请先登录管理员':'工作台暂时无法打开'}</h1>{me.unauthorized?<p className="muted">管理员工作台仅对已授权账号开放，登录后自动返回。</p>:<p role="alert">{me.error}</p>}<Link className="button" to="/admin/login">管理员登录</Link></section>;if(me.data&&!me.data.admin.phone)return <Navigate to="/admin/account" replace/>;const super_=me.data?.admin.role==='SUPER_ADMIN';
+  return <section className="admin-section"><aside className="admin-sidebar"><nav className="admin-nav" aria-label="管理员导航">
+    <p className="admin-nav-group">配送</p><NavLink to="/admin" end>配送任务</NavLink><NavLink to="/admin/map">作战地图</NavLink><NavLink to="/admin/batches">批次管理</NavLink><NavLink to="/admin/sends">代寄件</NavLink><NavLink to="/admin/tickets">售后工单</NavLink>
+    <p className="admin-nav-group">运营</p><NavLink to="/admin/analytics">数据看板</NavLink><NavLink to="/admin/punctuality">准时率</NavLink><NavLink to="/admin/settlement">结算</NavLink><NavLink to="/admin/report">月报</NavLink>
+    {super_&&<><p className="admin-nav-group">管理</p><NavLink to="/admin/settings">运营设置</NavLink><NavLink to="/admin/announcements">公告管理</NavLink><NavLink to="/admin/admins">管理员</NavLink><NavLink to="/admin/audit">审计日志</NavLink><NavLink to="/admin/recovery">账号恢复</NavLink><NavLink to="/admin/errors">错误监控</NavLink></>}
+    <p className="admin-nav-group">账号</p><NavLink to="/admin/account">我的授权</NavLink></nav>
+    {me.data&&<div className="admin-identity"><strong>{me.data.admin.username}</strong>{ADMIN_ROLE_LABELS[me.data.admin.role]??me.data.admin.role} · 一人一号，授权范围内协作</div>}
+  </aside><div className="admin-content">{children}</div></section>;}
+const ADMIN_ROLE_LABELS:Record<string,string>={SUPER_ADMIN:'超级管理员',ZONE_ADMIN:'区域管理员',BUILDING_ADMIN:'楼栋管理员',DELIVERY_STAFF:'配送人员'};
 export function TaskCard({order,refresh,select,onSelect}:{order:Order;refresh:()=>Promise<void>;select?:boolean;onSelect?:(checked:boolean)=>void}){
   const [error,setError]=useState(''),[busy,setBusy]=useState(false),[reason,setReason]=useState('OTHER'),[detail,setDetail]=useState(''),[exception,setException]=useState<OrderStatus|null>(null),[releaseReason,setReleaseReason]=useState('');
   useEffect(()=>{setException(null);setDetail('');setReleaseReason('');},[order.id,order.version]);
   async function advance(status:OrderStatus){setBusy(true);try{if(status==='CANCELLED')await api(`/admin/orders/${order.id}/release`,'POST',{version:order.version,confirmed:true,reason:releaseReason.trim()});else await api(`/admin/orders/${order.id}/status`,'PATCH',{status,version:order.version,...(['FAILED_PICKUP','DELIVERY_EXCEPTION'].includes(status)?{exceptionCode:reason,exceptionNote:detail}:{})});setError('');await refresh();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
-  return <article className="parcel-card task-card" data-order-id={order.id}><div className="row"><strong>{order.dormSnapshot.buildingName} · {order.dormSnapshot.roomNo}</strong><span key={order.status} className="badge just-advanced" data-status={order.status}>{STATUS_LABELS[order.status]}</span></div>
-    <p>{order.packageSize==='SMALL'?'小件':'大件'} / {order.deliveryMode==='ROOM'?'到寝':'楼下'} · {money(order.amountFen)}</p><p className="muted">{order.stationSnapshot.canonicalName} · 联系电话 {order.dormSnapshot.phone}</p>{orderSlotText(order)&&<p className="slot-tag"><span>预约</span>{orderSlotText(order)}</p>}<p>备注：{order.note||'暂无备注'}</p>{order.exceptionNote&&<p role="alert">问题说明：{order.exceptionNote}</p>}
+  return <article className="parcel-card task-card" data-order-id={order.id}><div className="row"><strong>{order.dropPlace?<>{DROP_PLACE_LABELS[order.dropPlace]}<small className="muted"> · {order.dormSnapshot.buildingName}</small></>:<>{order.dormSnapshot.buildingName} · {order.dormSnapshot.roomNo}</>}</strong><span key={order.status} className="badge just-advanced" data-status={order.status}>{STATUS_LABELS[order.status]}</span></div>{order.groupId&&(order.groupSize??0)>1&&<p className="group-note"><span className="group-chip">合并 {order.groupSize} 件</span>同一位同学的合并配送：取件、出发、送达会同步到同组包裹；当面核验一次收货码即全部签收。异常只标记当前这件。</p>}
+    <p>{order.packageSize==='SMALL'?'小件':'大件'} / {order.deliveryMode==='ROOM'?'到寝':'楼下'} · {money(order.amountFen)}</p><p className="muted">{order.stationSnapshot.canonicalName} · 联系电话 {order.dormSnapshot.phone}</p>{orderSlotText(order)&&<p className="slot-tag"><span>预约</span>{orderSlotText(order)}</p>}{order.dropPlace&&<p className="slot-tag place-tag"><span>地点</span>送到{DROP_PLACE_LABELS[order.dropPlace]}，不上楼</p>}{order.proxyName&&<p className="proxy-tag">代收人：<strong>{order.proxyName}</strong>（同学本人不在时交给 TA）</p>}<p>备注：{order.note||'暂无备注'}</p>{order.exceptionNote&&<p role="alert">问题说明：{order.exceptionNote}</p>}
     {onSelect&&order.status==='WAITING_PICKUP'&&<label className="check"><input type="checkbox" checked={select} onChange={e=>onSelect(e.target.checked)}/>加入取件批次</label>}
     {!['COMPLETED','CANCELLED'].includes(order.status)&&<SensitiveValue orderId={order.id} version={order.version}/>}
     {exception&&<div className="exception-form"><h3>{STATUS_LABELS[exception]}说明</h3><label htmlFor={`reason-${order.id}`}>异常原因</label><select id={`reason-${order.id}`} value={reason} onChange={e=>setReason(e.target.value)}><option value="OTHER">其他异常</option><option value="CODE_INVALID">取件码无效</option><option value="SIZE_MISMATCH">大小件不符</option><option value="UNREACHABLE">无法联系</option></select><label>问题说明（选填，学生可见）<textarea maxLength={240} value={detail} onChange={e=>setDetail(e.target.value)} placeholder="例如：包裹不在货架、寝室无人接收"/></label><div className="actions"><button disabled={busy} onClick={()=>void advance(exception)}>确认标记</button><button className="secondary" disabled={busy} onClick={()=>{setException(null);setDetail('');}}>取消标记</button></div></div>}
-    <CourierCodeEntry order={order} refresh={refresh}/>{!['COMPLETED','CANCELLED'].includes(order.status)&&<OrderChat orderId={order.id} admin unread={order.chatUnreadCourier??0}/>}<RoundHistory order={order}/><HandoffPanel order={order} refresh={refresh}/><div className="actions task-actions">{nextStatuses(order.status,order.deliveryMode).filter(s=>s!=='COMPLETED').map(s=>s==='CANCELLED'?<ConfirmAction key={s} label="退回接单市场" title="确认退回接单市场？" canConfirm={releaseReason.trim().length>0} validationMessage="请填写退回理由，学生和下一位接单人都会看到。" busy={busy} onConfirm={()=>advance(s)}><p>学生会看到退单原因，其他配送员可以重新接单。若已取到包裹，请先完成交接或放回取件站点。</p><label>退单说明<textarea maxLength={240} value={releaseReason} onChange={e=>setReleaseReason(e.target.value)}/></label></ConfirmAction>:<button key={s} className={['CANCELLED','FAILED_PICKUP','DELIVERY_EXCEPTION'].includes(s)?'secondary':''} disabled={busy} onClick={()=>{if(['FAILED_PICKUP','DELIVERY_EXCEPTION'].includes(s)){setException(s);setDetail('');setReason('OTHER');}else void advance(s);}}>{STATUS_LABELS[s]}</button>)}</div><p role="status">{error}</p>
+    <CourierExtras order={order} refresh={refresh}/><CourierCodeEntry order={order} refresh={refresh}/>{!['COMPLETED','CANCELLED'].includes(order.status)&&<OrderChat orderId={order.id} admin unread={order.chatUnreadCourier??0}/>}<RoundHistory order={order}/><HandoffPanel order={order} refresh={refresh}/><div className="actions task-actions">{nextStatuses(order.status,order.deliveryMode).filter(s=>s!=='COMPLETED').map(s=>s==='CANCELLED'?<ConfirmAction key={s} label="退回接单市场" title="确认退回接单市场？" canConfirm={releaseReason.trim().length>0} validationMessage="请填写退回理由，学生和下一位接单人都会看到。" busy={busy} onConfirm={()=>advance(s)}><p>学生会看到退单原因，其他配送员可以重新接单。若已取到包裹，请先完成交接或放回取件站点。</p><label>退单说明<textarea maxLength={240} value={releaseReason} onChange={e=>setReleaseReason(e.target.value)}/></label></ConfirmAction>:<button key={s} className={['CANCELLED','FAILED_PICKUP','DELIVERY_EXCEPTION'].includes(s)?'secondary':''} disabled={busy} onClick={()=>{if(['FAILED_PICKUP','DELIVERY_EXCEPTION'].includes(s)){setException(s);setDetail('');setReason('OTHER');}else void advance(s);}}>{STATUS_LABELS[s]}</button>)}</div><p role="status">{error}</p>
   </article>;
 }
 function AvailableTasks({onClaim,revision}:{onClaim:()=>Promise<void>;revision:number}){
@@ -52,7 +64,7 @@ function AvailableTasks({onClaim,revision}:{onClaim:()=>Promise<void>;revision:n
  useEffect(()=>{const t=setInterval(()=>{void revalidate().catch(()=>{});},30000);return()=>clearInterval(t);},[revalidate]);
  function reset(){setCursor('');setBack([]);}
  async function claim(id:string){setBusy(true);try{await api(`/admin/orders/${id}/claim`,'POST',{confirmed:true});setMessage('接单成功，已加入我的任务');toast('接单成功','success','已加入我的任务，可在下方查看');await onClaim();}catch(e){setMessage((e as Error).message);}finally{await resource.refresh();setBusy(false);}}
- return <section><div className="row"><h2 className="market-heading">待接订单{resource.data&&<small className="market-total">共 {resource.data.total} 单</small>}<LiveIndicator label="每 30 秒自动刷新"/></h2><button className="text-button" onClick={()=>{reset();void resource.refresh();}}>刷新待接订单</button></div><p>服务端筛选 · 每页12条 · 接单后才显示联系方式与取件码。</p><div className="filters"><label>市场楼栋<select value={building} onChange={e=>{setBuilding(e.target.value);reset();}}><option value="">全部授权范围</option>{buildings.data?.buildings.map(b=><option key={b.code} value={b.code}>{b.displayName}</option>)}</select></label><label>市场包裹大小<select value={size} onChange={e=>{setSize(e.target.value);reset();}}><option value="">全部</option><option value="SMALL">小件</option><option value="LARGE">大件</option></select></label><label>市场配送方式<select value={mode} onChange={e=>{setMode(e.target.value);reset();}}><option value="">全部</option><option value="ROOM">到寝</option><option value="DOWNSTAIRS">楼下</option></select></label></div><p role="status">{message}</p><p role="alert">{resource.error}</p>{resource.loading&&!resource.data&&<LoadingState/>}<div className="card-list market-grid">{resource.data?.orders.map(o=><article className="parcel-card market-card" data-order-id={o.id} key={o.id}><strong>{o.buildingName}</strong><p>{o.stationName}</p><p>{o.packageSize==='SMALL'?'小件':'大件'} · {o.deliveryMode==='ROOM'?'到寝':'楼下'} · {money(o.amountFen)}</p><button disabled={busy} onClick={()=>void claim(o.id)}>接单</button></article>)}</div>{resource.data?.orders.length===0&&<p>本页暂无待接订单，请刷新或调整筛选。</p>}<div className="actions"><button className="secondary" disabled={!back.length} onClick={()=>{setCursor(back.at(-1)!);setBack(back.slice(0,-1));}}>待接上一页</button><span>第 {back.length+1} 页</span><button className="secondary" disabled={!resource.data?.nextCursor} onClick={()=>{setBack([...back,cursor]);setCursor(resource.data!.nextCursor!);}}>待接下一页</button></div></section>;
+ return <section><div className="row"><h2 className="market-heading">待接订单{resource.data&&<small className="market-total">共 {resource.data.total} 单</small>}<LiveIndicator label="每 30 秒自动刷新"/></h2><button className="text-button" onClick={()=>{reset();void resource.refresh();}}>刷新待接订单</button></div><p>服务端筛选 · 每页12条 · 接单后才显示联系方式与取件码。</p><div className="filters"><label>市场楼栋<select value={building} onChange={e=>{setBuilding(e.target.value);reset();}}><option value="">全部授权范围</option>{buildings.data?.buildings.map(b=><option key={b.code} value={b.code}>{b.displayName}</option>)}</select></label><label>市场包裹大小<select value={size} onChange={e=>{setSize(e.target.value);reset();}}><option value="">全部</option><option value="SMALL">小件</option><option value="LARGE">大件</option></select></label><label>市场配送方式<select value={mode} onChange={e=>{setMode(e.target.value);reset();}}><option value="">全部</option><option value="ROOM">到寝</option><option value="DOWNSTAIRS">楼下</option></select></label></div><p role="status">{message}</p><p role="alert">{resource.error}</p>{resource.loading&&!resource.data&&<LoadingState/>}<div className="card-list market-grid">{resource.data?.orders.map(o=><article className="parcel-card market-card" data-order-id={o.id} key={o.id}><strong>{o.dropPlace?DROP_PLACE_LABELS[o.dropPlace]:o.buildingName}</strong>{o.groupId&&(o.groupSize??0)>1&&<span className="group-chip">合并 {o.groupSize} 件 · 一起接走</span>}<p>{o.stationName}{o.slotDate&&o.slotCode?` · 预约${slotLabel(o.slotDate,o.slotCode,Math.floor(Date.now()/1000))}`:''}</p><p>{o.packageSize==='SMALL'?'小件':'大件'} · {o.deliveryMode==='ROOM'?'到寝':'楼下'} · {money(o.amountFen)}</p><button disabled={busy} onClick={()=>void claim(o.id)}>接单</button></article>)}</div>{resource.data?.orders.length===0&&<p>本页暂无待接订单，请刷新或调整筛选。</p>}<div className="actions"><button className="secondary" disabled={!back.length} onClick={()=>{setCursor(back.at(-1)!);setBack(back.slice(0,-1));}}>待接上一页</button><span>第 {back.length+1} 页</span><button className="secondary" disabled={!resource.data?.nextCursor} onClick={()=>{setBack([...back,cursor]);setCursor(resource.data!.nextCursor!);}}>待接下一页</button></div></section>;
 }
 export function AdminTasks(){
   const [marketRevision,setMarketRevision]=useState(0);
@@ -69,7 +81,7 @@ export function AdminTasks(){
   useEffect(()=>{if(me.data&&me.data.admin.role!=='DELIVERY_STAFF')api<{admins:{id:string;username:string}[]}>('/admin/assignees').then(r=>{setAssignees(r.admins);setAssignee(me.data!.admin.id);}).catch(e=>setMessage(e.message));},[me.data]);
   async function refresh(){setMarketRevision(v=>v+1);setSelected([]);await tasks.refresh();await stats.refresh();}
   async function batch(){setBusy(true);try{await api('/admin/batches','POST',{orderIds:selected,assigneeAdminId:assignee});setMessage('批次已创建，可前往批次管理查看');await refresh();}catch(e){setMessage((e as Error).message);}finally{setBusy(false);}}
-  return <AdminShell><h1>配送工作台</h1><StalledOrders compact/><AvailableTasks onClaim={refresh} revision={marketRevision}/><h2>我的授权任务</h2><p className="muted">模拟订单 · 只显示你负责的任务</p><div className="stats">{stats.data?.counts.map(c=><span key={c.status} data-status={c.status}>{STATUS_LABELS[c.status]} <strong><CountUp value={c.count} from={0}/></strong></span>)}</div>
+  return <AdminShell><h1>配送工作台</h1><StalledOrders compact/>{me.data&&me.data.admin.role!=='DELIVERY_STAFF'&&assignees.length>0&&<AutoPlan assignees={assignees} defaultAssignee={me.data.admin.id} onCreated={refresh}/>}<AvailableTasks onClaim={refresh} revision={marketRevision}/><h2>我的授权任务</h2><p className="muted">模拟订单 · 只显示你负责的任务</p><div className="stats">{stats.data?.counts.map(c=><span key={c.status} data-status={c.status}>{STATUS_LABELS[c.status]} <strong><CountUp value={c.count} from={0}/></strong></span>)}</div>
     <div className="filters"><div><label htmlFor="task-group">订单分类</label><select id="task-group" value={filters.group} onChange={e=>{setFilters({...filters,group:e.target.value,status:''});setPage(1);setSelected([]);}}>{Object.entries(TASK_GROUP_LABELS).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></div><div><label htmlFor="task-status">具体状态</label><select id="task-status" disabled={filters.group!=='ALL'} value={filters.status} onChange={e=>{setFilters({...filters,status:e.target.value});setPage(1);setSelected([]);}}><option value="">全部已支付任务</option>{Object.entries(STATUS_LABELS).filter(([k])=>k!=='WAITING_PAYMENT').map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></div>
       <label>楼栋<select value={filters.building} onChange={e=>{setFilters({...filters,building:e.target.value});setPage(1);setSelected([]);}}><option value="">全部授权楼栋</option>{buildings.data?.buildings.map(b=><option key={b.code} value={b.code}>{b.displayName}</option>)}</select></label>
       <label>大小件<select value={filters.packageSize} onChange={e=>{setFilters({...filters,packageSize:e.target.value});setPage(1);setSelected([]);}}><option value="">全部</option><option value="SMALL">小件</option><option value="LARGE">大件</option></select></label>
@@ -112,3 +124,68 @@ export function Audit(){
 }
 
 export function AdminOrderDetail(){const {id}=useParams();const r=useResource<{order:Order}>(`/admin/orders/${id}`);return <AdminShell><h1>订单详情</h1><Link to="/admin/tickets">返回售后工作台</Link><p role="alert">{r.error}</p>{r.loading&&!r.data&&<LoadingState/>}{r.data&&<TaskCard order={r.data.order} refresh={r.refresh}/>}</AdminShell>;}
+
+// ---------------------------------------------------------------- courier extras on the task card (v2.7)
+
+/** Compress a phone photo to a JPEG under ~190 KB (longest side ≤ 1280 px) before uploading. */
+async function compressPhoto(file:File):Promise<Blob>{
+  const bitmap=await createImageBitmap(file);
+  let scale=Math.min(1,1280/Math.max(bitmap.width,bitmap.height));
+  for(let attempt=0;attempt<6;attempt++){
+    const canvas=document.createElement('canvas');canvas.width=Math.round(bitmap.width*scale);canvas.height=Math.round(bitmap.height*scale);
+    canvas.getContext('2d')?.drawImage(bitmap,0,0,canvas.width,canvas.height);
+    for(const quality of [.78,.66,.54]){
+      const blob=await new Promise<Blob|null>(done=>canvas.toBlob(done,'image/jpeg',quality));
+      if(blob&&blob.size<=190*1024){bitmap.close();return blob;}
+    }
+    scale*=.75;
+  }
+  bitmap.close();throw new Error('照片过大，请靠近一点重新拍摄');
+}
+/** "快到了" notice and the delivery photo (送达拍照存证), shown to the courier while the order is out or just delivered. */
+function CourierExtras({order,refresh}:{order:Order;refresh:()=>Promise<void>}){
+  const [busy,setBusy]=useState(false),[message,setMessage]=useState('');
+  const canPhoto=['OUT_FOR_DELIVERY','DELIVERED_DOWNSTAIRS','DELIVERED_TO_ROOM','COMPLETED'].includes(order.status);
+  if(!canPhoto)return null;
+  async function near(){setBusy(true);setMessage('');try{const r=await api<{sent:boolean;message:string}>(`/admin/orders/${order.id}/near`,'POST',{version:order.version});toast(r.message,r.sent?'success':'info');await refresh();}catch(e){setMessage((e as Error).message);}finally{setBusy(false);}}
+  async function upload(file:File){
+    setBusy(true);setMessage('');
+    try{
+      const blob=await compressPhoto(file);
+      const response=await fetch(`/api/v1/admin/orders/${order.id}/photo`,{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'image/jpeg'},body:blob});
+      const result=await response.json().catch(()=>null) as {error?:{message?:string}}|null;
+      if(!response.ok)throw new Error(response.status===413&&!result?.error?'当前部署方式不支持上传照片（需 Workers 直连部署）':result?.error?.message??'上传失败，请重试');
+      toast('送达照片已上传','success','同学可以在订单详情里查看');await refresh();
+    }catch(e){setMessage((e as Error).message);}finally{setBusy(false);}
+  }
+  return <div className="courier-extras">
+    {order.status==='OUT_FOR_DELIVERY'&&<button type="button" className="secondary" disabled={busy||!!order.nearNotifiedAt} onClick={()=>void near()}><SymbolIcon name="bell"/>{order.nearNotifiedAt?'已通知同学快到了':'快到了，通知同学'}</button>}
+    <label className={`photo-capture button secondary${busy?' is-busy':''}`}><SymbolIcon name="camera"/>{order.hasPhoto?'重拍送达照片':'拍送达照片'}<input type="file" accept="image/*" capture="environment" disabled={busy} onChange={e=>{const f=e.target.files?.[0];e.target.value='';if(f)void upload(f);}}/></label>
+    {order.hasPhoto&&<DeliveryPhotoView orderId={order.id} admin/>}
+    {message&&<p role="alert">{message}</p>}
+  </div>;
+}
+
+// ---------------------------------------------------------------- 一键排线 (auto batch + walking order)
+
+type PlanResponse={station:string|null;plan:RoutePlan|null;remaining:number;orders:{id:string;dest:string;label:string;packageSize:string;deliveryMode:string}[]};
+function AutoPlan({assignees,defaultAssignee,onCreated}:{assignees:{id:string;username:string}[];defaultAssignee:string;onCreated:()=>Promise<void>}){
+  const [open,setOpen]=useState(false),[slot,setSlot]=useState('ASAP'),[assignee,setAssignee]=useState(defaultAssignee),[plan,setPlan]=useState<PlanResponse|null>(null),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
+  const [windows,setWindows]=useState<{value:string;label:string}[]>([]);
+  useEffect(()=>{if(!open)return;api<{shifts:unknown[];dates:string[]}>('/admin/shifts').then(r=>{const t=Math.floor(Date.now()/1000);setWindows(r.dates.flatMap(d=>(['NOON','EVENING','NIGHT'] as const).map(c=>({value:`${d}:${c}`,label:slotLabel(d,c,t)}))));}).catch(()=>{});},[open]);
+  async function preview(){setBusy(true);setMessage('');try{setPlan(await api<PlanResponse>(`/admin/batches/plan?slot=${encodeURIComponent(slot)}`));}catch(e){setMessage((e as Error).message);}finally{setBusy(false);}}
+  useEffect(()=>{if(open)void preview();},[open,slot]);
+  async function create(){if(!plan?.orders.length)return;setBusy(true);setMessage('');try{await api('/admin/batches','POST',{orderIds:plan.orders.map(o=>o.id),assigneeAdminId:assignee});toast('已按路线生成取件批次','success',`${plan.orders.length} 单 · 约 ${plan.plan?.totalMinutes??'—'} 分钟`);setPlan(null);await onCreated();await preview();}catch(e){setMessage((e as Error).message);}finally{setBusy(false);}}
+  return <details className="auto-plan" open={open} onToggle={e=>setOpen((e.target as HTMLDetailsElement).open)}><summary><SymbolIcon name="map"/>一键排线 · 按路线自动分批</summary>
+    <p className="muted">选一个时段，系统把待接单里同一站点的订单（最多 20 单）按校园道路排出送达顺序，确认后直接生成取件批次。距离与时间为步行估算。</p>
+    <div className="filters"><label>时段<select value={slot} onChange={e=>setSlot(e.target.value)}><option value="ASAP">尽快送达（未预约）</option>{windows.map(w=><option key={w.value} value={w.value}>{w.label}</option>)}</select></label>
+      <label>批次负责人<select value={assignee} onChange={e=>setAssignee(e.target.value)}>{assignees.map(a=><option key={a.id} value={a.id}>{a.username}</option>)}</select></label></div>
+    {busy&&!plan&&<LoadingState/>}
+    {plan&&(plan.orders.length?<>
+      <ol className="plan-list">{plan.orders.map((o,i)=>{const leg=plan.plan?.legs.find(l=>l.code===o.dest);const first=plan.orders.findIndex(x=>x.dest===o.dest)===i;return <li key={o.id}><b>{i+1}</b><span>{o.label}<small>{o.packageSize==='SMALL'?'小件':'大件'} · {o.deliveryMode==='ROOM'?'到寝':'楼下'}</small></span>{first&&leg?<em>+{leg.meters} 米</em>:<em className="muted">同一站</em>}</li>;})}</ol>
+      <p className="plan-total">全程约 <strong>{plan.plan?.totalMeters??0}</strong> 米 · 预计 <strong>{plan.plan?.totalMinutes??0}</strong> 分钟（含每站约 2 分钟交接）{plan.remaining>0&&` · 另有 ${plan.remaining} 单留待下一批`}{plan.plan?.unplaced.length?` · ${plan.plan.unplaced.length} 个楼栋不在平面图上，排在最后`:''}</p>
+      <div className="actions"><button type="button" disabled={busy} onClick={()=>void create()}>生成取件批次（{plan.orders.length} 单）</button><button type="button" className="text-button" disabled={busy} onClick={()=>void preview()}>重新计算</button></div>
+    </>:<p className="muted">这个时段没有可分批的待接订单。</p>)}
+    {message&&<p role="alert">{message}</p>}
+  </details>;
+}

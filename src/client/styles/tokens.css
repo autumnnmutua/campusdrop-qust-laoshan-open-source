@@ -1,115 +1,163 @@
-/* Design tokens: the single place to change CampusDrop's colours, type, radii, spacing, shadows and timing.
-   Primitives (blue-500, ink-600 …) describe a value; semantic tokens (color-brand, color-text …) describe a role and
-   are what new styles should use. Literal colours left in the other files are one-off illustration or effect tints. */
+/* Design tokens: "崂山海图" (a sea chart of the Laoshan coast), v2.8.
+   The site is drawn like a nautical chart: fog-grey paper, deep-sea ink, hairline contours, and one chart magenta that
+   only ever means "the delivery route" (progress, the live route, the current step, focus). Everything else stays quiet.
+   Primitive names from earlier versions (blue-*, ink-* …) are kept and re-pointed at the chart palette so older feature
+   styles follow automatically; new styles should use the semantic tokens and the chart names below. */
+
+@font-face {
+  font-family: "Newsreader";
+  font-style: normal;
+  font-weight: 380 620;
+  font-display: swap;
+  src: url(../fonts/newsreader-normal.woff2) format("woff2");
+  unicode-range: U+0020-007E, U+00A0-00FF, U+2013, U+2014, U+2019, U+2026, U+2212;
+}
+@font-face {
+  font-family: "Newsreader";
+  font-style: italic;
+  font-weight: 400 500;
+  font-display: swap;
+  src: url(../fonts/newsreader-italic.woff2) format("woff2");
+  unicode-range: U+0020-007E, U+00A0-00FF, U+2013, U+2014, U+2019, U+2026, U+2212;
+}
 
 :root {
-  /* ---------- Primitive palette ---------- */
-  --white: #ffffff;
+  /* ---------- Chart palette ---------- */
+  --fog: #eef3f2;          /* page: sea fog (v2.9: lighter, the site reads as a paper chart) */
+  --chart: #f9fbfa;        /* chart paper: panels */
+  --paper: #ffffff;        /* raised paper: inputs, dialogs */
+  --shoal: #d7e4e2;        /* shallow-water tint: selected, hover */
+  --shoal-soft: #e4ece9;
+  --abyss: #0f2833;        /* deep-sea ink: text, primary actions */
+  --abyss-deep: #0a1c24;
+  --abyss-hover: #1b3e4c;
+  --action: #1f6680;       /* primary actions: channel blue, lighter than the ink (white text 6.3:1) */
+  --action-hover: #18566d;
+  --action-deep: #124558;
+  --action-glow: #1f668033;
+  --sea: #1c5b73;          /* channel blue: links, secondary emphasis */
+  --sounding: #4d646b;     /* muted text (passes AA on fog, chart and paper) */
+  --contour: #b9c9c8;      /* hairlines */
+  --contour-strong: #8ea6a8;
+  --isobath: #5e8f99;      /* sea contours in the art */
+  --route: #a3245a;        /* chart magenta: the route, progress, focus */
+  --route-strong: #7f1a45;
+  --route-soft: #f2e1e8;
 
-  /* Campus blue: surfaces (25–300) → brand (400–600) → deep navy (700–900). */
-  --blue-25: #f9fcff;
-  --blue-50: #f5f9ff;
-  --blue-75: #eef5ff;
-  --blue-100: #e7f0ff;
-  --blue-150: #dce8fa;
-  --blue-200: #cfe0f8;
-  --blue-300: #b9d3f6;
-  --blue-400: #3d8fff;
-  --blue-500: #1568e9;
-  --blue-600: #1559c5;
-  --blue-700: #174f9f;
-  --blue-800: #123f82;
-  --navy-700: #17477f;
-  --navy-800: #10376b;
+  /* ---------- Legacy primitives, re-pointed ---------- */
+  --white: var(--chart);
+  --blue-25: #f3f6f5;
+  --blue-50: #eef3f2;
+  --blue-75: var(--fog);
+  --blue-100: #dde7e5;
+  --blue-150: #ccdad8;
+  --blue-200: var(--contour);
+  --blue-300: #9db4b3;
+  --blue-400: #2f6f86;
+  --blue-500: var(--abyss);
+  --blue-600: var(--sea);
+  --blue-700: #17485b;
+  --blue-800: var(--abyss);
+  --navy-700: var(--abyss);
+  --navy-800: var(--abyss-deep);
 
-  /* Ink: text greys with a blue cast. 500 and darker pass WCAG AA (4.5:1) on white. */
-  --ink-900: #192e51;
-  --ink-800: #1d3558;
-  --ink-700: #2b4670;
-  --ink-600: #4b6488;
-  --ink-500: #56677f;
-  --ink-400: #8293ab;
-  --gray-100: #eef1f5;
+  --ink-900: var(--abyss);
+  --ink-800: #183642;
+  --ink-700: #2a4651;
+  --ink-600: #3e5a64;
+  --ink-500: var(--sounding);
+  --ink-400: #7d9298;
+  --gray-100: #e4eae9;
 
-  /* Status colours. */
-  --green-50: #f2fbf6;
-  --green-500: #22a565;
-  --green-700: #0f7a4e;
-  --red-50: #fff6f6;
-  --red-100: #ffe1e1;
-  --red-500: #e5484d;
-  --red-600: #b3303f;
-  --red-700: #b42318;
-  --amber-50: #fff8eb;
-  --amber-400: #ffb400;
-  --amber-500: #f5a524;
-  --amber-700: #a85d0c;
-  --gold-500: #eaa91b;
-  --violet-50: #f7f2ff;
-  --violet-500: #6a43d8;
+  /* Status: buoy green, light-vessel red, sand amber. Text tones pass AA on their tints. */
+  --green-50: #e6f1ec;
+  --green-500: #2e8b66;
+  --green-700: #1e6b4f;
+  --red-50: #f8e9e8;
+  --red-100: #f1d5d3;
+  --red-500: #c8433e;
+  --red-600: #a8322e;
+  --red-700: #b0302c;
+  --amber-50: #f6efdf;
+  --amber-400: #e0a526;
+  --amber-500: #c98f1e;
+  --amber-700: #8a5a00;
+  --gold-500: var(--route);
+  --violet-50: #efe8f0;
+  --violet-500: #6b4c8a;
 
   /* ---------- Semantic colours ---------- */
-  --color-page: var(--blue-75);
-  --color-surface: var(--white);
+  --color-page: var(--fog);
+  --color-surface: var(--chart);
+  --color-surface-raised: var(--paper);
   --color-surface-subtle: var(--blue-25);
-  --color-surface-tint: var(--blue-75);
-  --color-line: var(--blue-150);
-  --color-line-strong: var(--blue-200);
-  --color-text: var(--ink-900);
+  --color-surface-tint: var(--shoal-soft);
+  --color-line: var(--contour);
+  --color-line-strong: var(--contour-strong);
+  --color-text: var(--abyss);
   --color-text-secondary: var(--ink-600);
-  --color-text-muted: var(--ink-500);
-  --color-heading: var(--blue-800);
-  --color-link: #1760c1;
-  --color-brand: var(--blue-500);
-  --color-brand-strong: var(--blue-600);
-  --color-brand-soft: var(--blue-100);
-  --color-focus: var(--gold-500);
+  --color-text-muted: var(--sounding);
+  --color-heading: var(--abyss);
+  --color-link: var(--sea);
+  --color-brand: var(--abyss);
+  --color-brand-strong: var(--sea);
+  --color-brand-soft: var(--shoal);
+  --color-accent: var(--route);
+  --color-accent-soft: var(--route-soft);
+  --color-focus: var(--route);
   --color-success: var(--green-700);
   --color-success-bg: var(--green-50);
   --color-warning: var(--amber-700);
   --color-warning-bg: var(--amber-50);
   --color-danger: var(--red-700);
   --color-danger-bg: var(--red-50);
-  --color-rail: var(--navy-700);
-  --color-rail-deep: var(--navy-800);
+  --color-rail: var(--abyss);
+  --color-rail-deep: var(--abyss-deep);
 
-  /* Older names still used across the stylesheets. */
   --brand: var(--color-brand);
   --line: var(--color-line);
   --muted: var(--color-text-muted);
 
-  /* ---------- Typography ---------- */
-  --font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
-  /* Brush (kai) script for decorative lines only. Windows and macOS ship KaiTi / Kaiti SC; Android and Linux usually
-     have none of these and fall back to a CJK serif, which keeps the calm look instead of a random sans. */
-  --font-brush: KaiTi, STKaiti, "Kaiti SC", "AR PL UKai CN", "LXGW WenKai", "Noto Serif SC", "Source Han Serif SC", "Songti SC", serif;
+  /* ---------- Typography ----------
+     Body: the system's own CJK sans (PingFang / YaHei / Noto). Display: Newsreader (bundled, Latin and figures only)
+     in front of the system Song serif; where no Song face exists the stack falls to the sans rather than to SimSun. */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Noto Sans CJK SC", sans-serif;
+  --font-display: "Newsreader", "Songti SC", "STSong", "Noto Serif SC", "Noto Serif CJK SC", "Source Han Serif SC", "PingFang SC", "Microsoft YaHei", serif;
+  --font-figure: "Newsreader", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-brush: var(--font-display);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  /* Type scale. 12px is the floor: nothing on the site renders smaller. */
+  /* Scale after Bringhurst's classical steps (12 · 13 · 15 · 16 · 18 · 21 · 24 · 28 · 36 · 48 · 64). 12px is the floor. */
   --text-xs: 12px;
   --text-sm: 13px;
-  --text-base: 14px;
+  --text-base: 15px;
   --text-md: 15px;
   --text-lg: 16px;
   --text-xl: 18px;
-  --text-2xl: 20px;
-  --text-3xl: 22px;
-  --text-4xl: 24px;
-  --text-5xl: 26px;
-  --text-6xl: 30px;
-  --text-7xl: 36px;
+  --text-2xl: 21px;
+  --text-3xl: 24px;
+  --text-4xl: 28px;
+  --text-5xl: 28px;
+  --text-6xl: 36px;
+  --text-7xl: 48px;
+  --display-1: clamp(40px, 6.2vw, 72px);
+  --display-2: clamp(30px, 4vw, 44px);
+  --display-3: clamp(24px, 2.6vw, 30px);
+  --leading-tight: 1.15;
+  --leading-body: 1.7;
 
-  /* ---------- Shape ---------- */
-  --radius-xs: 6px;
-  --radius-sm: 8px;
-  --radius-md: 10px;
-  --radius-lg: 12px;
-  --radius-xl: 14px;
-  --radius-2xl: 16px;
-  --radius-3xl: 20px;
+  /* ---------- Shape ----------
+     Charts are drawn, not moulded: small radii, hairlines instead of shadows. Pills only for chips and dots. */
+  --radius-xs: 3px;
+  --radius-sm: 4px;
+  --radius-md: 5px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+  --radius-2xl: 10px;
+  --radius-3xl: 12px;
   --radius-pill: 999px;
+  --hairline: 1px solid var(--color-line);
 
-  /* Spacing on a 4px grid. */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -120,17 +168,27 @@
   --space-8: 32px;
   --space-10: 40px;
   --space-12: 48px;
+  --space-16: 64px;
+  --gutter: clamp(16px, 4vw, 48px);
+  --measure: 68ch;
+  --page-max: 1200px;
 
-  /* Elevation. */
-  --shadow: 0 10px 38px #234f8c0b;
-  --shadow-card: var(--shadow);
-  --shadow-raised: 0 4px 12px #244d8305;
-  --shadow-dialog: 0 24px 100px #17365d66;
+  /* Elevation: almost none. Only dialogs and menus float. */
+  --shadow: none;
+  --shadow-card: none;
+  --shadow-raised: 0 1px 0 #0f283314;
+  --shadow-dialog: 0 24px 64px #0a1c2433, 0 2px 6px #0a1c241a;
+  --shadow-menu: 0 12px 32px #0a1c2424, 0 1px 3px #0a1c241a;
 
-  /* ---------- Motion ---------- */
+  /* ---------- Motion ----------
+     One orchestrated moment (the intro); everything else answers what the person did. */
   --motion-fast: 120ms;
   --motion-base: 200ms;
-  --motion-slow: 280ms;
+  --motion-slow: 320ms;
   --ease-out: cubic-bezier(.22,1,.36,1);
   --ease-in-out: cubic-bezier(.65,0,.35,1);
+  --ease-draw: cubic-bezier(.45,.05,.2,1);
 }
+
+/* Text and icons placed on a filled colour (primary buttons, status fills). Stays light in both themes. */
+:root { --on-color: #f7f9f8; }

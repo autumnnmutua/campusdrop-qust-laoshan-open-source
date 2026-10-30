@@ -5,7 +5,7 @@ import type { OrderStatus } from './delivery';
 export const ANNOUNCEMENT_LEVELS = ['INFO', 'NOTICE', 'PAUSE'] as const;
 export const ANNOUNCEMENT_LEVEL_LABELS = { INFO: '通知', NOTICE: '提醒', PAUSE: '暂停服务' } as const;
 export type AnnouncementLevel = typeof ANNOUNCEMENT_LEVELS[number];
-export interface Announcement { id: string; level: AnnouncementLevel; title: string; body: string; status: 'ACTIVE' | 'ARCHIVED'; startsAt: number; endsAt: number | null; createdAt: number; archivedAt?: number | null; author?: string }
+export interface Announcement { id: string; level: AnnouncementLevel; title: string; body: string; status: 'ACTIVE' | 'ARCHIVED'; startsAt: number; endsAt: number | null; createdAt: number; archivedAt?: number | null; author?: string; targets?: string[] | null }
 
 // ---------------------------------------------------------------- ratings
 export const RATING_TAGS_GOOD = ['准时送达', '包裹完好', '沟通及时', '态度友好', '放置位置准确'] as const;

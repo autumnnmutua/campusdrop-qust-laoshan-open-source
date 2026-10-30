@@ -1,0 +1,96 @@
+/* The sea chart (chart-art.tsx) and the opening sequence that draws it.
+   Strokes are non-scaling, so line weights stay in screen pixels however the chart is cropped. */
+
+.chart-art { display: block; width: 100%; height: 100%; overflow: visible; }
+.chart-art path, .chart-art circle, .chart-art rect { vector-effect: non-scaling-stroke; }
+.chart-art path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.chart-contours path { stroke: var(--contour-strong); stroke-width: .8; }
+.chart-contours path.is-low { stroke: var(--contour); }
+.chart-contours path.is-high { stroke: var(--ink-400); stroke-width: .9; }
+.chart-isobaths path { stroke: var(--isobath); stroke-width: .8; stroke-dasharray: 5 5; opacity: .5; }
+.chart-coast { stroke: var(--abyss); stroke-width: 1.4; }
+.chart-route { stroke: var(--route); stroke-width: 2.4; }
+.chart-station rect { fill: var(--paper); stroke: var(--abyss); stroke-width: 1.4; }
+.chart-fix-ring { fill: none; stroke: var(--abyss); stroke-width: 1.5; }
+.chart-fix-dot { fill: var(--abyss); }
+.chart-art.is-loading { background: none; }
+
+/* ---------------------------------------------------------------- opening: "charted by sonar" (intro.tsx) */
+html.intro-open { overflow: hidden; }
+.sea-chart { display: block; width: 100%; height: 100%; }
+.intro {
+  --ct: 0px; --cr: 0px; --cb: 0px; --cl: 0px;
+  /* Paper chart (light theme); theme-dark.css swaps in the night chart. */
+  --intro-bg: #e9f2f3;
+  --intro-ink: #0f2833;
+  --intro-muted: #4d646b;
+  --intro-route: #c0306c;
+  --intro-skip-line: #0f283329;
+  --intro-skip-bg: #ffffffa8;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: var(--intro-bg);
+  color: var(--intro-ink);
+  overflow: hidden;
+  cursor: pointer;
+  clip-path: inset(0 0 0 0);
+}
+.intro-chart { position: absolute; inset: 0; animation: intro-in .6s var(--ease-out) both; }
+/* Leaving: the title goes first, then the screen closes onto the hero (or simply fades elsewhere). */
+.intro.is-leave { pointer-events: none; transition: opacity .35s var(--ease-in-out); opacity: 0; }
+.intro.is-leave.is-docking { opacity: 1; transition: clip-path .75s cubic-bezier(.7,0,.2,1), --dock-k .75s cubic-bezier(.7,0,.2,1); clip-path: inset(var(--ct) var(--cr) var(--cb) var(--cl)); }
+/* While docking, the lower part of the opening fades exactly as the hero's chart does (pages.css): the fade rises from
+   below the screen into place as the frame closes, so the hand-over ends on the same picture. */
+@property --dock-k { syntax: "<number>"; inherits: false; initial-value: 0; }
+.intro.is-docking { --dock-k: 1; -webkit-mask-image: linear-gradient(to bottom, #000 calc(var(--fs) + (1 - var(--dock-k)) * 100vh), transparent calc(var(--fe) + (1 - var(--dock-k)) * 100vh)); mask-image: linear-gradient(to bottom, #000 calc(var(--fs) + (1 - var(--dock-k)) * 100vh), transparent calc(var(--fe) + (1 - var(--dock-k)) * 100vh)); }
+.intro.is-leave .intro-title, .intro.is-leave .intro-skip { opacity: 0; transform: translateY(-8px); transition: opacity .3s, transform .3s; }
+
+.intro-title {
+  position: absolute;
+  z-index: 3;
+  left: clamp(28px, 8vw, 140px);
+  top: 38%;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 20px;
+  align-items: center;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.intro-mark { grid-row: span 2; color: var(--intro-ink); opacity: 0; animation: intro-show .5s var(--ease-out) 1.75s forwards; }
+.intro-mark .brand-mark { width: clamp(44px, 5vw, 64px); height: auto; color: var(--intro-ink); }
+.intro-mark .brand-mark-route { stroke: var(--intro-route); }
+.intro-name { width: clamp(280px, 40vw, 620px); height: auto; overflow: visible; }
+.intro-name text {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 104px;
+  letter-spacing: -1px;
+  fill: var(--intro-ink);
+  fill-opacity: 0;
+  stroke: var(--intro-ink);
+  paint-order: stroke;
+  stroke-width: 1.1;
+  stroke-dasharray: 520;
+  stroke-dashoffset: 520;
+  animation: intro-write 1.1s cubic-bezier(.45,.05,.2,1) 1.7s forwards, intro-fill .5s var(--ease-out) 2.45s forwards;
+}
+.intro-place { padding-left: 6px; font-size: clamp(13px, 1.2vw, 16px); letter-spacing: .34em; color: var(--intro-muted); opacity: 0; animation: intro-rise .5s var(--ease-out) 2.3s forwards; }
+
+.intro-skip { position: absolute; z-index: 4; right: clamp(20px, 3vw, 44px); bottom: clamp(20px, 3vw, 40px); min-height: 34px; padding: 4px 16px; border-color: var(--intro-skip-line); background: var(--intro-skip-bg); color: var(--intro-muted); font-size: var(--text-sm); font-weight: 500; border-radius: var(--radius-pill); }
+.intro-skip:not(:disabled):hover { background: var(--intro-skip-bg); border-color: var(--intro-ink); color: var(--intro-ink); box-shadow: none; }
+
+@keyframes intro-in { from { opacity: 0; } }
+@keyframes intro-show { to { opacity: 1; } }
+@keyframes intro-write { to { stroke-dashoffset: 0; } }
+@keyframes intro-fill { to { fill-opacity: 1; stroke-opacity: 0; } }
+@keyframes intro-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+@media (max-width: 720px) {
+  .intro-title { left: 50%; top: 30%; transform: translate(-50%, -50%); grid-template-columns: 1fr; justify-items: center; text-align: center; row-gap: 12px; }
+  .intro-mark { grid-row: auto; }
+  .intro-name { width: 78vw; }
+  .intro-place { letter-spacing: .24em; padding-left: 0; }
+}

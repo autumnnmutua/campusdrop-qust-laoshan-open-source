@@ -10,9 +10,13 @@ import { ownOrder, serializeOrder, type OrderRow } from './orders';
 import { background } from './background';
 import { publish } from './live';
 import { sendPush } from './push';
+import { weatherInfo } from './weather';
 import { calibrationSchema, chatMessageSchema, handoffCodeSchema, locationSchema, type ChatMessage, type CourierPosition, type LiveMapData, type OrderEta, type OrderLive } from '../shared/live';
-import { bookableDates, DELIVERY_SLOTS, slotByCode, slotLabel, slotTime, type SlotAvailability, type SlotCode } from '../shared/slots';
-import { campusRoute, landmarkPoint, pointAlong, projectGps, routeMinutes, calibrationUsable, type Calibration } from '../shared/campus-map';
+import { bookableDates, DELIVERY_SLOTS, SLOT_LEAD_MINUTES, slotByCode, slotLabel, slotTime, type SlotAvailability, type SlotCode } from '../shared/slots';
+import { buildCalibration, campusRoute, landmarkPoint, metersToDestination, pointAlong, projectGps, routeMinutes, type Calibration } from '../shared/campus-map';
+import { SLOT_HOLDING, orderingPause, shiftCapacity, shiftCounts } from './settings';
+import { windowCapacity } from '../shared/operations-rules';
+import { markNear } from './order-extras';
 
 const now = () => Math.floor(Date.now() / 1000);
 const CLOSED = ['COMPLETED', 'CANCELLED'];
@@ -39,37 +43,63 @@ async function verifyHandoff(env: Env, admin: Admin, id: string, code: string, v
   await rateLimit(env, `handoff-code:${id}`, 6);
   const stored = await env.DB.prepare('SELECT handoff_code AS code FROM delivery_orders WHERE id=?').bind(id).first<string>('code');
   if (!stored || stored !== code) throw new ApiError(400, 'HANDOFF_CODE_WRONG', '收货码不正确，请让同学打开订单详情核对（15 分钟内最多尝试 6 次）');
-  const scope = orderScope(admin), delivered = row.deliveryMode === 'ROOM' ? 'DELIVERED_TO_ROOM' : 'DELIVERED_DOWNSTAIRS';
-  const statements: D1PreparedStatement[] = [];
-  if (row.status === 'OUT_FOR_DELIVERY') statements.push(env.DB.prepare(`UPDATE delivery_orders AS o SET status=?,version=version+1,updated_at=unixepoch(),last_actor_type='ADMIN',last_actor_id=?,service_notice=''
-    WHERE id=? AND version=? AND handoff_code=? AND ${scope.sql}`).bind(delivered, admin.id, id, version, code, ...scope.params));
-  statements.push(env.DB.prepare(`UPDATE delivery_orders AS o SET status='COMPLETED',received_at=unixepoch(),handoff_verified_at=unixepoch(),version=version+1,updated_at=unixepoch(),last_actor_type='ADMIN',last_actor_id=?
-    WHERE id=? AND version=? AND status IN ('DELIVERED_DOWNSTAIRS','DELIVERED_TO_ROOM') AND handoff_code=? AND ${scope.sql} RETURNING id`)
-    .bind(admin.id, id, row.status === 'OUT_FOR_DELIVERY' ? version + 1 : version, code, ...scope.params));
+  const scope = orderScope(admin);
+  const signFor = (r: { id: string; status: string; version: number; deliveryMode: string }) => {
+    const delivered = r.deliveryMode === 'ROOM' ? 'DELIVERED_TO_ROOM' : 'DELIVERED_DOWNSTAIRS', out: D1PreparedStatement[] = [];
+    if (r.status === 'OUT_FOR_DELIVERY') out.push(env.DB.prepare(`UPDATE delivery_orders AS o SET status=?,version=version+1,updated_at=unixepoch(),last_actor_type='ADMIN',last_actor_id=?,service_notice=''
+      WHERE id=? AND version=? AND handoff_code=? AND ${scope.sql}`).bind(delivered, admin.id, r.id, r.version, code, ...scope.params));
+    out.push(env.DB.prepare(`UPDATE delivery_orders AS o SET status='COMPLETED',received_at=unixepoch(),handoff_verified_at=unixepoch(),version=version+1,updated_at=unixepoch(),last_actor_type='ADMIN',last_actor_id=?
+      WHERE id=? AND version=? AND status IN ('DELIVERED_DOWNSTAIRS','DELIVERED_TO_ROOM') AND handoff_code=? AND ${scope.sql} RETURNING id`)
+      .bind(admin.id, r.id, r.status === 'OUT_FOR_DELIVERY' ? r.version + 1 : r.version, code, ...scope.params));
+    return out;
+  };
+  const statements = signFor(row), targetIndex = statements.length - 1;
+  // Merged delivery: one door code signs for every parcel of the group that this courier is carrying to the door.
+  if (row.groupId) {
+    const siblings = (await env.DB.prepare(`SELECT s.id,s.status,s.version,CASE WHEN s.delivery_upgrade_fen=100 THEN 'ROOM' ELSE s.delivery_mode END AS deliveryMode FROM delivery_orders s
+      JOIN batch_items bi ON bi.order_id=s.id JOIN batch_items tb ON tb.order_id=? AND tb.batch_id=bi.batch_id
+      WHERE s.group_id=? AND s.id<>? AND s.status IN ('OUT_FOR_DELIVERY','DELIVERED_DOWNSTAIRS','DELIVERED_TO_ROOM') AND s.student_deleted=0
+      AND NOT EXISTS(SELECT 1 FROM parcel_handoffs h WHERE h.order_id=s.id AND h.status='PENDING' AND h.rejected=0)`).bind(id, row.groupId, id).all<{ id: string; status: string; version: number; deliveryMode: string }>()).results;
+    for (const s of siblings) statements.push(...signFor(s));
+  }
   const results = await env.DB.batch(statements);
-  if (!results[results.length - 1].results.length) throw new ApiError(409, 'STALE_ORDER', '订单已更新，请刷新后重试');
+  if (!results[targetIndex].results.length) throw new ApiError(409, 'STALE_ORDER', '订单已更新，请刷新后重试');
   return serializeOrder(await adminOrder(env, admin, id));
 }
 
 // ---------------------------------------------------------------- delivery slots
 
-export async function slotAvailability(env: Env): Promise<{ now: number; slots: SlotAvailability[] }> {
+/**
+ * Bookable windows for today … day after tomorrow. Capacity is the fixed per-window number, or courier shifts × quota
+ * when shift capacity is on; only paid orders hold a place. `sameBuilding` tells the student how many neighbours from
+ * their own building already booked each window (a hint for batching, no discount).
+ */
+export async function slotAvailability(env: Env, buildingCode?: string | null): Promise<{ now: number; slots: (SlotAvailability & { sameBuilding: number })[]; paused: boolean; pauseReason: string }> {
   const t = now(), dates = bookableDates(t);
-  const rows = (await env.DB.prepare(`SELECT slot_date AS date,slot_code AS code,count(*) AS booked FROM delivery_orders WHERE slot_date IN (${dates.map(() => '?').join(',')}) AND status<>'CANCELLED' GROUP BY slot_date,slot_code`)
-    .bind(...dates).all<{ date: string; code: SlotCode; booked: number }>()).results;
+  const marks = dates.map(() => '?').join(',');
+  const [rows, mine, setting, shifts, pause] = await Promise.all([
+    env.DB.prepare(`SELECT slot_date AS date,slot_code AS code,count(*) AS booked FROM delivery_orders WHERE slot_date IN (${marks}) AND ${SLOT_HOLDING} GROUP BY slot_date,slot_code`)
+      .bind(...dates).all<{ date: string; code: SlotCode; booked: number }>(),
+    buildingCode ? env.DB.prepare(`SELECT slot_date AS date,slot_code AS code,count(*) AS n FROM delivery_orders WHERE slot_date IN (${marks}) AND dorm_building_code=? AND ${SLOT_HOLDING} GROUP BY slot_date,slot_code`)
+      .bind(...dates, buildingCode).all<{ date: string; code: SlotCode; n: number }>() : Promise.resolve({ results: [] as { date: string; code: SlotCode; n: number }[] }),
+    shiftCapacity(env), shiftCounts(env, dates), orderingPause(env),
+  ]);
   const slots = dates.flatMap(date => DELIVERY_SLOTS.map(slot => {
-    const booked = rows.find(r => r.date === date && r.code === slot.code)?.booked ?? 0;
-    return { date, code: slot.code, booked, capacity: slot.capacity, open: booked < slot.capacity && slotTime(date, slot.start) - 30 * 60 > t };
+    const booked = rows.results.find(r => r.date === date && r.code === slot.code)?.booked ?? 0;
+    const capacity = windowCapacity(slot.code, setting, shifts.get(date + slot.code) ?? 0);
+    const sameBuilding = mine.results.find(r => r.date === date && r.code === slot.code)?.n ?? 0;
+    return { date, code: slot.code, booked, capacity, sameBuilding, open: !pause.paused && booked < capacity && slotTime(date, slot.start) - SLOT_LEAD_MINUTES * 60 > t };
   }));
-  return { now: t, slots };
+  return { now: t, slots, paused: pause.paused, pauseReason: pause.reason };
 }
 
 // ---------------------------------------------------------------- chat
 
 const chatOpen = (row: OrderRow) => Boolean(row.hasAssignee) && !CLOSED.includes(row.status);
-async function readChat(env: Env, orderId: string, viewer: 'STUDENT' | 'ADMIN'): Promise<ChatMessage[]> {
-  // Opening the thread marks the other side's messages read.
-  await env.DB.prepare('UPDATE order_messages SET read_at=unixepoch() WHERE order_id=? AND sender_kind<>? AND read_at IS NULL').bind(orderId, viewer).run();
+async function readChat(env: Env, orderId: string, viewer: 'STUDENT' | 'ADMIN', markRead = true): Promise<ChatMessage[]> {
+  // Opening the thread marks the other side's messages read — but only for the two people in the conversation: a
+  // supervisor looking in must not make the student see "已读" for a courier who has not read it.
+  if (markRead) await env.DB.prepare('UPDATE order_messages SET read_at=unixepoch() WHERE order_id=? AND sender_kind<>? AND read_at IS NULL').bind(orderId, viewer).run();
   const rows = (await env.DB.prepare('SELECT id,sender_kind AS senderKind,body,created_at AS createdAt,read_at AS readAt FROM order_messages WHERE order_id=? ORDER BY id DESC LIMIT 100')
     .bind(orderId).all<Omit<ChatMessage, 'mine'>>()).results;
   return rows.reverse().map(m => ({ ...m, mine: m.senderKind === viewer }));
@@ -98,16 +128,18 @@ async function estimateEta(env: Env, order: ReturnType<typeof serializeOrder>, s
     if (end > t) return { minutes: Math.max(1, Math.round((Math.max(start, t) - t) / 60)), basis: 'slot', arriveBy: end, label: `预约 ${slotLabel(order.slotDate, order.slotCode, t)}` };
   }
   const building = order.dormSnapshot.buildingCode;
-  const history = await historySeconds(env, order.status, building) ?? await historySeconds(env, order.status, null);
-  const route = campusRoute(order.stationSnapshot.code, building);
+  const history = order.dropPlace ? null : await historySeconds(env, order.status, building) ?? await historySeconds(env, order.status, null);
+  const route = campusRoute(order.stationSnapshot.code, order.dropPlace ?? building);
   const fallback = (route ? routeMinutes(route) : 10) * 60 + (order.status === 'WAITING_PICKUP' ? 25 * 60 : order.status === 'PICKED_UP' ? 6 * 60 : 0);
-  const total = history ?? fallback, remaining = Math.max(60, total - (t - statusSince));
+  // v3.0 weather linkage: rain, snow or a storm adds a fixed allowance (WEATHER_PADDING), said in the label.
+  const pad = (await weatherInfo(env).catch(() => null))?.paddingMinutes ?? 0;
+  const total = (history ?? fallback) + pad * 60, remaining = Math.max(60, total - (t - statusSince));
   const minutes = Math.round(remaining / 60);
-  return { minutes, basis: history ? 'history' : 'distance', arriveBy: t + remaining, label: minutes <= 1 ? '马上就到' : `约 ${minutes} 分钟` };
+  return { minutes, basis: history ? 'history' : 'distance', arriveBy: Math.round(t + remaining), label: minutes <= 1 ? '马上就到' : `约 ${minutes} 分钟${pad ? `（天气原因已多留 ${pad} 分钟）` : ''}`, weatherPadding: pad };
 }
 async function courierPosition(env: Env, order: ReturnType<typeof serializeOrder>, eta: OrderEta | null, statusSince: number, cal: Calibration | null): Promise<CourierPosition | null> {
   if (!['PICKED_UP', 'OUT_FOR_DELIVERY'].includes(order.status)) return null;
-  const route = campusRoute(order.stationSnapshot.code, order.dormSnapshot.buildingCode);
+  const route = campusRoute(order.stationSnapshot.code, order.dropPlace ?? order.dormSnapshot.buildingCode);
   if (!route) return null;
   if (order.status === 'PICKED_UP') return { ...route[0], source: 'estimate', updatedAt: null };
   const assignee = await assigneeOf(env, order.id);
@@ -120,11 +152,11 @@ async function courierPosition(env: Env, order: ReturnType<typeof serializeOrder
   const point = pointAlong(route, Math.min(0.94, elapsed / Math.max(total, 1)));
   return { x: Math.round(point.x), y: Math.round(point.y), source: 'estimate', updatedAt: null };
 }
-async function orderLive(env: Env, row: OrderRow): Promise<OrderLive> {
+export async function orderLive(env: Env, row: OrderRow): Promise<OrderLive> {
   const order = serializeOrder(row), cal = await calibration(env);
   const since = await env.DB.prepare('SELECT max(created_at) AS t FROM order_events WHERE order_id=? AND to_status=?').bind(order.id, order.status).first<number>('t') ?? order.createdAt;
   const eta = await estimateEta(env, order, since);
-  return { eta, courier: await courierPosition(env, order, eta, since, cal), calibrated: Boolean(cal) };
+  return { eta, courier: await courierPosition(env, order, eta, since, cal), calibrated: Boolean(cal), residualMeters: cal?.residualMeters ?? null };
 }
 
 async function liveMap(env: Env, admin: Admin): Promise<LiveMapData> {
@@ -139,13 +171,16 @@ async function liveMap(env: Env, admin: Admin): Promise<LiveMapData> {
       (SELECT count(*) FROM batch_items bi JOIN delivery_batches b ON b.id=bi.batch_id JOIN delivery_orders o ON o.id=bi.order_id WHERE b.assignee_admin_id=l.admin_id AND o.status IN ('PICKED_UP','OUT_FOR_DELIVERY')) AS active
       FROM courier_locations l JOIN admin_users a ON a.id=l.admin_id WHERE a.status='ACTIVE' AND l.updated_at>unixepoch()-300 AND (?<>'DELIVERY_STAFF' OR l.admin_id=?)`)
       .bind(admin.role, admin.id).all<{ id: string; username: string; lat: number; lng: number; updatedAt: number; active: number }>(),
-    env.DB.prepare(`SELECT slot_date AS date,slot_code AS code,count(*) AS booked FROM delivery_orders WHERE slot_date IN (?,?) AND status<>'CANCELLED' GROUP BY slot_date,slot_code`).bind(...dates).all<{ date: string; code: string; booked: number }>(),
+    slotAvailability(env),
     calibration(env),
   ]);
+  const t = now();
   return {
     buildings: loads.results,
     couriers: cal ? couriers.results.flatMap(c => { const p = projectGps(cal, c.lat, c.lng); return p ? [{ id: c.id, username: c.username, x: p.x, y: p.y, updatedAt: c.updatedAt, active: c.active }] : []; }) : [],
-    calibrated: Boolean(cal), slots: slots.results,
+    calibrated: Boolean(cal),
+    // Windows that already ended are left out; the rest carry their (possibly shift-based) capacity.
+    slots: slots.slots.filter(s => dates.includes(s.date) && slotTime(s.date, slotByCode(s.code).end) > t).map(s => ({ date: s.date, code: s.code, booked: s.booked, capacity: s.capacity })),
   };
 }
 
@@ -153,7 +188,11 @@ async function liveMap(env: Env, admin: Admin): Promise<LiveMapData> {
 
 export async function liveDeliveryRoutes(request: Request, env: Env): Promise<Response | null> {
   const path = new URL(request.url).pathname.replace('/api/v1', ''), method = request.method;
-  if (path === '/slots' && method === 'GET') { await requireStudent(request, env); return json(await slotAvailability(env)); }
+  if (path === '/slots' && method === 'GET') {
+    const user = await requireStudent(request, env);
+    const building = await env.DB.prepare('SELECT dorm_building_code AS code FROM user_addresses WHERE user_id=? AND valid_to IS NULL').bind(user.id).first<string>('code').catch(() => null);
+    return json(await slotAvailability(env, building));
+  }
   const student = /^\/orders\/([a-f0-9-]{36})\/(chat|live)$/.exec(path);
   if (student) {
     const user = await requireStudent(request, env), row = await ownOrder(env, user.id, student[1]);
@@ -180,10 +219,11 @@ export async function liveDeliveryRoutes(request: Request, env: Env): Promise<Re
       const data = await body(request, handoffCodeSchema);
       return json({ order: await verifyHandoff(env, admin, id, data.code, data.version), message: '收货码核验通过，订单已完成' });
     }
-    const row = await adminOrder(env, admin, id);
-    if (adminChat[2] === 'chat' && method === 'GET') return json({ messages: await readChat(env, id, 'ADMIN'), open: chatOpen(row) });
+    const row = await adminOrder(env, admin, id), assignee = await assigneeOf(env, id), isAssignee = assignee === admin.id;
+    if (adminChat[2] === 'chat' && method === 'GET') return json({ messages: await readChat(env, id, 'ADMIN', isAssignee), open: chatOpen(row) && isAssignee, observer: !isAssignee });
     if (adminChat[2] === 'chat' && method === 'POST') {
       if (!chatOpen(row)) throw new ApiError(409, 'CHAT_CLOSED', '订单已结束，不能再发送消息');
+      if (!isAssignee) throw new ApiError(403, 'CHAT_ASSIGNEE_ONLY', '只有接单的配送员可以和同学聊天，其他管理员只能查看');
       await rateLimit(env, `chat-admin:${admin.id}`, 120);
       const data = await body(request, chatMessageSchema);
       // The notify_order_chat trigger writes the student's inbox row; the request fan-out turns it into live + push.
@@ -199,10 +239,17 @@ export async function liveDeliveryRoutes(request: Request, env: Env): Promise<Re
       const data = await body(request, locationSchema);
       await env.DB.prepare(`INSERT INTO courier_locations(admin_id,lat,lng,accuracy,updated_at) VALUES(?,?,?,?,unixepoch())
         ON CONFLICT(admin_id) DO UPDATE SET lat=excluded.lat,lng=excluded.lng,accuracy=excluded.accuracy,updated_at=unixepoch()`).bind(admin.id, data.lat, data.lng, data.accuracy).run();
-      const watchers = (await env.DB.prepare(`SELECT o.id,o.user_id AS userId FROM delivery_orders o JOIN batch_items bi ON bi.order_id=o.id JOIN delivery_batches b ON b.id=bi.batch_id
-        WHERE b.assignee_admin_id=? AND o.status='OUT_FOR_DELIVERY'`).bind(admin.id).all<{ id: string; userId: string }>()).results;
+      const watchers = (await env.DB.prepare(`SELECT o.id,o.user_id AS userId,COALESCE(o.drop_place,o.dorm_building_code) AS destination FROM delivery_orders o JOIN batch_items bi ON bi.order_id=o.id JOIN delivery_batches b ON b.id=bi.batch_id
+        WHERE b.assignee_admin_id=? AND o.status='OUT_FOR_DELIVERY'`).bind(admin.id).all<{ id: string; userId: string; destination: string }>()).results;
       background(Promise.all(watchers.map(w => publish(env, `student:${w.userId}`, { type: 'location', orderId: w.id }))));
-      return json({ ok: true, watchers: watchers.length });
+      // "Almost there": within 150 m of the destination door (needs an on-site calibration to place the fix).
+      const cal = watchers.length ? await calibration(env) : null, point = cal ? projectGps(cal, data.lat, data.lng) : null;
+      let near = 0;
+      if (point) for (const w of watchers) {
+        const meters = metersToDestination(point, w.destination);
+        if (meters !== null && meters <= 150 && await markNear(env, w.id)) near++;
+      }
+      return json({ ok: true, watchers: watchers.length, near });
     }
   }
   if (path === '/admin/live-map' && method === 'GET') return json(await liveMap(env, await requireAdmin(request, env)));
@@ -212,9 +259,9 @@ export async function liveDeliveryRoutes(request: Request, env: Env): Promise<Re
     if (method === 'PUT') {
       requireSuper(admin);
       const data = await body(request, calibrationSchema);
-      const [a, b] = data.points.map(p => ({ ...landmarkPoint(p.landmark)!, lat: p.lat, lng: p.lng }));
-      const cal: Calibration = { a, b };
-      if (!calibrationUsable(cal)) throw new ApiError(400, 'CALIBRATION_TOO_CLOSE', '两个地标相距太近或方向一致，请选择地图上横向和纵向都相隔较远的两个地标');
+      const built = buildCalibration(data.points.map(p => ({ ...landmarkPoint(p.landmark)!, lat: p.lat, lng: p.lng, landmark: p.landmark })));
+      if ('error' in built) throw new ApiError(400, 'CALIBRATION_REJECTED', built.error);
+      const cal: Calibration = built.calibration;
       await env.DB.batch([
         env.DB.prepare(`INSERT INTO map_calibration(campus_id,points_json,updated_by) VALUES(?,?,?) ON CONFLICT(campus_id) DO UPDATE SET points_json=excluded.points_json,updated_by=excluded.updated_by,updated_at=unixepoch()`).bind(CAMPUS_ID, JSON.stringify(cal), admin.id),
         env.DB.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,resource_id) VALUES(?,'ADMIN',?,'MAP_CALIBRATED',?)").bind(crypto.randomUUID(), admin.id, CAMPUS_ID),

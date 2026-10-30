@@ -1,3 +1,6 @@
+import {THEME_LABELS,setThemeMode,type ThemeMode} from './theme';
+import { inWeChat } from './wechat';
+import {setLang,t} from './i18n';
 import dialogPolyfill from 'dialog-polyfill';
 import {useEffect,useId,useMemo,useRef,useState,useSyncExternalStore} from 'react';
 import {useLocation,useNavigate} from 'react-router-dom';
@@ -10,16 +13,16 @@ import {disableNotify,enableNotify,pushEnabled,useNotifyState} from './notify';
 /* ================================================================== arrival reminders toggle */
 export function NotifyToggle({compact=false}:{compact?:boolean}){
   const state=useNotifyState();const [busy,setBusy]=useState(false);
-  if(state==='unsupported')return compact?null:<p className="notify-toggle muted">当前浏览器不支持系统通知；订单页打开时仍会实时提示状态变化。</p>;
+  if(state==='unsupported')return compact?null:<p className="notify-toggle muted">{inWeChat?t('微信内无法开启系统通知；订单页打开时仍会实时提示状态变化，也可以在“消息”里查看。想在关闭页面后收到提醒，请在手机浏览器中打开本站。'):t('当前浏览器不支持系统通知；订单页打开时仍会实时提示状态变化。')}</p>;
   async function toggle(){
-    if(state==='on'){disableNotify();toast('已关闭到达提醒','info');return;}
+    if(state==='on'){disableNotify();toast(t('已关闭到达提醒'),'info');return;}
     setBusy(true);const r=await enableNotify();setBusy(false);
-    if(r==='on')toast('到达提醒已开启','success',pushEnabled()?'即使关闭网页，配送进度和配送员消息也会推送到这台设备':'订单状态变化时会弹出系统通知');
-    else if(r==='denied')toast('浏览器拒绝了通知权限','warn','可以在浏览器的网站设置里允许通知后再试');
-    else if(r==='blocked')toast('这个浏览器只允许已安装的应用发通知','warn','可以先“添加到主屏幕”，或改用电脑浏览器');
+    if(r==='on')toast(t('到达提醒已开启'),'success',pushEnabled()?t('即使关闭网页，配送进度和配送员消息也会推送到这台设备'):t('订单状态变化时会弹出系统通知'));
+    else if(r==='denied')toast(t('浏览器拒绝了通知权限'),'warn',t('可以在浏览器的网站设置里允许通知后再试'));
+    else if(r==='blocked')toast(t('这个浏览器只允许已安装的应用发通知'),'warn',t('可以先“添加到主屏幕”，或改用电脑浏览器'));
   }
   return <div className={`notify-toggle${compact?' compact':''}`}>
-    <label className="switch"><input type="checkbox" checked={state==='on'} disabled={busy||state==='denied'} onChange={()=>void toggle()}/><span><strong>到达提醒</strong><small>{state==='denied'?'通知权限已被拒绝，请在浏览器网站设置里允许':state==='on'?(pushEnabled()?'已开启推送：即使关闭网页，状态变化和配送员消息也会通知你':'已开启：页面在后台时，状态变化会弹出系统通知'):'包裹送到楼下或寝室时，即使切到其他页面也提醒你'}</small></span></label>
+    <label className="switch"><input type="checkbox" checked={state==='on'} disabled={busy||state==='denied'} onChange={()=>void toggle()}/><span><strong>{t('到达提醒')}</strong><small>{state==='denied'?t('通知权限已被拒绝，请在浏览器网站设置里允许'):state==='on'?(pushEnabled()?t('已开启推送：即使关闭网页，状态变化和配送员消息也会通知你'):t('已开启：页面在后台时，状态变化会弹出系统通知')):t('包裹送到楼下或寝室时，即使切到其他页面也提醒你')}</small></span></label>
   </div>;
 }
 
@@ -50,6 +53,9 @@ const STUDENT:Command[]=[
   nav('help','常见问题','/help','help','wenti faq 常见问题 帮助 help'),
   nav('contact','配送联系','/contact','phone','lianxi 联系 电话 contact'),
   nav('rules','包裹交接与退单规则','/handoff-rules','order','jiaojie 交接 退单 规则'),
+  nav('send','代寄件 · 上门取件','/send','send','jijian 寄件 寄快递 上门 取件 send'),
+  nav('map','校园地图与本周热度榜','/map','map','ditu 地图 路线 热度 排行 map'),
+  nav('report','我的年度快递报告','/report','star','niandu 年度 报告 总结 report'),
 ];
 const ADMIN:Command[]=[
   nav('a-tasks','配送工作台','/admin','order','renwu 任务 接单 工作台 admin'),
@@ -61,12 +67,20 @@ const ADMIN:Command[]=[
   nav('a-admins','管理员与授权','/admin/admins','person','guanliyuan 管理员 权限'),
   nav('a-audit','审计日志','/admin/audit','order','shenji 审计 日志 audit'),
   nav('a-account','我的授权与联系电话','/admin/account','person','zhanghao 账号 授权 电话'),
+  nav('a-map','作战地图 · 排班 · 里程','/admin/map','map','zuozhan 地图 排班 班次 里程 shift map'),
+  nav('a-sends','代寄件任务','/admin/sends','send','jijian 寄件 上门 取件 send'),
+  nav('a-settle','配送员模拟结算','/admin/settlement','wallet','jiesuan 结算 收入 工资 settlement'),
+  nav('a-report','月度运营报告','/admin/report','chart','yuebao 月报 报告 运营 report'),
+  nav('a-settings','运营设置 · 暂停接单 · 群通知','/admin/settings','settings','shezhi 设置 暂停 接单 群 机器人 webhook settings'),
 ];
 const ACTIONS:Command[]=[
   ...(['auto','snow','sakura','bokeh','leaves','off'] as AmbientMode[]).map(m=>({id:`amb-${m}`,label:`氛围：${AMBIENT_LABELS[m]}`,hint:'切换页面动效',keywords:`fenwei 氛围 动效 粒子 ${m} ${AMBIENT_LABELS[m]} ${m==='snow'?'xuehua 雪花':m==='sakura'?'yinghua 樱花':m==='leaves'?'luoye 落叶':m==='bokeh'?'guangban 光斑':m==='off'?'guanbi 关闭':'jijie 季节'}`,icon:'plane',run:()=>{setAmbientMode(m);toast(`氛围已切换为“${AMBIENT_LABELS[m]}”`,'info');}})),
   {id:'bounce',label:'开关文字跳动效果',hint:'标题、状态变化等处的文字跳动',keywords:'tiaodong 跳动 文字 动画 bounce',icon:'plane',run:()=>{const on=!isBounceEnabled();setBounceEnabled(on);toast(on?'已开启文字跳动':'已关闭文字跳动','info');}},
   {id:'onboarding',label:'重新查看新手引导',hint:'3 步了解下单流程',keywords:'yindao 引导 教程 新手 帮助',icon:'help',run:()=>openOnboarding()},
   nav('game','休息一下：接包裹小游戏','/play','box','youxi 游戏 小游戏 game play 彩蛋'),
+  ...(['auto','light','dark'] as ThemeMode[]).map(m=>({id:`theme-${m}`,label:`外观：${THEME_LABELS[m]}`,hint:'浅色 / 深色模式',keywords:`waiguan 外观 深色 夜间 暗色 浅色 dark light theme ${m}`,icon:'moon',run:()=>{setThemeMode(m);toast(`外观已切换为${THEME_LABELS[m]}`,'info');}})),
+  {id:'lang-en',label:'Switch to English',hint:'学生页面显示英文',keywords:'english yingwen 英文 语言 language en',icon:'globe',run:()=>setLang('en')},
+  {id:'lang-zh',label:'切换为中文',hint:'Chinese',keywords:'zhongwen 中文 语言 language chinese zh',icon:'globe',run:()=>setLang('zh')},
 ];
 let paletteOpen=false;const paletteListeners=new Set<()=>void>();
 export function openCommandPalette(){paletteOpen=true;paletteListeners.forEach(l=>l());}
@@ -94,7 +108,7 @@ export function CommandPalette(){
   </dialog>;
 }
 export function PaletteButton(){
-  return <button type="button" className="palette-button" onClick={openCommandPalette} title="快速跳转（Ctrl+K）"><SymbolIcon name="search"/><span>搜索</span><kbd>Ctrl K</kbd></button>;
+  return <button type="button" className="palette-button" onClick={openCommandPalette} title={t('快速跳转（Ctrl+K）')} aria-label={t('搜索')}><SymbolIcon name="search"/><span>{t('搜索')}</span><kbd>Ctrl K</kbd></button>;
 }
 
 /* ================================================================== easter egg */

@@ -1,0 +1,89 @@
+/* Dark appearance: the night chart. Applied as <html data-theme="dark"> by public/boot.js before the first paint and
+   kept in sync by src/client/theme.ts ('auto' follows the system). Like a chart display in night mode the paper turns
+   to deep water and the ink turns light; primary actions invert (light fill, dark text) and the route stays magenta.
+   theme-dark-auto.css (generated) covers literal colours still written in the older feature files.
+   Everything is screen-only, so printed route sheets, receipts and reports always come out on the light chart. */
+
+@media screen {
+:root[data-theme=dark] {
+  color-scheme: dark;
+  --fog: #0c181d;
+  --chart: #12232a;
+  --paper: #162a32;
+  --shoal: #1d3a44;
+  --shoal-soft: #183039;
+  --abyss: #dce7e6;
+  --abyss-deep: #ffffff;
+  --abyss-hover: #f2f7f6;
+  --action: #cfe6ee;
+  --action-hover: #e6f3f7;
+  --action-deep: #ffffff;
+  --action-glow: #cfe6ee33;
+  --sea: #7ec3db;
+  --sounding: #9db3b4;
+  --contour: #2a434b;
+  --contour-strong: #3c5a63;
+  --isobath: #4f8796;
+  --route: #e77aa8;
+  --route-strong: #f3a5c5;
+  --route-soft: #3a1f2c;
+  --on-color: #0c181d;
+
+  --blue-25: #11222a;
+  --blue-50: #13262e;
+  --blue-100: #1d3a44;
+  --blue-150: #24434d;
+  --blue-300: #3c5a63;
+  --blue-400: #5aa6c0;
+  --blue-700: #9fd3e6;
+
+  --ink-800: #c9d8d7;
+  --ink-700: #b5c7c7;
+  --ink-600: #a4b8b9;
+  --ink-400: #6f8a90;
+  --gray-100: #1a2c33;
+
+  --green-50: #10291f;
+  --green-500: #3fae82;
+  --green-700: #7fd1a8;
+  --red-50: #2d1716;
+  --red-100: #3d1d1b;
+  --red-500: #e0605a;
+  --red-600: #f08a80;
+  --red-700: #f08a80;
+  --amber-50: #2a2212;
+  --amber-500: #d6a043;
+  --amber-700: #e8b65a;
+  --violet-50: #241c2e;
+
+  --shadow-raised: 0 1px 0 #00000040;
+  --shadow-dialog: 0 24px 64px #000000a6, 0 2px 6px #00000066;
+  --shadow-menu: 0 12px 32px #00000080, 0 1px 3px #00000066;
+}
+
+:root[data-theme=dark], :root[data-theme=dark] body { background: var(--color-page); color: var(--color-text); }
+
+/* The night chart: home hero, the opening and the sign-in panel (their light defaults are in pages.css / chart.css). */
+:root[data-theme=dark] .home-hero { --hero-bg: #05121a; --hero-ink: #e9f4f1; --hero-muted: #9dbdb9; --hero-halo: #05121acc; --hero-glass: #05121a99; --hero-glass-line: #ffffff26; --hero-mark: #ffffff; --hero-route: #ff5c9d; }
+:root[data-theme=dark] .intro { --intro-bg: #05121a; --intro-ink: #f2f8f6; --intro-muted: #9dbdb9; --intro-route: #ff5c9d; --intro-skip-line: #ffffff33; --intro-skip-bg: #ffffff0d; }
+:root[data-theme=dark] .auth-scenery { background: #05121a; border-color: #05121a; }
+:root[data-theme=dark] .auth-scenery span { color: #e6f3f0; text-shadow: 0 1px 18px #05121a; }
+:root[data-theme=dark] .home-dashboard .home-quick, :root[data-theme=dark] .home-live>.current-order:first-child { box-shadow: 0 30px 80px #000000a0; }
+:root[data-theme=dark] .handoff-code-card { box-shadow: none; }
+:root[data-theme=dark] input::placeholder, :root[data-theme=dark] textarea::placeholder { color: #7b9399; }
+:root[data-theme=dark] dialog::backdrop { background: #02080bcc; }
+:root[data-theme=dark] code { background: var(--paper); color: var(--abyss); }
+
+/* The handoff card follows the tokens (a dark shoal card with paper-dark flaps); only its link needs the light sea. */
+:root[data-theme=dark] .handoff-code-head .text-button { color: var(--sea); }
+:root[data-theme=dark] .handoff-code-head .text-button:not(:disabled):hover { color: var(--abyss); }
+
+/* The official campus plan stays an image; dim it so it sits in the night palette. */
+:root[data-theme=dark] .map-plan { filter: saturate(.3) brightness(.62) contrast(1.05); }
+:root[data-theme=dark] .campus-map svg { background: #101e24; }
+:root[data-theme=dark] .image-placeholder img, :root[data-theme=dark] .delivery-photo img { filter: brightness(.9); }
+:root[data-theme=dark] .heatmap .cell[data-level="0"] { background: #18303a; }
+:root[data-theme=dark] .route-ants { stroke: #0c181dd0; }
+:root[data-theme=dark] .courier-name { stroke: #0c181d; }
+}
+

@@ -61,9 +61,11 @@
       "durable_objects": {
         "bindings": [{ "name": "LIVE", "class_name": "LiveHub" }]
       },
+      // Daily clean-up at 11:17 Beijing; every 10 minutes: unpaid-order expiry, parcel reminders, group alerts.
       "triggers": {
         "crons": [
-          "17 3 * * *"
+          "17 3 * * *",
+          "*/10 * * * *"
         ]
       }
     },
@@ -85,9 +87,11 @@
       "durable_objects": {
         "bindings": [{ "name": "LIVE", "class_name": "LiveHub" }]
       },
+      // Daily clean-up at 11:17 Beijing; every 10 minutes: unpaid-order expiry, parcel reminders, group alerts.
       "triggers": {
         "crons": [
-          "17 3 * * *"
+          "17 3 * * *",
+          "*/10 * * * *"
         ]
       }
     }
