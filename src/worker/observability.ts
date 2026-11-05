@@ -1,6 +1,10 @@
 import type { Env } from './types';
 import {ApiError} from './http';
-const known=new Set(['health','auth','admin','me','orders','parcels','quotes','stations','dorm-buildings','login','logout','register','address','tasks','available','dashboard','batches','status','pickup-code','claim','release','handoffs','confirm','reject','recovery','recovery-code','reset','issue','errors','admins','scopes','disable','note','upgrade','cancel','hide','refund','mock-pay','tips','contact','audit','assignees','password','tickets','messages','read','read-all','receive','bulk-pickup','announcements','archive','rating','stats','analytics','alerts','order-groups','cancel-unpaid','rules','weather','punctuality']);
+const known=new Set(['health','auth','admin','me','orders','parcels','quotes','stations','dorm-buildings','login','logout','register','address','tasks','available','dashboard','batches','status','pickup-code','claim','release','handoffs','confirm','reject','recovery','recovery-code','reset','issue','errors','admins','scopes','disable','note','upgrade','cancel','hide','refund','mock-pay','tips','contact','audit','assignees','password','tickets','messages','read','read-all','receive','bulk-pickup','announcements','archive','rating','stats','analytics','alerts','order-groups','cancel-unpaid','rules','weather','punctuality','assistant','ops-summary',
+ // v3.5.1: segments added since v2.6, so error routes keep their names instead of turning into :id
+ 'session','sends','slots','live','chat','handoff-code','location','live-map','map-calibration','share','track','push','subscribe','settings','shifts','plan','pause','webhook','report','settlement','pickup','drop','near','proxy','photo','account','year-report',
+ // v3.6
+ 'demo','start','tick','auto','end','agent','vision','impact','forecast']);
 export function safeRoute(request:Request){const parts=new URL(request.url).pathname.split('/').slice(3,10);return '/api/v1/'+parts.map(p=>known.has(p)?p:':id').join('/');}
 export function classifyError(error:unknown){
  const message=error instanceof Error?error.message:String(error);

@@ -1,3 +1,4 @@
+import {t} from './i18n';
 import dialogPolyfill from 'dialog-polyfill';
 import { inWeChat } from './wechat';
 import {useEffect,useId,useRef,useState} from 'react';
@@ -33,7 +34,7 @@ export async function drawShareCard(canvas:HTMLCanvasElement,stats:StudentStats,
   c.strokeStyle=accent;c.lineWidth=7;c.lineCap='round';c.beginPath();c.moveTo(96,246);c.bezierCurveTo(110,240,118,228,126,216);c.stroke();
   c.fillStyle=INK;c.font=`600 54px ${SERIF}`;c.fillText('我的配送足迹',220,186);
   c.fillStyle=MUTED;c.font=`500 28px ${FONT}`;c.fillText('青岛科技大学 · 崂山校区 · CampusDrop',222,236);
-  const tiles:[string,number,string][]=[['累计下单',stats.paidOrders,'单'],['少跑驿站',stats.completed,'次'],['送到寝室',stats.roomDeliveries,'次'],['大件配送',stats.largeParcels,'件']];
+  const tiles:[string,number,string][]=[[t('累计下单'),stats.paidOrders,t('单')],[t('少跑驿站'),stats.completed,t('次')],[t('送到寝室'),stats.roomDeliveries,t('次')],[t('大件配送'),stats.largeParcels,t('件')]];
   const top=320,cw=(W-192)/2,ch=200;c.strokeStyle=INK;c.lineWidth=2;c.beginPath();c.moveTo(96,top);c.lineTo(W-96,top);c.stroke();c.strokeStyle=LINE;c.lineWidth=1.5;
   tiles.forEach(([label,value,unit],i)=>{const x=96+(i%2)*cw,y=top+Math.floor(i/2)*ch;
     if(i%2){c.beginPath();c.moveTo(x,y+24);c.lineTo(x,y+ch-24);c.stroke();}
@@ -41,16 +42,16 @@ export async function drawShareCard(canvas:HTMLCanvasElement,stats:StudentStats,
     const ox=x+(i%2?36:0);c.fillStyle=MUTED;c.font=`500 28px ${FONT}`;c.fillText(label,ox,y+62);
     c.fillStyle=INK;c.font=`450 100px ${SERIF}`;c.fillText(String(value),ox-4,y+165);const w=c.measureText(String(value)).width;c.fillStyle=MUTED;c.font=`500 30px ${FONT}`;c.fillText(unit,ox+w+10,y+163);});
   const earned=badges.filter(b=>b.earned);
-  c.fillStyle=INK;c.font=`600 36px ${SERIF}`;c.fillText(`成就徽章 ${earned.length}/${badges.length}`,96,top+ch*2+96);
+  c.fillStyle=INK;c.font=`600 36px ${SERIF}`;c.fillText(t('成就徽章 {0}/{1}',{0:earned.length,1:badges.length}),96,top+ch*2+96);
   let bx=96,by=top+ch*2+130;c.font=`600 30px ${FONT}`;
-  for(const b of earned.length?earned:[{id:'none',label:'下一枚徽章，等你来拿',hint:'',earned:false} as Badge]){
+  for(const b of earned.length?earned:[{id:'none',label:t('下一枚徽章，等你来拿'),hint:'',earned:false} as Badge]){
     const w=c.measureText(b.label).width+(b.earned?84:56);if(bx+w>W-96){bx=96;by+=80;}
     c.strokeStyle=b.earned?INK:LINE;c.lineWidth=2;roundRectPath(c,bx,by,w,60,30);c.stroke();
     if(b.earned){c.fillStyle=accent;c.beginPath();c.arc(bx+34,by+30,9,0,Math.PI*2);c.fill();}
     c.fillStyle=b.earned?INK:MUTED;c.fillText(b.label,bx+(b.earned?56:28),by+41);bx+=w+14;
   }
   c.fillStyle=MUTED;c.font=`500 26px ${FONT}`;
-  c.fillText(`生成于 ${new Date().toLocaleDateString('zh-CN',{year:'numeric',month:'long',day:'numeric'})}`,96,H-150);
+  c.fillText(t('生成于 {0}',{0:new Date().toLocaleDateString('zh-CN',{year:'numeric',month:'long',day:'numeric'})}),96,H-150);
   c.font=`500 22px ${FONT}`;c.fillText('独立校园服务项目 · 非学校或菜鸟官方产品',96,H-100);
 }
 
@@ -66,10 +67,10 @@ export function ShareCardButton({stats,badges}:{stats:StudentStats;badges:Badge[
   }
   const file=()=>blob?new File([blob],'campusdrop-footprint.png',{type:'image/png'}):null;
   const canShare=typeof navigator!=='undefined'&&typeof navigator.canShare==='function';
-  async function share(){const f=file();if(!f)return;try{if(navigator.canShare?.({files:[f]})){await navigator.share({files:[f],title:'我的配送足迹'});}else{downloadBlob('campusdrop-footprint.png',f);toast('当前浏览器不支持直接分享，已改为保存图片','info');}}catch(e){if((e as DOMException)?.name!=='AbortError')toast('分享没有完成','warn');}}
-  return <><button type="button" className="secondary share-card-button" onClick={()=>void open()}>生成分享卡片</button><canvas ref={canvas} hidden/>
-    <dialog ref={dialog} className="share-dialog" aria-labelledby={titleId}><h2 id={titleId}>我的配送足迹卡片</h2><p className="muted">卡片只包含订单统计和徽章，不含姓名、电话、寝室或取件码。</p>
-      {url&&<img src={url} alt="配送足迹分享卡片预览" width={W} height={H}/>}
-      {inWeChat&&<p className="wechat-hint" role="note">长按上面的图片，选择「保存图片」或「发送给朋友」。</p>}<div className="actions">{!inWeChat&&<button type="button" onClick={()=>{const f=file();if(f){downloadBlob('campusdrop-footprint.png',f);toast('图片已保存','success');}}}>保存图片</button>}{canShare&&!inWeChat&&<button type="button" className="secondary" onClick={()=>void share()}>分享</button>}<button type="button" className="secondary" onClick={()=>dialog.current?.close()}>关闭</button></div>
+  async function share(){const f=file();if(!f)return;try{if(navigator.canShare?.({files:[f]})){await navigator.share({files:[f],title:t('我的配送足迹')});}else{downloadBlob('campusdrop-footprint.png',f);toast('当前浏览器不支持直接分享，已改为保存图片','info');}}catch(e){if((e as DOMException)?.name!=='AbortError')toast('分享没有完成','warn');}}
+  return <><button type="button" className="secondary share-card-button" onClick={()=>void open()}>{t('生成分享卡片')}</button><canvas ref={canvas} hidden/>
+    <dialog ref={dialog} className="share-dialog" aria-labelledby={titleId}><h2 id={titleId}>{t('我的配送足迹卡片')}</h2><p className="muted">{t('卡片只包含订单统计和徽章，不含姓名、电话、寝室或取件码。')}</p>
+      {url&&<img src={url} alt={t('配送足迹分享卡片预览')} width={W} height={H}/>}
+      {inWeChat&&<p className="wechat-hint" role="note">{t('长按上面的图片，选择「保存图片」或「发送给朋友」。')}</p>}<div className="actions">{!inWeChat&&<button type="button" onClick={()=>{const f=file();if(f){downloadBlob('campusdrop-footprint.png',f);toast('图片已保存','success');}}}>{t('保存图片')}</button>}{canShare&&!inWeChat&&<button type="button" className="secondary" onClick={()=>void share()}>{t('分享')}</button>}<button type="button" className="secondary" onClick={()=>dialog.current?.close()}>{t('关闭')}</button></div>
     </dialog></>;
 }

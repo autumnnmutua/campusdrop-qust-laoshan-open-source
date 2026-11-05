@@ -17,6 +17,8 @@ import { buildCalibration, campusRoute, landmarkPoint, metersToDestination, poin
 import { SLOT_HOLDING, orderingPause, shiftCapacity, shiftCounts } from './settings';
 import { windowCapacity } from '../shared/operations-rules';
 import { markNear } from './order-extras';
+import { DEMO_RIDE_SECONDS, DEMO_STEPS } from '../shared/demo';
+import { orderColumns } from './orders';
 
 const now = () => Math.floor(Date.now() / 1000);
 const CLOSED = ['COMPLETED', 'CANCELLED'];
@@ -123,6 +125,13 @@ async function historySeconds(env: Env, fromStatus: string, building: string | n
 async function estimateEta(env: Env, order: ReturnType<typeof serializeOrder>, statusSince: number): Promise<OrderEta | null> {
   if (!['WAITING_PICKUP', 'PICKED_UP', 'OUT_FOR_DELIVERY'].includes(order.status)) return null;
   const t = now();
+  // v3.6 one-click demo: the simulated courier's own timetable, so the map and the countdown agree.
+  if (order.demo) {
+    const left = order.status === 'OUT_FOR_DELIVERY' ? DEMO_RIDE_SECONDS : order.status === 'PICKED_UP' ? DEMO_STEPS.depart + DEMO_RIDE_SECONDS
+      : (order.hasAssignee ? 0 : DEMO_STEPS.claim) + DEMO_STEPS.pickup + DEMO_STEPS.depart + DEMO_RIDE_SECONDS;
+    const remaining = Math.max(10, left - (t - statusSince)), minutes = Math.max(1, Math.round(remaining / 60));
+    return { minutes, basis: 'demo', arriveBy: t + remaining, label: remaining < 60 ? '马上就到' : `约 ${minutes} 分钟`, weatherPadding: 0 };
+  }
   if (order.slotDate && order.slotCode && order.status !== 'OUT_FOR_DELIVERY') {
     const slot = slotByCode(order.slotCode), start = slotTime(order.slotDate, slot.start), end = slotTime(order.slotDate, slot.end);
     if (end > t) return { minutes: Math.max(1, Math.round((Math.max(start, t) - t) / 60)), basis: 'slot', arriveBy: end, label: `预约 ${slotLabel(order.slotDate, order.slotCode, t)}` };
@@ -148,7 +157,7 @@ async function courierPosition(env: Env, order: ReturnType<typeof serializeOrder
     const point = fix && projectGps(cal, fix.lat, fix.lng);
     if (point && fix) return { ...point, source: 'gps', updatedAt: fix.updatedAt };
   }
-  const elapsed = now() - statusSince, total = elapsed + (eta ? eta.arriveBy - now() : 600);
+  const elapsed = now() - statusSince, total = order.demo ? DEMO_RIDE_SECONDS : elapsed + (eta ? eta.arriveBy - now() : 600);
   const point = pointAlong(route, Math.min(0.94, elapsed / Math.max(total, 1)));
   return { x: Math.round(point.x), y: Math.round(point.y), source: 'estimate', updatedAt: null };
 }
@@ -169,15 +178,22 @@ async function liveMap(env: Env, admin: Admin): Promise<LiveMapData> {
       FROM delivery_orders o WHERE o.status NOT IN ('WAITING_PAYMENT','COMPLETED','CANCELLED') AND ${scope.sql} GROUP BY o.dorm_building_code`).bind(...scope.params).all<LiveMapData['buildings'][number]>(),
     env.DB.prepare(`SELECT l.admin_id AS id,a.username,l.lat,l.lng,l.updated_at AS updatedAt,
       (SELECT count(*) FROM batch_items bi JOIN delivery_batches b ON b.id=bi.batch_id JOIN delivery_orders o ON o.id=bi.order_id WHERE b.assignee_admin_id=l.admin_id AND o.status IN ('PICKED_UP','OUT_FOR_DELIVERY')) AS active
-      FROM courier_locations l JOIN admin_users a ON a.id=l.admin_id WHERE a.status='ACTIVE' AND l.updated_at>unixepoch()-300 AND (?<>'DELIVERY_STAFF' OR l.admin_id=?)`)
-      .bind(admin.role, admin.id).all<{ id: string; username: string; lat: number; lng: number; updatedAt: number; active: number }>(),
+      FROM courier_locations l JOIN admin_users a ON a.id=l.admin_id WHERE a.status='ACTIVE' AND l.updated_at>unixepoch()-300 AND (?<>'DELIVERY_STAFF' OR l.admin_id=?)
+      AND coalesce(a.demo_group,'')=coalesce((SELECT demo_group FROM admin_users WHERE id=?),'')`)
+      .bind(admin.role, admin.id, admin.id).all<{ id: string; username: string; lat: number; lng: number; updatedAt: number; active: number }>(),
     slotAvailability(env),
     calibration(env),
   ]);
   const t = now();
+  // v3.6 one-click demo: the visitor's courier has no GPS; show it where its timetable puts it on the route.
+  const simulated: LiveMapData['couriers'] = [];
+  if (admin.demo) {
+    const rows = (await env.DB.prepare(`SELECT ${orderColumns} FROM delivery_orders o WHERE o.status IN ('PICKED_UP','OUT_FOR_DELIVERY') AND ${scope.sql} LIMIT 6`).bind(...scope.params).all<OrderRow>()).results;
+    for (const row of rows) { const live = await orderLive(env, row); if (live.courier && !simulated.length) simulated.push({ id: admin.id, username: admin.username, x: live.courier.x, y: live.courier.y, updatedAt: t, active: rows.length }); }
+  }
   return {
     buildings: loads.results,
-    couriers: cal ? couriers.results.flatMap(c => { const p = projectGps(cal, c.lat, c.lng); return p ? [{ id: c.id, username: c.username, x: p.x, y: p.y, updatedAt: c.updatedAt, active: c.active }] : []; }) : [],
+    couriers: [...simulated, ...(cal ? couriers.results.flatMap(c => { const p = projectGps(cal, c.lat, c.lng); return p ? [{ id: c.id, username: c.username, x: p.x, y: p.y, updatedAt: c.updatedAt, active: c.active }] : []; }) : [])],
     calibrated: Boolean(cal),
     // Windows that already ended are left out; the rest carry their (possibly shift-based) capacity.
     slots: slots.slots.filter(s => dates.includes(s.date) && slotTime(s.date, slotByCode(s.code).end) > t).map(s => ({ date: s.date, code: s.code, booked: s.booked, capacity: s.capacity })),

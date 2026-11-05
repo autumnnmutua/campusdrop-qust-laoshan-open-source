@@ -28,6 +28,8 @@ import { systemNotify } from './notify';
 import {CARRIERS,MOCK_MESSAGE,STATUS_LABELS} from '../shared/constants';
 import type {DeliveryMode,Order,OrderEvent,Parcel,Payment,Station} from '../shared/delivery';
 import { getItem,getJson,removeItem,setItem,setJson } from './storage';
+import {OneSentenceOrder} from './agent-ui';
+import {ImpactBoard} from './impact';
 import {money,yuan} from './format';
 import {priceFen,upgradePriceFen} from '../domain/commerce';
 export {money};
@@ -140,11 +142,12 @@ export function Home(){
         <div className="panel-heading"><h2>{t('我的包裹')}</h2><Link to="/orders">{t('全部订单 ›')}</Link></div>
         {signedOut?<SignInPrompt title={t('登录后，查看你的包裹')} text={t('登记包裹、查看配送进度，让期待更近一步。')}/>:<>
         {error&&<div className="inline-error"><p role="alert">{error}</p><button type="button" className="text-button" onClick={()=>void refresh()}>{t('重新加载')}</button></div>}
-        {checking&&<LoadingState/>}{data&&parcels.length===0&&<EmptyState title={t('下一件快递，从这里开始')}><p>{t('登记取件码后，就能安排配送。')}</p><Link className="button secondary" to="/parcel/new">{t('添加第一件快递 →')}</Link></EmptyState>}<p role="status">{feedback}</p><MergeBanner parcels={parcels}/><div className="card-list">{(expanded?parcels:parcels.slice(0,3)).map(p=><ParcelCard key={p.id} parcel={p} busy={busy===p.id} onRemove={()=>void remove(p.id)}/>)}</div>{parcels.length>3&&<button className="secondary" aria-expanded={expanded} onClick={()=>setExpanded(!expanded)}>{expanded?t('收起包裹'):t('更多包裹（还有 {0} 件）',{0:parcels.length-3})}</button>}</>}
+        {checking&&<LoadingState/>}{data&&parcels.length===0&&<EmptyState title={t('下一件快递，从这里开始')}><p>{t('登记取件码后，就能安排配送。')}</p><Link className="button secondary" to="/parcel/new">{t('添加第一件快递 →')}</Link></EmptyState>}<p role="status">{feedback}</p><MergeBanner parcels={parcels}/>{session==='signed-in'&&parcels.some(p=>p.status==='ACTIVE'&&!p.hasOrder)&&<OneSentenceOrder/>}<div className="card-list">{(expanded?parcels:parcels.slice(0,3)).map(p=><ParcelCard key={p.id} parcel={p} busy={busy===p.id} onRemove={()=>void remove(p.id)}/>)}</div>{parcels.length>3&&<button className="secondary" aria-expanded={expanded} onClick={()=>setExpanded(!expanded)}>{expanded?t('收起包裹'):t('更多包裹（还有 {0} 件）',{0:parcels.length-3})}</button>}</>}
       </div>
     </div>
     <div className="home-more">
       <nav className="service-shortcuts" aria-label={t('校园服务')}><Link to="/send"><SymbolIcon name="send"/><strong>{t('代寄件')}</strong><small>{t('上门取件 · 帮你寄出')}</small></Link><Link to="/map"><SymbolIcon name="map"/><strong>{t('校园地图')}</strong><small>{t('路线 · 步行时间')}</small></Link><Link to="/report"><SymbolIcon name="star"/><strong>{t('年度报告')}</strong><small>{t('这一年的快递足迹')}</small></Link><Link to="/guide"><SymbolIcon name="order"/><strong>{t('配送说明')}</strong><small>{t('计费 · 范围 · 交接')}</small></Link><Link to="/help"><SymbolIcon name="help"/><strong>{t('常见问题')}</strong><small>{t('使用指南与解答')}</small></Link><Link to="/rules"><SymbolIcon name="bell"/><strong>{t('常用配送')}</strong><small>{t('到点自动下单')}</small></Link></nav>
+      <ImpactBoard/>
       <BuildingHeatBoard compact/>
     </div>
   </section>;
@@ -180,7 +183,7 @@ export function NewParcel(){
     <form onSubmit={submit}><PickupCodeInput value={code} onChange={setCode}/>
       <label htmlFor="station">{t('取件站点')}</label><select id="station" name="stationCode" required value={station} onChange={e=>setStation(e.target.value)}>{data?.stations.map(s=><option key={s.code} value={s.code}>{s.canonicalName}</option>)}</select>
       <ChoiceSelector label={t('包裹大小')} name="packageSize" value={packageSize} onChange={setPackageSize} options={[{value:'SMALL',label:t('小件'),icon:'box',hint:t('轻便包裹')},{value:'LARGE',label:t('大件'),icon:'box',hint:t('较大包裹')}]}/>
-      <label htmlFor="carrier">{t('承运商（选填）')}</label><select id="carrier" name="carrier" value={carrier} onChange={e=>setCarrier(e.target.value)}><option value="">{t('暂不填写')}</option>{CARRIERS.map(c=><option key={c}>{c}</option>)}</select>
+      <label htmlFor="carrier">{t('承运商（选填）')}</label><select id="carrier" name="carrier" value={carrier} onChange={e=>setCarrier(e.target.value)}><option value="">{t('暂不填写')}</option>{CARRIERS.map(c=><option key={c} value={c}>{t(c)}</option>)}</select>
       <label htmlFor="parcel-note">{t('备注（选填）')}</label><textarea id="parcel-note" name="note" maxLength={120} rows={3} value={note} onChange={e=>setNote(e.target.value)}/><NoteChips value={note} onChange={setNote}/><small>{t('最多 120 字，请勿填写额外取件凭证。')}</small>
       <p role="alert">{message}</p><button className={busy?'is-busy':undefined} disabled={busy||!data?.stations.length}>{busy?t('正在登记…'):t('保存包裹')}</button>
     </form><p><Link to="/orders">{t('已有订单？前往继续支付或查看配送')}</Link></p>
@@ -195,7 +198,7 @@ export function ParcelDetail(){
   useEffect(()=>{let current=true;setAmount(null);if(size)api<{amountFen:number}>('/quotes','POST',{packageSize:size,deliveryMode:mode}).then(r=>{if(current)setAmount(r.amountFen);}).catch(e=>{if(current)setMessage(e.message);});return()=>{current=false;};},[size,mode]);
   const orderButton=useRef<HTMLButtonElement>(null);
   async function order(){setBusy(true);try{const r=await api<{order:Order}>('/orders','POST',{parcelId:id,deliveryMode:mode,...(slot?{slotDate:slot.date,slotCode:slot.code}:{}),...(place&&mode==='DOWNSTAIRS'?{dropPlace:place}:{})});await flyToOrders(orderButton.current);navigate(`/checkout/${r.order.id}`);}catch(e){setMessage((e as Error).message);}finally{setBusy(false);}}
-  return <section><Link to="/">{t('← 我的包裹')}</Link><h1>{t('安排配送')}</h1><Notice error={error} unauthorized={unauthorized}/>{loading&&!data&&<LoadingState/>}{data&&<><p className="pickup-code">{data.parcel.pickupCode}</p><p>{size==='SMALL'?t('小件'):t('大件')} · 请再次核对取件码</p>
+  return <section><Link to="/">{t('← 我的包裹')}</Link><h1>{t('安排配送')}</h1><Notice error={error} unauthorized={unauthorized}/>{loading&&!data&&<LoadingState/>}{data&&<>{data.parcel.status==='ACTIVE'&&!data.parcel.hasOrder&&<OneSentenceOrder parcelIds={[data.parcel.id]} title={t('一句话安排这件快递')}/>}<p className="pickup-code">{data.parcel.pickupCode}</p><p>{size==='SMALL'?t('小件'):t('大件')}{t(' · 请再次核对取件码')}</p>
     <DeliveryModeSelector value={mode} onChange={setMode}/>{mode==='DOWNSTAIRS'&&<DropPlacePicker value={place} onChange={setPlace}/>}<SlotPicker value={slot} onChange={setSlot}/><WeatherNotice/><PriceSummary amount={amount}/>
     <p className="muted">{place?t('送到{0}，联系电话按已保存的资料。',{0:t(DROP_PLACE_LABELS[place])}):<>{t('按已保存的寝室配送，')}<Link to="/profile">{t('修改寝室')}</Link>。</>}</p>
     <button ref={orderButton} className={busy?'is-busy':undefined} disabled={busy||amount===null||data.parcel.status!=='ACTIVE'} onClick={()=>void order()}>{busy?t('正在创建…'):t('确认并下单')}</button></>}

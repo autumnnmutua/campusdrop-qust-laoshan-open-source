@@ -24,7 +24,8 @@ export function StudentSessionProvider({children}:{children:ReactNode}){
     // Network or server failures mark the check unavailable, so signed-in-only controls stay hidden rather than guessing.
     // Only settle a still-unknown state: a login that finished first must not be overwritten by this initial check.
     const settle=(next:StudentSession)=>{if(active)setSession(current=>current==='unknown'?next:current);};
-    api('/me').then(()=>settle('signed-in')).catch(error=>settle(isUnauthorized(error)?'signed-out':'unavailable'));
+    // /auth/session answers 200 either way, so visitors do not get a 401 (logged by browsers as a console error).
+    api<{signedIn:boolean}>('/auth/session').then(r=>settle(r.signedIn?'signed-in':'signed-out')).catch(error=>settle(isUnauthorized(error)?'signed-out':'unavailable'));
     return ()=>{active=false;};
   },[needed]);
   return <SessionContext.Provider value={{session,setSession}}>{children}</SessionContext.Provider>;

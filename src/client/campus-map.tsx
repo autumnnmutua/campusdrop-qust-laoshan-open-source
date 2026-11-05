@@ -7,7 +7,7 @@ import {useLiveConnected,useLiveEvents} from './live';
 import {useStudentSession} from './session';
 import type {Order} from '../shared/delivery';
 import type {CourierPosition,MapBuildingLoad,MapCourier,OrderLive} from '../shared/live';
-import {BUILDINGS,DROP_PLACE_LABELS,MAP_HEIGHT,MAP_IMAGE,MAP_WIDTH,campusRoute,pathLength,placeById,routeMeters,routeMinutes,type Point} from '../shared/campus-map';
+import {BUILDINGS,DROP_PLACE_LABELS,MAP_HEIGHT,MAP_IMAGE,MAP_WIDTH,STATION_PLACES,campusRoute,nearestStation,pathLength,placeById,routeMeters,routeMinutes,type Point} from '../shared/campus-map';
 import {BuildingHeatBoard} from './heat-board';
 
 /*
@@ -44,20 +44,23 @@ interface MapProps {
   label?:string;
   children?:ReactNode;
 }
-export function CampusMap({route,courier,couriers=[],loads=[],highlight,onBuilding,fit=false,label=t('青岛科技大学崂山校区官方平面图'),children}:MapProps){
+export function CampusMap({route,courier,couriers=[],loads=[],highlight,onBuilding,fit=false,label=t('青岛科技大学崂山校区平面图'),children}:MapProps){
   const box=fit&&route?.length?fitBox(courier?[...route,courier]:route):{x:0,y:0,w:MAP_WIDTH,h:MAP_HEIGHT};
   // Markers and strokes are sized for a 1000-unit-wide view and scaled with the zoom so they look the same everywhere.
   const k=box.w/1000;
   // Draw from the station door, not its centre, so the route never covers the station's name.
   route=route&&route.length>2?route.slice(1):route;
   const routeLength=route?pathLength(route):0,maxLoad=Math.max(1,...loads.map(l=>l.active+l.awaitingReceipt));
-  const station=placeById('YIHAIYUAN')!;
+  const stations=STATION_PLACES.map(id=>placeById(id)!);
   return <figure className="campus-map">
     <svg viewBox={`${Math.round(box.x)} ${Math.round(box.y)} ${Math.round(box.w)} ${Math.round(box.h)}`} role={onBuilding?'group':'img'} aria-label={label} style={{'--k':k.toFixed(3)} as CSSProperties}>
       <image href={MAP_IMAGE} width={MAP_WIDTH} height={MAP_HEIGHT} className="map-plan"/>
-      <g className="map-place kind-station"><rect x={station.x-6} y={station.y-6} width={station.w+12} height={station.h+12} rx={8*k}/>
+      {stations.map(station=>{const name=t(station.label),w=Math.max(80,name.length*(locale()==='en-GB'?7:13)+22);
+        // The 南十 station sits in a narrow strip at the west edge of 南苑, so its name goes to the left (off campus).
+        const left=station.id==='NANSHI';
+        return <g key={station.id} className="map-place kind-station"><rect x={station.x-6} y={station.y-6} width={station.w+12} height={station.h+12} rx={8*k}/>
         <circle className="station-pulse" cx={station.x+station.w/2} cy={station.y+station.h/2} r={9*k}/>
-        <g transform={`translate(${station.x+station.w/2} ${station.y+station.h+20*k}) scale(${k})`}><rect className="station-tag" x="-40" y="-11" width="80" height="22" rx="11"/><text y="4">{t('取件站点')}</text></g></g>
+        <g transform={`translate(${left?station.x-14*k-w/2*k:station.x+station.w/2} ${left?station.y+station.h/2:station.y+station.h+20*k}) scale(${k})`}><rect className="station-tag" x={-w/2} y="-11" width={w} height="22" rx="11"/><text y="4">{name}</text></g><title>{name}</title></g>;})}
       {BUILDINGS.map((b,i)=>{
         const load=loads.find(l=>l.code===b.code),heat=load?(load.active+load.awaitingReceipt)/maxLoad:0;
         const cls=['map-building',highlight===b.code&&'is-target',load?.exceptions&&'has-exception',onBuilding&&'is-clickable'].filter(Boolean).join(' ');
@@ -74,20 +77,25 @@ export function CampusMap({route,courier,couriers=[],loads=[],highlight,onBuildi
       {couriers.map(c=><g key={c.id} className="map-courier source-gps" style={{transform:`translate(${c.x}px, ${c.y}px)`}}><g transform={`scale(${k})`}><circle r="20" className="courier-halo"/><circle r="11" className="courier-dot"/><text y="-18" className="courier-name">{c.username}{c.active?t(' · {0}单',{0:c.active}):''}</text></g></g>)}
       <g className="map-compass" transform={`translate(${box.x+box.w-40*k} ${box.y+40*k}) scale(${k})`} aria-hidden="true"><circle r="24"/><path d="M0 -18 L6 0 L0 18 L-6 0Z"/><text y="-28">N</text></g>
     </svg>
-    <figcaption>{t('底图：青岛科技大学崂山校区官方平面图')}{children}</figcaption>
+    <figcaption>{t('底图：青岛科技大学崂山校区官方平面图（2012 年版），原标注“待建”的建筑已按现状改为建成')}{children}</figcaption>
   </figure>;
 }
 
 // ---------------------------------------------------------------- /map: campus map for everyone
 
 export function CampusMapPage(){
-  const [picked,setPicked]=useState<string|null>(null);
-  const route=useMemo(()=>picked?campusRoute('YIHAIYUAN',picked):null,[picked]);
-  const station=placeById('YIHAIYUAN')!;
+  const [picked,setPicked]=useState<string|null>(null),[from,setFrom]=useState<string|null>(null);
+  // Without a choice, the route starts at the station closest to the picked building.
+  const nearest=useMemo(()=>picked?nearestStation(picked,STATION_PLACES)?.code??'YIHAIYUAN':null,[picked]);
+  const stationCode=from??nearest??'YIHAIYUAN';
+  const route=useMemo(()=>picked?campusRoute(stationCode,picked):null,[picked,stationCode]);
+  const station=placeById(stationCode)!;
   return <section className="map-page"><h1>{t('崂山校区配送地图')}</h1>
-    <p className="muted">{t('点选宿舍楼，看看从颐海苑站点出发的配送路线和步行时间。底图为学校官方平面图，路线与时间为估算。')}</p>
-    <div className="map-layout"><CampusMap route={route} highlight={picked} onBuilding={setPicked}/>
-      <aside className="map-side">{picked&&route?<div key={picked} className="map-pick"><h2>{buildingLong(picked)}</h2><p className="map-minutes"><strong>{routeMinutes(route)}</strong> {t('分钟')}</p><p className="muted">从{station.label}步行约 {routeMeters(route)} 米（估算）</p><Link className="button" to="/parcel/new">{t('安排一单送到这里')}</Link></div>
+    <p className="muted">{t('点选宿舍楼，看看从最近的站点出发的配送路线和步行时间。全校有颐海苑、南十对面两个站点，路线与时间为估算。')}</p>
+    <div className="map-layout"><CampusMap route={route} highlight={picked} onBuilding={code=>{setPicked(code);setFrom(null);}}/>
+      <aside className="map-side">{picked&&route?<div key={picked+stationCode} className="map-pick"><h2>{buildingLong(picked)}</h2><p className="map-minutes"><strong>{routeMinutes(route)}</strong> {t('分钟')}</p><p className="muted">{t('从{0}步行约 {1} 米（估算）',{0:t(station.label),1:routeMeters(route)})}{stationCode===nearest?t(' · 最近的站点'):''}</p>
+        <div className="range-chips" role="group" aria-label={t('出发站点')}>{STATION_PLACES.map(id=><button key={id} type="button" className="chip" aria-pressed={stationCode===id} onClick={()=>setFrom(id)}>{t(placeById(id)!.label)}</button>)}</div>
+        <Link className="button" to="/parcel/new">{t('安排一单送到这里')}</Link></div>
         :<div className="map-pick empty"><SymbolIcon name="room"/><p>{t('选择地图上的楼栋')}</p></div>}
         <ul className="map-legend"><li><i className="lg-station"/>{t('取件站点')}</li><li><i className="lg-building"/>{t('宿舍楼')}</li><li><i className="lg-route"/>{t('配送路线')}</li><li><i className="lg-courier"/>{t('配送员')}</li></ul><BuildingHeatBoard/></aside></div>
   </section>;
@@ -95,7 +103,7 @@ export function CampusMapPage(){
 
 // ---------------------------------------------------------------- order detail: ETA + live map
 
-const ETA_BASIS={history:t('依据近 30 天同类订单的实际送达用时'),distance:t('依据站点到楼栋的路线距离估算'),slot:t('按你预约的送达时段')} as const;
+const ETA_BASIS={history:t('依据近 30 天同类订单的实际送达用时'),distance:t('依据站点到楼栋的路线距离估算'),slot:t('按你预约的送达时段'),demo:t('一键体验：按模拟配送员的速度估算')} as const;
 export function OrderLiveMap({order}:{order:Order}){
   const {session}=useStudentSession(),live=useLiveConnected();
   const [data,setData]=useState<OrderLive|null>(null);
@@ -104,8 +112,9 @@ export function OrderLiveMap({order}:{order:Order}){
   const load=useCallback(async()=>{try{setData(await api<OrderLive>(`/orders/${order.id}/live`));}catch{/* keep the last estimate */}},[order.id]);
   useEffect(()=>{if(session==='signed-in')void load();},[load,session,order.status]);
   useLiveEvents(event=>{if(event.type==='location'||event.type==='order')void load();},order.id);
-  // Without the socket, refresh the estimate every 30 s while out for delivery and visible.
-  useEffect(()=>{if(live||order.status!=='OUT_FOR_DELIVERY')return;const t=setInterval(()=>{if(!document.hidden)void load();},30000);return()=>clearInterval(t);},[live,load,order.status]);
+  // Without the socket, refresh the estimate every 30 s while out for delivery and visible. A demo order (v3.6) refreshes
+  // every 3 s so the simulated courier visibly travels along the route.
+  useEffect(()=>{const demo=Boolean(order.demo)&&['WAITING_PICKUP','PICKED_UP','OUT_FOR_DELIVERY'].includes(order.status);if(!demo&&(live||order.status!=='OUT_FOR_DELIVERY'))return;const t=setInterval(()=>{if(!document.hidden)void load();},demo?3000:30000);return()=>clearInterval(t);},[live,load,order.status,order.demo]);
   const eta=data?.eta,courier=data?.courier;
   const arrive=eta?new Date(eta.arriveBy*1000).toLocaleTimeString(locale(),{hour:'2-digit',minute:'2-digit',hour12:false}):'';
   const stage=order.status==='WAITING_PICKUP'?(order.hasAssignee?t('配送员即将去站点取件'):t('等待配送员接单')):order.status==='PICKED_UP'?t('包裹已取出，准备出发'):t('配送员正在路上');

@@ -935,7 +935,8 @@ dialog.onboarding {
   gap: 16px;
   margin: 0;
   font-size: var(--text-base);
-  color: #1c5469;
+  /* Token, not a literal: the stats sit on the page, which turns dark in dark mode (v3.5.1 contrast fix). */
+  color: var(--sea);
 }
 
 .game-stats strong {

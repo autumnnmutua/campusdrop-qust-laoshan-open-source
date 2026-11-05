@@ -1,3 +1,4 @@
+import {t} from './i18n';
 import {useSyncExternalStore} from 'react';
 import {prefersReducedMotion} from './motion';
 import {getItem,setItem} from './storage';
@@ -183,7 +184,8 @@ const emitToasts=()=>toastListeners.forEach(l=>l());
 export function dismissToast(id:number){toasts=toasts.filter(t=>t.id!==id);emitToasts();}
 /** Short, non-blocking notice. The latest three stay on screen; each leaves after a few seconds. */
 export function toast(text:string,kind:ToastKind='info',detail?:string){
-  const id=nextToast++;toasts=[...toasts.slice(-2),{id,text,kind,detail}];emitToasts();
+  // Callers pass the Chinese text; English mode looks it up here, so every toast follows the language switch.
+  const id=nextToast++;toasts=[...toasts.slice(-2),{id,text:t(text),kind,detail:detail===undefined?undefined:t(detail)}];emitToasts();
   setTimeout(()=>dismissToast(id),kind==='warn'?6500:4200);
   return id;
 }

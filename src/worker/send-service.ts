@@ -11,6 +11,10 @@ import { CAMPUS_ID } from '../shared/constants';
 import type { Admin } from '../shared/contracts';
 import { sendActionSchema, sendCancelSchema, sendCreateSchema, sendDropSchema, type SendRequest } from '../shared/operations';
 import { slotLabel, slotOpen, type SlotCode } from '../shared/slots';
+import { nearestStation } from '../shared/campus-map';
+
+const sendStations = async (env: Env) => (await env.DB.prepare('SELECT code,canonical_name AS name FROM stations WHERE campus_id=? AND active=1 ORDER BY sort_order,code')
+  .bind(CAMPUS_ID).all<{ code: string; name: string }>()).results;
 
 /*
  * 代寄件 (send service): the student books a window, a courier collects the parcel from their room and hands it in at
@@ -65,17 +69,23 @@ export async function sendRoutes(request: Request, env: Env): Promise<Response |
       const rows = (await env.DB.prepare(`SELECT ${columns} FROM send_requests s WHERE s.user_id=? ORDER BY s.created_at DESC,s.id DESC LIMIT 50`).bind(user.id).all<SendRequest>()).results;
       const load = (await env.DB.prepare("SELECT slot_date AS date,slot_code AS code,count(*) AS n FROM send_requests WHERE status<>'CANCELLED' AND slot_date>=? GROUP BY slot_date,slot_code")
         .bind(new Date((now() + 8 * 3600) * 1000).toISOString().slice(0, 10)).all<{ date: string; code: SlotCode; n: number }>()).results;
-      return json({ sends: rows.map(shape), load, capacity: SEND_SLOT_CAPACITY, prices: { SMALL: sendPriceFen('SMALL'), LARGE: sendPriceFen('LARGE') } });
+      const stations = await sendStations(env), address = await readAddress(env, user.id);
+      const suggested = (address && nearestStation(address.buildingCode, stations.map(s => s.code))?.code) ?? stations[0]?.code ?? null;
+      return json({ sends: rows.map(shape), load, capacity: SEND_SLOT_CAPACITY, prices: { SMALL: sendPriceFen('SMALL'), LARGE: sendPriceFen('LARGE') }, stations, suggested });
     }
     if (path === '/sends' && method === 'POST') {
+      if (user.demo) throw new ApiError(403, 'DEMO_UNSUPPORTED', '一键体验账号不能预约代寄件（会通知真实配送员），可以浏览页面了解流程');
       await requireOrderingOpen(env);
       await rateLimit(env, `send:${user.id}`, 20);
       const data = await body(request, sendCreateSchema), t = now();
       if (!slotOpen(data.slotDate, data.slotCode, t)) throw new ApiError(409, 'SLOT_CLOSED', '该时段已停止预约，请选择其他时段');
       const address = await readAddress(env, user.id);
       if (!address) throw new ApiError(400, 'ADDRESS_REQUIRED', '请先填写寝室资料，配送员会按寝室上门取件');
-      const station = await env.DB.prepare('SELECT code,canonical_name AS name FROM stations WHERE campus_id=? AND active=1 ORDER BY code LIMIT 1').bind(CAMPUS_ID).first<{ code: string; name: string }>();
-      if (!station) throw new ApiError(409, 'LOCATION_INACTIVE', '暂无可用站点');
+      // The student picks the station (both stations take parcels to send); without a pick, the one nearest the dorm.
+      const stations = await sendStations(env);
+      const station = data.stationCode ? stations.find(s => s.code === data.stationCode)
+        : stations.find(s => s.code === nearestStation(address.buildingCode, stations.map(x => x.code))?.code) ?? stations[0];
+      if (!station) throw new ApiError(409, 'LOCATION_INACTIVE', data.stationCode ? '该站点暂不可用，请选择其他站点' : '暂无可用站点');
       const id = crypto.randomUUID();
       const result = await env.DB.prepare(`INSERT INTO send_requests(id,user_id,campus_id,zone,dorm_building_code,dorm_snapshot_json,station_code,package_size,carrier,note,slot_date,slot_code,amount_fen)
         SELECT ?,?,?,?,?,?,?,?,?,?,?,?,? WHERE (SELECT count(*) FROM send_requests WHERE slot_date=? AND slot_code=? AND status<>'CANCELLED')<?

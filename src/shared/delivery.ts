@@ -49,6 +49,8 @@ export interface Parcel { id: string; pickupCode: string; stationCode: string; p
 export interface DormSnapshot { campusId: string; zone: string; buildingCode: string; buildingName: string; roomNo: string; name: string; phone: string }
 export interface Station { code: string; canonicalName: string; relativeLocation: string; lat: number|null; lng: number|null }
 export interface Order {
+  /** v3.6 one-click demo: made by a demo account; invisible to real operators. */
+  demo?:boolean;
   /** v3.0 merged delivery: the group this order belongs to and how many of its orders are not cancelled. */
   groupId?:string|null; groupSize?:number; ruleId?:string|null;
   /** Shown to the student while the order is in progress; the courier enters it at the door to sign for them. */

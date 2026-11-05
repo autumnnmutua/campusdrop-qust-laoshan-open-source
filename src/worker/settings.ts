@@ -56,7 +56,8 @@ export async function capacityFor(env: Env, date: string, code: SlotCode): Promi
   return windowCapacity(code, setting, couriers);
 }
 /** Orders that hold a place in a window: paid and not cancelled. Unpaid orders no longer reserve capacity. */
-export const SLOT_HOLDING = "status NOT IN ('WAITING_PAYMENT','CANCELLED')";
+/** Paid, live, real orders hold a place in a booked window (demo orders never do; unqualified demo_group resolves to the same row). */
+export const SLOT_HOLDING = "status NOT IN ('WAITING_PAYMENT','CANCELLED') AND demo_group IS NULL";
 export { DEFAULT_SHIFT_QUOTA, SEND_SLOT_CAPACITY };
 /** A window can be booked until SLOT_LEAD minutes before it starts. */
 export const windowStart = (date: string, code: SlotCode) => slotTime(date, DELIVERY_SLOTS.find(s => s.code === code)!.start);

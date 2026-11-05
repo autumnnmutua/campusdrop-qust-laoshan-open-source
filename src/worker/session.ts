@@ -44,19 +44,19 @@ async function sessionHash(request: Request, env: Env, kind: ActorKind): Promise
   return digest(token);
 }
 export async function requireStudent(request: Request, env: Env): Promise<Student> {
-  const student = await env.DB.prepare(`SELECT u.id, u.username, u.name, u.phone FROM sessions s
+  const student = await env.DB.prepare(`SELECT u.id, u.username, u.name, u.phone, u.demo_group IS NOT NULL AS demo FROM sessions s
     JOIN users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.expires_at > ? AND u.status = 'ACTIVE'`)
     .bind(await sessionHash(request, env, 'student'), now()).first<Student>();
   if (!student) throw new ApiError(401, 'SESSION_INVALID', '登录已过期或账号已停用');
-  return student;
+  return { ...student, demo: Boolean(student.demo) };
 }
 export async function requireAdmin(request: Request, env: Env): Promise<Admin> {
-  const admin = await env.DB.prepare(`SELECT a.id, a.username, a.role, a.phone FROM sessions s
+  const admin = await env.DB.prepare(`SELECT a.id, a.username, a.role, a.phone, a.demo_group IS NOT NULL AS demo FROM sessions s
     JOIN admin_users a ON a.id = s.admin_id WHERE s.token_hash = ? AND s.expires_at > ? AND a.status = 'ACTIVE' AND (a.development_only=0 OR ?=1)`)
     .bind(await sessionHash(request, env, 'admin'), now(),localCookie(request,env)?1:0).first<Omit<Admin, 'scopes'>>();
   if (!admin) throw new ApiError(401, 'SESSION_INVALID', '登录已过期或账号已停用');
   const scopes = await env.DB.prepare('SELECT campus_id AS campusId, zone, building_code AS buildingCode FROM admin_scopes WHERE admin_id = ?').bind(admin.id).all<Scope>();
-  return { ...admin, scopes: scopes.results };
+  return { ...admin, demo: Boolean(admin.demo), scopes: scopes.results };
 }
 export function requireSuper(admin: Admin): void {
   if (admin.role !== 'SUPER_ADMIN') throw new ApiError(403, 'FORBIDDEN', '仅超级管理员可执行此操作');

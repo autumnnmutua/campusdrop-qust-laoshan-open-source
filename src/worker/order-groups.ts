@@ -65,7 +65,7 @@ async function payGroup(env: Env, userId: string, groupId: string): Promise<{ gr
   const { rows } = await ownGroupRows(env, userId, groupId);
   const unpaid = rows.filter(r => r.status === 'WAITING_PAYMENT');
   if (!unpaid.length) return { group: await groupDetail(env, userId, groupId), paid: 0, missed: 0 };
-  await requireOrderingOpen(env);
+  if (!unpaid[0].demo) await requireOrderingOpen(env);
   const t = now(), first = unpaid[0], slot = first.slotDate && first.slotCode ? { date: first.slotDate, code: first.slotCode } : null;
   if (slot && !slotOpen(slot.date, slot.code, t)) throw new ApiError(409, 'SLOT_CLOSED', '预约的时段已停止预约，请取消后重新下单并选择其他时段');
   const capacity = slot ? await capacityFor(env, slot.date, slot.code) : 0;
@@ -78,7 +78,7 @@ async function payGroup(env: Env, userId: string, groupId: string): Promise<{ gr
     .bind(crypto.randomUUID(), r.id, userId, r.id, capacity)));
   const group = await groupDetail(env, userId, groupId);
   const missed = group.unpaidCount, paid = unpaid.length - missed;
-  if (paid) {
+  if (paid && !unpaid[0].demo) {
     const o = group.orders.find(x => x.status !== 'CANCELLED' && x.status !== 'WAITING_PAYMENT') ?? group.orders[0];
     const where = o.dropPlace ? DROP_PLACE_LABELS[o.dropPlace] : `${o.dormSnapshot.buildingName}${o.deliveryMode === 'ROOM' ? ' · 到寝' : ' · 楼下'}`;
     notifyGroupLater(env, 'NEW_ORDER', `新订单（合并 ${paid} 件）：${where} · ${slot ? slotLabel(slot.date, slot.code, t) : '尽快送达'}`, `group:${groupId}:${paid}`);

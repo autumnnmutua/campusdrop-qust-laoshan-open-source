@@ -20,7 +20,7 @@ export const calibrationSchema = z.object({
     .refine(p => new Set(p.map(x => x.landmark)).size === p.length, '请选择不同的地标'),
 }).strict();
 export interface CourierPosition { x: number; y: number; source: 'gps' | 'estimate'; updatedAt: number | null }
-export interface OrderEta { minutes: number; basis: 'history' | 'distance' | 'slot'; arriveBy: number; label: string; weatherPadding?: number }
+export interface OrderEta { minutes: number; basis: 'history' | 'distance' | 'slot' | 'demo'; arriveBy: number; label: string; weatherPadding?: number }
 export interface OrderLive { eta: OrderEta | null; courier: CourierPosition | null; calibrated: boolean; residualMeters?: number | null }
 export interface MapCourier { id: string; username: string; x: number; y: number; updatedAt: number; active: number }
 export interface MapBuildingLoad { code: string; active: number; exceptions: number; awaitingReceipt: number }

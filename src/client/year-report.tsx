@@ -24,7 +24,7 @@ function highlights(r:YearReport):string[]{
   if(r.meters)out.push(t('配送员替你往返跑了约 {d}（按校园道路估算）。',{d:km(r.meters)}));
   if(r.busiestSlot)out.push(t('你最常预约「{slot}」时段送达。',{slot:t(r.busiestSlot)}));
   else if(r.busiestHour!==null)out.push(t('你最常在 {h}:00–{h1}:00 之间下单。',{h:r.busiestHour,h1:r.busiestHour+1}));
-  if(r.topCarrier)out.push(t('最常收到的是 {c} 的包裹。',{c:r.topCarrier}));
+  if(r.topCarrier)out.push(t('最常收到的是 {c} 的包裹。',{c:t(r.topCarrier)}));
   if(r.room)out.push(t('{n} 次直接送到了寝室门口。',{n:r.room}));
   if(r.sends)out.push(t('还通过上门取件寄出了 {n} 个包裹。',{n:r.sends}));
   if(r.ratings)out.push(t('你给配送员留下了 {n} 次评价，谢谢你的反馈。',{n:r.ratings}));

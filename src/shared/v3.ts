@@ -121,7 +121,7 @@ export interface WeatherInfo {
   notice: string; paddingMinutes: number;
 }
 export function weatherNotice(level: WeatherLevel, label: string, note: string): string {
-  const extra = note ? ` ${note}` : '', what = label ? `（${label}）` : '';
+  const extra = note ? (/[。！？.!?]$/.test(note) ? note : `${note}。`) : '', what = label ? `（${label}）` : '';
   if (level === 'SEVERE') return `恶劣天气${what}：配送可能明显延迟，“尽快送达”的预计时间已多留 ${WEATHER_PADDING.SEVERE} 分钟；如需暂停接单会另行公告。${extra}`;
   if (level === 'WET') return `雨雪天气${what}：配送可能比平时慢一些，“尽快送达”的预计时间已多留 ${WEATHER_PADDING.WET} 分钟。${extra}`;
   return note;

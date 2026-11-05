@@ -21,7 +21,6 @@
 - Cloudflare Worker 版本：`ff1b3c13-1446-46fc-99ff-e444ebdf57f2`
 - Netlify：`https://campusdrop-qust-laoshan.netlify.app`
 - Netlify deploy：`6aa50f45aebd83aa65d67335`
-- GitHub 开源快照：`https://github.com/autumnnmutua/campusdrop-qust-laoshan-open-source`
 
 ## 上线边界
 

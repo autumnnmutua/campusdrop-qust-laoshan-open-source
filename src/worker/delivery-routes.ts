@@ -86,7 +86,7 @@ export async function deliveryRoutes(request:Request,env:Env):Promise<Response|n
     if(path==='/admin/tasks'&&method==='GET')return json(await adminTasks(env,admin,request));
     if(path==='/admin/assignees'&&method==='GET'){
       if(admin.role==='DELIVERY_STAFF')throw new ApiError(403,'FORBIDDEN','配送人员不能分配任务');
-      return json({admins:(await env.DB.prepare("SELECT id,username,role FROM admin_users WHERE status='ACTIVE' AND (role='DELIVERY_STAFF' OR id=?) ORDER BY username").bind(admin.id).all()).results});
+      return json({admins:(await env.DB.prepare("SELECT id,username,role FROM admin_users WHERE status='ACTIVE' AND demo_group IS NULL AND (role='DELIVERY_STAFF' OR id=?) ORDER BY username").bind(admin.id).all()).results});
     }
     const edit=/^\/admin\/orders\/([a-f0-9-]{36})\/handoffs\/([a-f0-9-]{36})(?:\/(reject))?$/.exec(path);
     if(edit&&method==='PATCH'&&!edit[3]){const data=await body(request,handoffSchema);return json(await reviseHandoff(env,admin,edit[1],edit[2],data.version,data.location,data.note));}

@@ -31,7 +31,7 @@ export const createAdminSchema = z.object({
 export type Scope = z.infer<typeof scopeSchema>;
 export type AddressInput = z.infer<typeof addressSchema>;
 export interface Address extends AddressInput { id: string; buildingName: string; validFrom: number }
-export interface Student { id: string; username: string; name: string; phone: string }
+export interface Student { id: string; username: string; name: string; phone: string; /** v3.6 one-click demo account */ demo?: boolean }
 export const adminContactSchema = z.object({phone:profileSchema.shape.phone}).strict();
-export interface Admin { phone?:string|null; id: string; username: string; role: AdminRole; scopes: Scope[] }
+export interface Admin { phone?:string|null; id: string; username: string; role: AdminRole; scopes: Scope[]; /** v3.6 one-click demo courier */ demo?: boolean }
 export interface Building { code: string; displayName: string; zone: 'SOUTH' | 'NORTH' }

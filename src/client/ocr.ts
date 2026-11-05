@@ -1,3 +1,4 @@
+import {t} from './i18n';
 import type {Worker as TesseractWorker,LoggerMessage} from 'tesseract.js';
 import {mergeOcrCodes,recognizeOcrCodes,recognizePickupCodes} from '../shared/engagement-rules';
 import type {RecognizedParcel} from '../shared/engagement';
@@ -28,13 +29,13 @@ function getWorker(){
 
 /** Decode, scale to a readable size and normalise contrast. Returns the canvas OCR reads and a small preview. */
 export async function prepareImage(file:Blob):Promise<{canvas:HTMLCanvasElement;preview:string}>{
-  if(!file.type.startsWith('image/'))throw new Error('请选择图片文件');
-  if(file.size>15*1024*1024)throw new Error('图片超过 15 MB，请截取包含取件码的部分');
+  if(!file.type.startsWith('image/'))throw new Error(t('请选择图片文件'));
+  if(file.size>15*1024*1024)throw new Error(t('图片超过 15 MB，请截取包含取件码的部分'));
   const bitmap=await createImageBitmap(file);
   const longSide=Math.max(bitmap.width,bitmap.height),scale=Math.min(3,Math.max(.5,2000/longSide));
   const w=Math.round(bitmap.width*scale),h=Math.round(bitmap.height*scale);
   const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
-  const c=canvas.getContext('2d',{willReadFrequently:true});if(!c)throw new Error('当前浏览器不支持图片处理');
+  const c=canvas.getContext('2d',{willReadFrequently:true});if(!c)throw new Error(t('当前浏览器不支持图片处理'));
   c.imageSmoothingQuality='high';c.drawImage(bitmap,0,0,w,h);bitmap.close();
   const img=c.getImageData(0,0,w,h),d=img.data;let sum=0,min=255,max=0;
   for(let i=0;i<d.length;i+=4){const y=.299*d[i]+.587*d[i+1]+.114*d[i+2];d[i]=y;sum+=y;if(y<min)min=y;if(y>max)max=y;}

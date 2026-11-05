@@ -1,8 +1,102 @@
 {
-  "version": "v3.0",
+  "version": "v3.5",
   "basePath": "/api/v1",
   "note": "JSON Schema captures structural validation. Shared Zod refinements and server authorization are authoritative; do not infer ownership or business permission from schema acceptance.",
   "schemas": {
+    "demoStart": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "passcode": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "passcode"
+      ],
+      "additionalProperties": false
+    },
+    "demoAuto": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "auto": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "auto"
+      ],
+      "additionalProperties": false
+    },
+    "agentPlan": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "parcelIds": {
+          "minItems": 1,
+          "maxItems": 6,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        }
+      },
+      "required": [
+        "message"
+      ],
+      "additionalProperties": false
+    },
+    "assistantAsk": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "history": {
+          "maxItems": 6,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string",
+                "enum": [
+                  "user",
+                  "assistant"
+                ]
+              },
+              "content": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 600
+              }
+            },
+            "required": [
+              "role",
+              "content"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "message"
+      ],
+      "additionalProperties": false
+    },
     "groupOrder": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "type": "object",
@@ -227,6 +321,10 @@
         "confirmed": {
           "type": "boolean",
           "const": true
+        },
+        "stationCode": {
+          "type": "string",
+          "pattern": "^[A-Z0-9_]{2,32}$"
         }
       },
       "required": [
@@ -558,6 +656,7 @@
                 "type": "string",
                 "enum": [
                   "YIHAIYUAN",
+                  "NANSHI",
                   "WEST_GATE",
                   "SOUTH_GATE",
                   "EAST_GATE",

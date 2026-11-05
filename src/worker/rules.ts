@@ -76,7 +76,7 @@ export async function runRules(env: Env, t = now()): Promise<number> {
   for (const w of windows) {
     const bit = weekdayBit(w.date);
     const rules = (await env.DB.prepare(`SELECT r.id,r.user_id AS userId,r.delivery_mode AS deliveryMode,r.drop_place AS dropPlace,u.username,u.name,u.phone
-      FROM delivery_rules r JOIN users u ON u.id=r.user_id WHERE r.active=1 AND r.slot_code=? AND (r.weekdays & ?)<>0 AND u.status='ACTIVE' AND u.deleted_at IS NULL
+      FROM delivery_rules r JOIN users u ON u.id=r.user_id WHERE r.active=1 AND r.slot_code=? AND (r.weekdays & ?)<>0 AND u.status='ACTIVE' AND u.deleted_at IS NULL AND u.demo_group IS NULL
       AND EXISTS(SELECT 1 FROM parcels p WHERE p.user_id=r.user_id AND p.status='ACTIVE' AND p.created_at<?
         AND NOT EXISTS(SELECT 1 FROM delivery_orders o WHERE o.parcel_id=p.id AND o.status<>'CANCELLED'))
       ORDER BY r.created_at LIMIT 100`).bind(w.code, bit, t - 60)

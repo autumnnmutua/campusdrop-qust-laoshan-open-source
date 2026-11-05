@@ -18,8 +18,8 @@ wrangler配置启用Workers日志及低比例追踪，并使用redact_query_stri
 
 ## v2.7：定时任务、照片与运营设置
 
-- **定时任务**：`triggers.crons` 为 `["*/10 * * * *"]`（production、staging 环境各一份；本地开发不会自动按计划触发）。这个触发器每 10 分钟运行 `frequentJobs`（超时未付款订单、包裹等待提醒、滞留订单群通知、常用配送规则和天气刷新），并在北京时间 11:20 同时执行每日清理。保留对旧每日触发器的兼容；清理时间从原来的 11:17 调整至 11:20。这样每个环境只占用一个触发器，适配 Cloudflare 免费套餐每账户最多 5 个的限制。
-- **送达照片**：`PUT /api/v1/admin/orders/:id/photo` 接收原始图片正文（`image/jpeg` 或 `image/webp`，≤200 KB，校验文件头），存入 D1 `delivery_photos`；读取接口以 data URL 返回，符合 `img-src 'self' data:`。CloudBase / Netlify 代理只转发 JSON（8 KB 上限），照片功能仅在直接访问 Worker 时可用。照片 30 天后由每日任务删除。
+- **定时任务**：`triggers.crons` 为 `["*/10 * * * *"]`（production、staging 环境各一份；本地开发不会自动按计划触发）。每 10 分钟运行常规任务，每天 03:20 UTC（北京时间 11:20）同一次触发中运行每日清理。本地可用 `curl "http://127.0.0.1:5173/cdn-cgi/handler/scheduled?cron=*/10+*+*+*+*"` 触发。免费套餐每个账户最多 5 个定时触发器。
+- **送达照片**：`PUT /api/v1/admin/orders/:id/photo` 接收原始图片正文（`image/jpeg` 或 `image/webp`，≤200 KB，校验文件头），存入 D1 `delivery_photos`；读取接口以 data URL 返回，符合 `img-src 'self' data:`。CloudBase / Netlify 代理保留照片转发，其他请求的正文上限仍为 8 KB；v3.6 的大模型截图识别以及需要同时写入两个会话 Cookie 的一键体验应直接使用 Worker 域名。照片 30 天后由每日任务删除。
 - **只读进度链接**：`GET /api/v1/track/:token`，32 位十六进制令牌，按 IP 限流，响应不含姓名、电话、房间号和取件码；订单结束一天后失效。管理端接口不返回令牌。
 - **运营设置**：`app_settings` 表保存暂停接单、群机器人和按排班计算名额三项，只有超级管理员可写，写入记审计日志。群机器人地址只允许 `qyapi.weixin.qq.com`、`open.feishu.cn`、`open.larksuite.com`，读取时脱敏；同一事件按 `webhook_log` 去重，只发一次。
 - **实时通道断开**：退出登录或停用管理员时，向该用户频道发布 `bye`，`LiveHub` 以 4001 关闭连接，前端不再重连。

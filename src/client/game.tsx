@@ -1,3 +1,4 @@
+import {t} from './i18n';
 import {useEffect,useRef,useState} from 'react';
 import {Link} from 'react-router-dom';
 import {celebrate} from './effects';
@@ -36,7 +37,7 @@ function drawCart(c:CanvasRenderingContext2D,x:number,y:number,w:number){
   c.restore();
 }
 
-export function ParcelGame({title='休息一下：接包裹',asPage=false}:{title?:string;asPage?:boolean}){
+export function ParcelGame({title=t('休息一下：接包裹'),asPage=false}:{title?:string;asPage?:boolean}){
   const canvas=useRef<HTMLCanvasElement>(null),wrap=useRef<HTMLDivElement>(null);
   const [phase,setPhase]=useState<Phase>('ready'),[score,setScore]=useState(0),[lives,setLives]=useState(3),[combo,setCombo]=useState(0),[best,setBest]=useState(readBest);
   const reduced=prefersReducedMotion();
@@ -85,15 +86,15 @@ export function ParcelGame({title='休息一下：接包裹',asPage=false}:{titl
 
   function start(){setScore(0);setLives(3);setCombo(0);target.current=null;setPhase('playing');}
   return <div className="parcel-game">
-    <div className="game-head">{asPage?<h1>{title}</h1>:<h2>{title}</h2>}<p className="game-stats" aria-live="off"><span>得分 <strong>{score}</strong></span><span aria-label={`剩余机会 ${lives}`}>{'●'.repeat(lives)}<i>{'○'.repeat(3-lives)}</i></span>{combo>=3&&<span className="game-combo">连击 <strong>{combo}</strong></span>}<span>最高 <strong>{best}</strong></span></p></div>
+    <div className="game-head">{asPage?<h1>{title}</h1>:<h2>{title}</h2>}<p className="game-stats" aria-live="off"><span>{t('得分')} <strong>{score}</strong></span><span aria-label={t('剩余机会 {0}',{0:lives})}>{'●'.repeat(lives)}<i>{'○'.repeat(3-lives)}</i></span>{combo>=3&&<span className="game-combo">{t('连击')} <strong>{combo}</strong></span>}<span>{t('最高')} <strong>{best}</strong></span></p></div>
     <div ref={wrap} className={`game-stage phase-${phase}`}>
-      <canvas ref={canvas} aria-label="接包裹游戏画面：左右移动小推车接住掉落的包裹" role="img"/>
+      <canvas ref={canvas} aria-label={t('接包裹游戏画面：左右移动小推车接住掉落的包裹')} role="img"/>
       {phase!=='playing'&&<div className="game-overlay">
-        {phase==='over'?<><p className="game-result" role="status"><BounceText text={score>0&&score>=best?'新纪录！':'游戏结束'}/> 接住 <strong>{score}</strong> 分</p><button type="button" onClick={start}>再来一局</button></>
-        :<><p>移动鼠标、拖动手指或按 ← → 键，用小推车接住掉下来的包裹。大箱子 2 分，金色包裹 5 分，每连续接住 5 个再加 1 分；漏接 3 个就结束。</p>{reduced&&<p className="muted">你开启了“减少动态效果”，游戏画面会持续运动，可以按需开始。</p>}<button type="button" onClick={start}>开始游戏</button></>}
+        {phase==='over'?<><p className="game-result" role="status"><BounceText text={score>0&&score>=best?t('新纪录！'):t('游戏结束')}/> {t('接住')} <strong>{score}</strong> {t('分')}</p><button type="button" onClick={start}>{t('再来一局')}</button></>
+        :<><p>{t('移动鼠标、拖动手指或按 ← → 键，用小推车接住掉下来的包裹。大箱子 2 分，金色包裹 5 分，每连续接住 5 个再加 1 分；漏接 3 个就结束。')}</p>{reduced&&<p className="muted">{t('你开启了“减少动态效果”，游戏画面会持续运动，可以按需开始。')}</p>}<button type="button" onClick={start}>{t('开始游戏')}</button></>}
       </div>}
     </div>
-    <p className="muted game-foot">最高分只保存在这台设备的浏览器里。玩够了？<Link to="/">回到首页 →</Link></p>
+    <p className="muted game-foot">{t('最高分只保存在这台设备的浏览器里。玩够了？')}<Link to="/">{t('回到首页 →')}</Link></p>
   </div>;
 }
-export function PlayPage(){return <section className="play-page"><p className="eyebrow">CAMPUSDROP · 彩蛋</p><ParcelGame asPage/></section>;}
+export function PlayPage(){return <section className="play-page"><p className="eyebrow">{t('CAMPUSDROP · 彩蛋')}</p><ParcelGame asPage/></section>;}

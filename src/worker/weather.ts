@@ -61,7 +61,8 @@ export async function weatherInfo(env: Env): Promise<WeatherInfo> {
 
 export async function weatherRoutes(request: Request, env: Env): Promise<Response | null> {
   const path = new URL(request.url).pathname.replace(/^\/api\/v1/, ''), method = request.method;
-  if (path === '/weather' && method === 'GET') return json({ weather: await weatherInfo(env) }, 200, { 'Cache-Control': 'private, max-age=300' });
+  // Not cached by the browser: when an operator switches the weather level, students see it on their next page load.
+  if (path === '/weather' && method === 'GET') return json({ weather: await weatherInfo(env) });
   if (path !== '/admin/weather') return null;
   const admin = await requireAdmin(request, env);
   if (method === 'GET') {

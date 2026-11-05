@@ -2,10 +2,13 @@
  * Laoshan campus on the official campus plan (官方校园平面图) plus the walking graph used for routes and ETAs.
  * Shared by the worker (ETA, GPS projection) and the client (drawing). Zod-free.
  *
- * Coordinates are pixels of public/images/campus-map-official.webp (2000 × 1882, north up). Building hotspots, doors
- * and the road graph were traced by hand over that image. Only dorms the plan labels as student dorms are placed:
- * 南苑 1–10 and 北苑 2/3/6/7/8. Codes without a labelled building on the plan (NORTH_01/05/09, SOUTH_11) have no
- * hotspot, so they get no route and their ETA falls back to delivery history — nothing is guessed.
+ * Coordinates are pixels of public/images/campus-map-2026.webp (2000 × 1882, north up): the official 2012 campus plan
+ * with every building it marked （待建） shown as built (v3.5, per the project owner: they have all been completed
+ * since). Building hotspots, doors and the road graph were traced by hand over that image. Only dorms the plan labels
+ * as student dorms are placed: 南苑 1–10 and 北苑 2/3/4/6/7/8. Codes without a labelled building on the plan
+ * (NORTH_01/05/09, SOUTH_11) have no hotspot, so they get no route and their ETA falls back to delivery history —
+ * nothing is guessed. The 南苑十号楼对面 station is placed across the road south of 南苑10号楼 (the green strip west
+ * of 南苑1号楼) as described by the project owner; the plan does not draw it, so the marker is approximate.
  * The diagonal road across the open ground in the middle of the plan is still under construction, so it is left out of
  * the graph and routes between 南苑 and 北苑 follow the east loop past the library.
  * Live courier positions only appear after a super admin calibrates the map on site (two GPS fixes at two landmarks);
@@ -13,7 +16,7 @@
  */
 export const MAP_WIDTH = 2000;
 export const MAP_HEIGHT = 1882;
-export const MAP_IMAGE = '/images/campus-map-official.webp';
+export const MAP_IMAGE = '/images/campus-map-2026.webp';
 /** Scale from the standard 400 m track on the plan (≈176 m long ↔ ≈320 px). An estimate, good enough for ETAs. */
 export const METERS_PER_UNIT = 0.55;
 /** Walking speed with parcels, metres per second. */
@@ -26,6 +29,8 @@ export interface MapPlace { id: string; label: string; x: number; y: number; w: 
 /** Road junctions along the grey roads of the plan. */
 export const NODES: Record<string, Point> = {
   // 南苑: the road between the two dorm rows (y≈1407), the one below the lower row (y≈1566) and the station lane (y≈1690).
+  // R1: the road along the north side of 南苑9/10号楼 (y≈1255), joined to the dorm roads at its west and east ends.
+  R1W: { x: 350, y: 1255 }, R1A: { x: 425, y: 1255 }, R1E: { x: 688, y: 1255 }, R2X: { x: 688, y: 1407 },
   R2W: { x: 350, y: 1407 }, R2A: { x: 543, y: 1407 }, R2B: { x: 745, y: 1407 }, R2C: { x: 948, y: 1407 },
   R3W: { x: 425, y: 1566 }, R3A: { x: 543, y: 1566 }, R3D: { x: 705, y: 1570 }, R3B: { x: 745, y: 1566 }, R3E: { x: 900, y: 1566 },
   STW: { x: 410, y: 1690 }, STA: { x: 543, y: 1690 }, STD: { x: 622, y: 1690 },
@@ -42,7 +47,8 @@ export const NODES: Record<string, Point> = {
   M3: { x: 885, y: 750 }, N11: { x: 1140, y: 750 },
 };
 export const EDGES: [string, string][] = [
-  ['R2W', 'R2A'], ['R2A', 'R2B'], ['R2B', 'R2C'],
+  ['R1W', 'R1A'], ['R1A', 'R1E'], ['R1W', 'R2W'], ['R1E', 'R2X'],
+  ['R2W', 'R2A'], ['R2A', 'R2X'], ['R2X', 'R2B'], ['R2B', 'R2C'],
   ['R3W', 'R3A'], ['R3A', 'R3D'], ['R3D', 'R3B'], ['R3B', 'R3E'],
   ['R2A', 'R3A'], ['R3A', 'STA'], ['R2B', 'R3B'], ['STW', 'STA'], ['STA', 'STD'],
   ['R3D', 'STD'], ['STD', 'WEST_GATE'],
@@ -71,10 +77,12 @@ export const BUILDINGS: MapBuilding[] = [
   building('NORTH_07', 1080, 300, 145, 140, { x: 1065, y: 370 }),
   building('NORTH_03', 1255, 300, 135, 140, { x: 1240, y: 370 }),
   building('NORTH_08', 1080, 490, 145, 90, { x: 1152, y: 472 }),
+  building('NORTH_04', 1255, 490, 132, 42, { x: 1320, y: 472 }),
 ];
 
 export const PLACES: MapPlace[] = [
   { id: 'YIHAIYUAN', label: '颐海苑站点', x: 440, y: 1700, w: 80, h: 34, kind: 'station', door: { x: 480, y: 1690 } },
+  { id: 'NANSHI', label: '南十对面站点', x: 359, y: 1428, w: 36, h: 30, kind: 'station', door: { x: 377, y: 1407 } },
   { id: 'SOUTH_CANTEEN', label: '南苑餐厅', x: 790, y: 1290, w: 110, h: 75, kind: 'landmark' },
   { id: 'NORTH_CANTEEN', label: '北苑餐厅', x: 1420, y: 362, w: 165, h: 110, kind: 'landmark' },
   { id: 'STADIUM', label: '体育场', x: 900, y: 1420, w: 140, h: 320, kind: 'landmark' },
@@ -84,10 +92,12 @@ export const PLACES: MapPlace[] = [
   { id: 'EAST_GATE', label: '东门', x: 1920, y: 1125, w: 44, h: 60, kind: 'gate' },
 ];
 /** Landmarks a super admin can stand at to calibrate GPS: far apart in both directions works best. */
-export const CALIBRATION_LANDMARKS = ['YIHAIYUAN', 'WEST_GATE', 'SOUTH_GATE', 'EAST_GATE', 'SOUTH_CANTEEN', 'NORTH_CANTEEN', 'STADIUM', 'LIBRARY', 'NORTH_08', 'NORTH_02', 'SOUTH_04'] as const;
+export const CALIBRATION_LANDMARKS = ['YIHAIYUAN', 'NANSHI', 'WEST_GATE', 'SOUTH_GATE', 'EAST_GATE', 'SOUTH_CANTEEN', 'NORTH_CANTEEN', 'STADIUM', 'LIBRARY', 'NORTH_08', 'NORTH_02', 'SOUTH_04'] as const;
 export type LandmarkId = typeof CALIBRATION_LANDMARKS[number];
 
 export const buildingByCode = (code: string) => BUILDINGS.find(b => b.code === code);
+/** Stations drawn on the plan, in the order the service lists them. */
+export const STATION_PLACES = ['YIHAIYUAN', 'NANSHI'] as const;
 export const placeById = (id: string) => PLACES.find(p => p.id === id);
 export const center = (r: { x: number; y: number; w: number; h: number }): Point => ({ x: r.x + r.w / 2, y: r.y + r.h / 2 });
 export function landmarkPoint(id: string): Point | undefined {
@@ -307,4 +317,19 @@ export function projectGps(c: Calibration, lat: number, lng: number): Point | nu
 export function metersToDestination(p: Point, code: string): number | null {
   const d = destination(code);
   return d ? Math.round(dist(p, d.door) * METERS_PER_UNIT) : null;
+}
+
+/**
+ * The station with the shortest walk to a dorm or drop-off place, among the given (active) station codes. Used to
+ * suggest a station for 代寄件 and to show the closest station on the map. Null when none has a route.
+ */
+export function nearestStation(destinationCode: string, stationCodes: readonly string[]): { code: string; meters: number } | null {
+  let best: { code: string; meters: number } | null = null;
+  for (const code of stationCodes) {
+    const route = campusRoute(code, destinationCode);
+    if (!route) continue;
+    const meters = routeMeters(route);
+    if (!best || meters < best.meters) best = { code, meters };
+  }
+  return best;
 }

@@ -5,7 +5,8 @@ export class ApiError extends Error {
 }
 export function json(data: unknown, status = 200, headers?: HeadersInit): Response {
   const response = Response.json(data, { status, headers });
-  response.headers.set('Cache-Control', 'no-store');
+  // A route may ask for short private caching (GET /weather); everything else is never cached.
+  if (!response.headers.has('Cache-Control')) response.headers.set('Cache-Control', 'no-store');
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('Referrer-Policy', 'no-referrer');
   return response;

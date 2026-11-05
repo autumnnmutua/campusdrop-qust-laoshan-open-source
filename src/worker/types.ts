@@ -8,4 +8,15 @@ export type Env = Omit<WorkerBindings, 'LIVE'> & {
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_KEY?: string;
   VAPID_SUBJECT?: string;
+  /** v3.5 AI features (secrets, all optional): OpenAI-compatible chat-completions endpoint. Without a key the features
+   * answer from local rules and FAQ retrieval. */
+  AI_API_KEY?: string;
+  AI_BASE_URL?: string;
+  AI_MODEL?: string;
+  AI_DAILY_LIMIT?: string;
+  /** v3.6: vision model for the opt-in screenshot fallback (default qwen-vl-plus). */
+  AI_VISION_MODEL?: string;
+  AI_VISION?: string;
+  /** v3.6 demo passcode (all environments default to "off"; set privately to enable). */
+  DEMO_PASSCODE?: string;
 };

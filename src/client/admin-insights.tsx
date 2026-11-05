@@ -8,11 +8,14 @@ import {api} from './api';
 import {toast} from './effects';
 import {useResource} from './student-delivery';
 import {StalledOrders} from './admin-alerts';
+import {OpsSummaryCard} from './v3-admin';
 import {STATUS_LABELS} from '../shared/constants';
 import type {OrderStatus} from '../shared/delivery';
 import {ANNOUNCEMENT_LEVEL_LABELS,announcementCreate,type Analytics,type Announcement,type AnnouncementLevel} from '../shared/engagement';
 import type {Admin,Building} from '../shared/contracts';
 import type {InsightsExtra} from '../shared/operations-rules';
+import {ImpactBoard} from './impact';
+import type {ForecastReport,ForecastSlot} from '../shared/forecast';
 
 const STATUS_COLORS:Partial<Record<OrderStatus,string>>={WAITING_PICKUP:'#f5a524',PICKED_UP:'#7c6cf2',OUT_FOR_DELIVERY:'#1568e9',DELIVERED_DOWNSTAIRS:'#22a6b3',DELIVERED_TO_ROOM:'#18a77a',COMPLETED:'#2fbf71',CANCELLED:'#a5b2c5',FAILED_PICKUP:'#ef5d5d',DELIVERY_EXCEPTION:'#e5484d'};
 const niceMax=(n:number)=>{if(n<=4)return 4;const p=Math.pow(10,Math.floor(Math.log10(n)));const m=n/p;return (m<=2?2:m<=5?5:10)*p;};
@@ -92,6 +95,8 @@ export function AdminAnalytics(){
   return <AdminShell><div className="row"><div><h1>数据看板</h1></div><div className="analytics-tools"><div className="range-chips" role="group" aria-label="统计范围">{[7,14,30].map(n=><button key={n} type="button" className="chip" aria-pressed={days===n} onClick={()=>setDays(n)}>近 {n} 天</button>)}</div><button className="text-button" disabled={!a} onClick={()=>a&&exportAnalytics(a)}>导出 CSV</button><button className="text-button" disabled={r.loading} onClick={()=>void r.refresh()}>{r.loading?'正在刷新…':'刷新'}</button></div></div>
     <p className="muted">统计你授权范围内的已支付订单{role==='DELIVERY_STAFF'?'（配送人员仅统计分配给自己的批次）':''}。{r.data&&`更新于 ${new Date(r.data.generatedAt*1000).toLocaleTimeString('zh-CN')}`}</p>
     <p role="alert">{r.error}</p>{r.loading&&!a&&<LoadingState label="正在汇总数据…"/>}
+    <OpsSummaryCard days={days}/>
+    <ImpactBoard admin/>
     {a&&<div className="analytics">
       <div className="kpi-grid">
         <Kpi label="今日订单" value={a.kpis.today}/><Kpi label="近 7 日订单" value={a.kpis.last7}/><Kpi label="进行中" value={a.kpis.active} hint="待取件至待收货"/>
@@ -182,8 +187,29 @@ function InsightsPanel({days}:{days:number}){
       {x.buildingsReached.length?<ol className="reach-list">{x.buildingsReached.map(b=><li key={b.building}><span>{b.building}</span><b>{b.students} 人</b><small>{b.orders} 单</small></li>)}</ol>:<p className="muted">暂无数据</p>}
       <p className="muted small">学校未提供各楼住宿人数，这里只统计下过单的同学人数，不计算渗透率。</p></figure>
   </div>
-    <figure className="chart forecast"><figcaption><strong>未来三天订单预估</strong><small>按近 4 周同一星期的平均值；历史不足时不预估</small></figcaption>
-      <ol>{x.forecast.map(d=><li key={d.date}><strong>{d.date.slice(5).replace('-','/')} {WEEKDAYS[d.weekday]}</strong>{d.samples?<><b>约 {d.expected} 单</b><small>参考 {d.samples} 周{d.peakHour!==null?` · 高峰 ${d.peakHour}:00–${d.peakHour+1}:00`:''}</small></>:<small>历史数据不足</small>}</li>)}</ol>
-    </figure>
+    <ForecastPanel/>
   </section>;
+}
+
+// ---------------------------------------------------------------- v3.6: 单量预测与排班建议
+const SLOT_NAMES={NOON:'午间',EVENING:'傍晚',NIGHT:'晚间'} as const;
+const STAFF_STATUS:Record<ForecastSlot['status'],string>={ok:'排班足够',short:'排班不足',over:'排班偏多',none:''};
+function ForecastPanel(){
+  const r=useResource<{forecast:ForecastReport;staffing:boolean}>('/admin/forecast');const f=r.data?.forecast;
+  if(!f)return r.error?<p role="alert">{r.error}</p>:null;
+  const bt=f.backtest;
+  return <figure className="chart forecast-v36"><figcaption><strong>单量预测与排班建议</strong><small>未来三天 · 按时段 · 近 4 周同一星期加权平均 × 近期趋势{f.weather.factor!==null?' × 雨雪系数':''}</small></figcaption>
+    <ul className="forecast-meta">
+      <li><b>{bt.mae===null?'—':`±${bt.mae} 单/天`}</b><small>回测误差{bt.days?`（近 ${bt.days} 天逐日回测${bt.mape!==null?`，平均偏差 ${bt.mape}%`:''}）`:'（历史不足，暂无回测）'}</small></li>
+      <li><b>{f.trendApplied?`× ${f.trend.toFixed(2)}`:'未调整'}</b><small>近期趋势（近 14 天 / 之前 28 天）{f.trendApplied?'':'：单量不足 10 单，不调整'}</small></li>
+      <li><b>{f.weather.factor===null?'—':`× ${f.weather.factor.toFixed(2)}`}</b><small>雨雪系数（{f.weather.wetDays} 个雨雪天 / {f.weather.dryDays} 个晴天{f.weather.factor===null?'，样本不足 3 天':''}）{f.weather.level==='WET'||f.weather.level==='SEVERE'?' · 今天正在下雨雪，已计入':''}</small></li>
+      <li><b>{f.perCourier} 单</b><small>每位配送员每个时段可送（{f.perCourierBasis==='history'?'按历史中位数':'历史不足，按默认值'}）</small></li>
+    </ul>
+    <div className="forecast-days">{f.days.map(d=><section key={d.date} className={d.insufficient?'is-empty':undefined}><h3>{d.date.slice(5).replace('-','/')} {WEEKDAYS[d.weekday]}{d.total!==null&&<small>约 {d.total} 单</small>}</h3>
+      {d.insufficient?<p className="muted">历史数据不足（同一星期少于 2 周），暂不预测</p>:<table><thead><tr><th scope="col">时段</th><th scope="col">预计</th><th scope="col">已约</th>{r.data?.staffing&&<><th scope="col">建议 / 已排</th></>}</tr></thead>
+        <tbody>{d.slots.map(s=><tr key={s.code} data-status={s.status}><th scope="row">{SLOT_NAMES[s.code]}</th><td><strong>{s.expected}</strong><small>{s.low}–{s.high}</small></td><td>{s.booked}</td>{r.data?.staffing&&<td><strong>{s.suggested} / {s.scheduled}</strong>{s.status!=='none'&&<small className={`staff-${s.status}`}>{STAFF_STATUS[s.status]}</small>}</td>}</tr>)}</tbody></table>}
+      {d.weatherFactor!==null&&<p className="muted small">已按当前雨雪天气 × {d.weatherFactor.toFixed(2)}</p>}
+    </section>)}</div>
+    <p className="muted small">“尽快送达”订单按支付时间归入最近的时段。预测只用于参考排班，不改变时段名额。{r.data?.staffing?'排班在“配送员排班”中调整。':'排班建议仅超级管理员可见。'}</p>
+  </figure>;
 }

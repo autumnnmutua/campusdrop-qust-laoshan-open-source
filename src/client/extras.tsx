@@ -38,6 +38,7 @@ export function NetworkStatus(){
 
 /* ================================================================== command palette */
 interface Command{id:string;label:string;hint:string;keywords:string;icon:string;run:(go:(to:string)=>void)=>void}
+const tx=(zh:string,vars?:Record<string,string|number>)=>t(zh,vars);
 const nav=(id:string,label:string,to:string,icon:string,keywords:string,hint=to):Command=>({id,label,hint,keywords,icon,run:go=>go(to)});
 const STUDENT:Command[]=[
   nav('home','首页 · 我的包裹','/','home','shouye baoguo home 包裹 首页'),
@@ -74,11 +75,11 @@ const ADMIN:Command[]=[
   nav('a-settings','运营设置 · 暂停接单 · 群通知','/admin/settings','settings','shezhi 设置 暂停 接单 群 机器人 webhook settings'),
 ];
 const ACTIONS:Command[]=[
-  ...(['auto','snow','sakura','bokeh','leaves','off'] as AmbientMode[]).map(m=>({id:`amb-${m}`,label:`氛围：${AMBIENT_LABELS[m]}`,hint:'切换页面动效',keywords:`fenwei 氛围 动效 粒子 ${m} ${AMBIENT_LABELS[m]} ${m==='snow'?'xuehua 雪花':m==='sakura'?'yinghua 樱花':m==='leaves'?'luoye 落叶':m==='bokeh'?'guangban 光斑':m==='off'?'guanbi 关闭':'jijie 季节'}`,icon:'plane',run:()=>{setAmbientMode(m);toast(`氛围已切换为“${AMBIENT_LABELS[m]}”`,'info');}})),
+  ...(['auto','snow','sakura','bokeh','leaves','off'] as AmbientMode[]).map(m=>({id:`amb-${m}`,label:t('氛围：{0}',{0:t(AMBIENT_LABELS[m])}),hint:'切换页面动效',keywords:`fenwei 氛围 动效 粒子 ${m} ${AMBIENT_LABELS[m]} ${m==='snow'?'xuehua 雪花':m==='sakura'?'yinghua 樱花':m==='leaves'?'luoye 落叶':m==='bokeh'?'guangban 光斑':m==='off'?'guanbi 关闭':'jijie 季节'}`,icon:'plane',run:()=>{setAmbientMode(m);toast(`氛围已切换为“${AMBIENT_LABELS[m]}”`,'info');}})),
   {id:'bounce',label:'开关文字跳动效果',hint:'标题、状态变化等处的文字跳动',keywords:'tiaodong 跳动 文字 动画 bounce',icon:'plane',run:()=>{const on=!isBounceEnabled();setBounceEnabled(on);toast(on?'已开启文字跳动':'已关闭文字跳动','info');}},
   {id:'onboarding',label:'重新查看新手引导',hint:'3 步了解下单流程',keywords:'yindao 引导 教程 新手 帮助',icon:'help',run:()=>openOnboarding()},
   nav('game','休息一下：接包裹小游戏','/play','box','youxi 游戏 小游戏 game play 彩蛋'),
-  ...(['auto','light','dark'] as ThemeMode[]).map(m=>({id:`theme-${m}`,label:`外观：${THEME_LABELS[m]}`,hint:'浅色 / 深色模式',keywords:`waiguan 外观 深色 夜间 暗色 浅色 dark light theme ${m}`,icon:'moon',run:()=>{setThemeMode(m);toast(`外观已切换为${THEME_LABELS[m]}`,'info');}})),
+  ...(['auto','light','dark'] as ThemeMode[]).map(m=>({id:`theme-${m}`,label:t('外观：{0}',{0:t(THEME_LABELS[m])}),hint:'浅色 / 深色模式',keywords:`waiguan 外观 深色 夜间 暗色 浅色 dark light theme ${m}`,icon:'moon',run:()=>{setThemeMode(m);toast(t('外观已切换为{0}',{0:t(THEME_LABELS[m])}),'info');}})),
   {id:'lang-en',label:'Switch to English',hint:'学生页面显示英文',keywords:'english yingwen 英文 语言 language en',icon:'globe',run:()=>setLang('en')},
   {id:'lang-zh',label:'切换为中文',hint:'Chinese',keywords:'zhongwen 中文 语言 language chinese zh',icon:'globe',run:()=>setLang('zh')},
 ];
@@ -96,15 +97,15 @@ export function CommandPalette(){
   },[]);
   useEffect(()=>{const d=ref.current;if(!d)return;if(typeof d.showModal!=='function')dialogPolyfill.registerDialog(d);if(open&&!d.open){setQ('');setIndex(0);d.showModal();requestAnimationFrame(()=>input.current?.focus());}if(!open&&d.open)d.close();},[open]);
   const all=useMemo(()=>admin?[...ADMIN,...STUDENT.slice(0,1),...ACTIONS.filter(a=>a.id==='game')]:[...STUDENT,...ACTIONS],[admin]);
-  const list=useMemo(()=>{const t=q.trim().toLowerCase();if(!t)return all;return all.filter(c=>(c.label+' '+c.keywords+' '+c.hint).toLowerCase().includes(t));},[all,q]);
+  const list=useMemo(()=>{const t=q.trim().toLowerCase();if(!t)return all;return all.filter(c=>(c.label+' '+tx(c.label)+' '+c.keywords+' '+c.hint+' '+tx(c.hint)).toLowerCase().includes(t));},[all,q]);
   const current=Math.min(index,Math.max(0,list.length-1));
   function run(c:Command|undefined){if(!c)return;closePalette();c.run(to=>navigate(to));}
-  return <dialog ref={ref} className="command-palette" aria-label="快速跳转" onClose={()=>{if(paletteOpen)closePalette();}} onClick={e=>{if(e.target===ref.current)closePalette();}}>
-    <div className="palette-search"><SymbolIcon name="search"/><input ref={input} role="combobox" aria-expanded="true" aria-controls={`${id}-list`} aria-activedescendant={list[current]?`${id}-${list[current].id}`:undefined} aria-autocomplete="list" placeholder="搜索页面或操作，例如：订单、雪花、公告" value={q} onChange={e=>{setQ(e.target.value);setIndex(0);}}
+  return <dialog ref={ref} className="command-palette" aria-label={tx('快速跳转')} onClose={()=>{if(paletteOpen)closePalette();}} onClick={e=>{if(e.target===ref.current)closePalette();}}>
+    <div className="palette-search"><SymbolIcon name="search"/><input ref={input} role="combobox" aria-expanded="true" aria-controls={`${id}-list`} aria-activedescendant={list[current]?`${id}-${list[current].id}`:undefined} aria-autocomplete="list" placeholder={tx('搜索页面或操作，例如：订单、雪花、公告')} value={q} onChange={e=>{setQ(e.target.value);setIndex(0);}}
       onKeyDown={e=>{if(e.key==='ArrowDown'){e.preventDefault();setIndex((current+1)%Math.max(1,list.length));}else if(e.key==='ArrowUp'){e.preventDefault();setIndex((current-1+list.length)%Math.max(1,list.length));}else if(e.key==='Enter'){e.preventDefault();run(list[current]);}}}/><kbd>Esc</kbd></div>
-    <ul id={`${id}-list`} role="listbox" aria-label="搜索结果">{list.map((c,i)=><li key={c.id} id={`${id}-${c.id}`} role="option" aria-selected={i===current} className={i===current?'is-active':undefined} onPointerMove={()=>setIndex(i)} onClick={()=>run(c)}><SymbolIcon name={c.icon}/><span>{c.label}<small>{c.hint}</small></span><b aria-hidden="true">↵</b></li>)}</ul>
-    {!list.length&&<p className="muted palette-empty">没有找到“{q}”，换个关键词试试。</p>}
-    <p className="palette-foot" aria-hidden="true"><kbd>↑</kbd><kbd>↓</kbd> 选择 <kbd>↵</kbd> 打开 <kbd>Ctrl</kbd>+<kbd>K</kbd> 随时唤起</p>
+    <ul id={`${id}-list`} role="listbox" aria-label={tx('搜索结果')}>{list.map((c,i)=><li key={c.id} id={`${id}-${c.id}`} role="option" aria-selected={i===current} className={i===current?'is-active':undefined} onPointerMove={()=>setIndex(i)} onClick={()=>run(c)}><SymbolIcon name={c.icon}/><span>{tx(c.label)}<small>{tx(c.hint)}</small></span><b aria-hidden="true">↵</b></li>)}</ul>
+    {!list.length&&<p className="muted palette-empty">{tx('没有找到“{0}”，换个关键词试试。',{0:q})}</p>}
+    <p className="palette-foot" aria-hidden="true"><kbd>↑</kbd><kbd>↓</kbd> {tx('选择')} <kbd>↵</kbd> {tx('打开')} <kbd>Ctrl</kbd>+<kbd>K</kbd> {tx('随时唤起')}</p>
   </dialog>;
 }
 export function PaletteButton(){

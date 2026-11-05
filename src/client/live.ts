@@ -68,3 +68,5 @@ export function useLiveEvents(handler:Handler,orderId?:string){
 
 export const liveConnected=()=>connected;
 export function useLiveConnected(){return useSyncExternalStore(l=>{statusListeners.add(l);return()=>statusListeners.delete(l);},()=>connected,()=>false);}
+/** v3.6 one-click demo: after the simulated courier moved something, let open pages refetch as if the hub had said so. */
+export function emitLocal(event:LiveEvent){handlers.forEach(h=>h(event));}

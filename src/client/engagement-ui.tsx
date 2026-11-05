@@ -1,4 +1,5 @@
-import {t} from './i18n';
+import {getLang,locale,t} from './i18n';
+import {FAQ_EN} from './faq-en';
 import dialogPolyfill from 'dialog-polyfill';
 import {Suspense,lazy,useCallback,useEffect,useId,useMemo,useRef,useState,useSyncExternalStore,type ReactNode} from 'react';
 import {Link,useLocation} from 'react-router-dom';
@@ -9,6 +10,7 @@ import {Odometer} from './odometer';
 import {celebrate,celebrateFrom,toast} from './effects';
 import {appendChip,removeChip} from './note-text';
 import {imageFiles} from './image-files';
+import {FAQ} from '../shared/knowledge';
 // Loaded on demand: screenshot OCR (only once the SMS panel is opened) and the share card (only on the profile page).
 const ScreenshotReader=lazy(()=>import('./screenshot-reader').then(m=>({default:m.ScreenshotReader})));
 const ShareCardButton=lazy(()=>import('./share-card').then(m=>({default:m.ShareCardButton})));
@@ -39,9 +41,9 @@ export function AnnouncementBanner(){
   const visible=items.filter(a=>a.level==='PAUSE'||!dismissed.includes(a.id));
   if(!visible.length&&!pause?.paused)return null;
   return <div className="announcements">{pause?.paused&&<div className="announcement level-pause" role="alert"><span className="announcement-tag">{t('暂停接单')}</span><p><strong>{t('暂时不能新下单和预约')}</strong><span>{pause.reason}</span></p></div>}{visible.map(a=><div key={a.id} className={`announcement level-${a.level.toLowerCase()}`} role={a.level==='PAUSE'?'alert':undefined}>
-    <span className="announcement-tag"><BounceText text={ANNOUNCEMENT_LEVEL_LABELS[a.level]}/></span>
+    <span className="announcement-tag"><BounceText text={t(ANNOUNCEMENT_LEVEL_LABELS[a.level])}/></span>
     <p><strong>{a.title}</strong>{a.body&&<span>{a.body}</span>}{a.endsAt&&<small>有效至 {new Date(a.endsAt*1000).toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</small>}</p>
-    {a.level!=='PAUSE'&&<button type="button" className="announcement-close" aria-label={`关闭公告：${a.title}`} onClick={()=>{const next=[...dismissed,a.id];setDismissed(next);writeList(DISMISSED_KEY,next);}}>×</button>}
+    {a.level!=='PAUSE'&&<button type="button" className="announcement-close" aria-label={t('关闭公告：{0}',{0:a.title})} onClick={()=>{const next=[...dismissed,a.id];setDismissed(next);writeList(DISMISSED_KEY,next);}}>×</button>}
   </div>)}</div>;
 }
 
@@ -73,25 +75,25 @@ export function SmsRecognizer({stations,stationCode,packageSize,onFill,onStation
       catch(e){setBulk(b=>b.map(x=>x.code===f.pickupCode?{...x,state:'error',message:(e as Error).message}:x));}
     }
     setBusy(false);
-    if(created.length){toast(`已登记 ${created.length} 件包裹`,'success',created.length<list.length?`${list.length-created.length} 件未成功，请查看下方原因`:'可以回到首页逐件安排配送');if(created.length===list.length)onBulkDone(created);}
+    if(created.length){toast(t('已登记 {0} 件包裹',{0:created.length}),'success',created.length<list.length?t('{0} 件未成功，请查看下方原因',{0:list.length-created.length}):t('可以回到首页逐件安排配送'));if(created.length===list.length)onBulkDone(created);}
   }
   return <details className={`sms-recognizer${dragging?' is-dragging':''}`} open={open||text.length>0||undefined} onToggle={e=>setOpen((e.currentTarget as HTMLDetailsElement).open)}
     onDragOver={e=>{if(Array.from(e.dataTransfer.items).some(i=>i.kind==='file')){e.preventDefault();setDragging(true);}}} onDragLeave={()=>setDragging(false)}
     onDrop={e=>{const files=imageFiles(e.dataTransfer.files);setDragging(false);if(files.length){e.preventDefault();takeFiles(files);}}}>
-    <summary><SymbolIcon name="chat"/><span>粘贴短信或上传截图，自动识别取件码<small>识别只在你的手机或电脑上进行，短信和图片都不会上传</small></span></summary>
-    <label htmlFor={id} className="sr-only">驿站短信内容</label>
-    <textarea id={id} rows={4} maxLength={2000} value={text} onChange={e=>setText(e.target.value)} onPaste={e=>{const files=imageFiles(e.clipboardData.items);if(files.length){e.preventDefault();takeFiles(files);}}} placeholder={'例如：【菜鸟驿站】您的中通包裹已到颐海苑站点，请凭 87-5-2739 取件…\n可以一次粘贴多条短信，也可以直接粘贴截图'}/>
-    {(open||text.length>0||incoming.length>0)&&<Suspense fallback={<p className="muted shot-loading">正在准备截图识别…</p>}><ScreenshotReader onCodes={addShotCodes} incoming={incoming} onIncomingHandled={clearIncoming}/></Suspense>}
-    {text&&!found.length&&<p className="muted">没有找到形如 87-5-2739 的取件码，请检查短信内容，或直接在下方手动填写。</p>}
+    <summary><SymbolIcon name="chat"/><span>{t('粘贴短信或上传截图，自动识别取件码')}<small>{t('识别默认在你的手机或电脑上进行，短信和图片不会上传（除非你主动选择大模型识别）')}</small></span></summary>
+    <label htmlFor={id} className="sr-only">{t('驿站短信内容')}</label>
+    <textarea id={id} rows={4} maxLength={2000} value={text} onChange={e=>setText(e.target.value)} onPaste={e=>{const files=imageFiles(e.clipboardData.items);if(files.length){e.preventDefault();takeFiles(files);}}} placeholder={t('例如：【菜鸟驿站】您的中通包裹已到颐海苑站点，请凭 87-5-2739 取件…\n可以一次粘贴多条短信，也可以直接粘贴截图')}/>
+    {(open||text.length>0||incoming.length>0)&&<Suspense fallback={<p className="muted shot-loading">{t('正在准备截图识别…')}</p>}><ScreenshotReader onCodes={addShotCodes} incoming={incoming} onIncomingHandled={clearIncoming}/></Suspense>}
+    {text&&!found.length&&<p className="muted">{t('没有找到形如 87-5-2739 的取件码，请检查短信内容，或直接在下方手动填写。')}</p>}
     {found.length>0&&<div className="sms-results" aria-live="polite">
       <p><strong>识别到 {found.length} 个取件码</strong>{matchedStation&&<small>已匹配站点：{matchedStation.canonicalName}</small>}</p>
       <ul>{found.map(f=>{const s=bulk.find(b=>b.code===f.pickupCode);return <li key={f.pickupCode} className={s?`is-${s.state}`:undefined}>
         {found.length>1?<label className="check"><input type="checkbox" disabled={busy||!!s} checked={picked.includes(f.pickupCode)} onChange={e=>setPicked(e.target.checked?[...picked,f.pickupCode]:picked.filter(c=>c!==f.pickupCode))}/><span className="pickup-code">{f.pickupCode}</span></label>:<span className="pickup-code">{f.pickupCode}</span>}
-        <span className="badge">{f.carrier??'承运商未识别'}</span>
-        {s?.state==='ok'&&<span className="sms-state">✓ 已登记</span>}{s?.state==='pending'&&<span className="sms-state">登记中…</span>}{s?.state==='error'&&<span className="sms-state" role="alert">{s.message}</span>}
-        {found.length===1&&<button type="button" className="secondary" onClick={()=>{onFill(f);toast('已填入取件码','success',f.carrier?`承运商：${f.carrier}`:undefined);}}>填入表单</button>}
+        <span className="badge">{f.carrier??t('承运商未识别')}</span>
+        {s?.state==='ok'&&<span className="sms-state">{t('✓ 已登记')}</span>}{s?.state==='pending'&&<span className="sms-state">{t('登记中…')}</span>}{s?.state==='error'&&<span className="sms-state" role="alert">{s.message}</span>}
+        {found.length===1&&<button type="button" className="secondary" onClick={()=>{onFill(f);toast('已填入取件码','success',f.carrier?t('承运商：{0}',{0:f.carrier}):undefined);}}>{t('填入表单')}</button>}
       </li>;})}</ul>
-      {found.length>1&&<div className="actions"><button type="button" className={busy?'is-busy':undefined} disabled={busy||!picked.length||!stationCode||bulk.length>0} onClick={()=>void registerAll()}>{busy?'正在登记…':`按下方站点与大小，批量登记 ${picked.length} 件`}</button><button type="button" className="text-button" disabled={busy} onClick={()=>{setText('');setBulk([]);}}>清空</button></div>}
+      {found.length>1&&<div className="actions"><button type="button" className={busy?'is-busy':undefined} disabled={busy||!picked.length||!stationCode||bulk.length>0} onClick={()=>void registerAll()}>{busy?t('正在登记…'):t('按下方站点与大小，批量登记 {0} 件',{0:picked.length})}</button><button type="button" className="text-button" disabled={busy} onClick={()=>{setText('');setBulk([]);}}>{t('清空')}</button></div>}
     </div>}
   </details>;
 }
@@ -109,66 +111,43 @@ export function NoteChips({value,onChange}:{value:string;onChange:(v:string)=>vo
   const candidate=value.trim();
   const canSave=candidate.length>0&&candidate.length<=20&&!/[<>]/.test(candidate)&&![...NOTE_CHIPS,...custom].includes(candidate);
   const chip=(text:string,own:boolean)=>{const on=value.includes(text);return <span key={(own?'c:':'b:')+text} className={own?'chip-wrap own':'chip-wrap'}>
-    <button type="button" aria-pressed={on} className="chip" onClick={()=>onChange(on?removeChip(value,text):appendChip(value,text))}>{on?'✓ ':'+ '}{text}</button>
-    {own&&<button type="button" className="chip-remove" aria-label={`删除常用备注：${text}`} onClick={()=>{save(custom.filter(c=>c!==text));toast('已删除常用备注','info',text);}}>×</button>}</span>;};
-  return <div className="note-chips" role="group" aria-label="常用备注">{NOTE_CHIPS.map(c=>chip(c,false))}{custom.map(c=>chip(c,true))}
-    {canSave&&<button type="button" className="chip chip-save" onClick={()=>{save([...custom,candidate].slice(-6));toast('已存为常用备注','success','下次一点即填，只保存在这台设备上');}}>☆ 存为常用</button>}</div>;
+    <button type="button" aria-pressed={on} className="chip" onClick={()=>onChange(on?removeChip(value,text):appendChip(value,text))}>{on?'✓ ':'+ '}{t(text)}</button>
+    {own&&<button type="button" className="chip-remove" aria-label={t('删除常用备注：{0}',{0:text})} onClick={()=>{save(custom.filter(c=>c!==text));toast('已删除常用备注','info',text);}}>×</button>}</span>;};
+  return <div className="note-chips" role="group" aria-label={t('常用备注')}>{NOTE_CHIPS.map(c=>chip(c,false))}{custom.map(c=>chip(c,true))}
+    {canSave&&<button type="button" className="chip chip-save" onClick={()=>{save([...custom,candidate].slice(-6));toast('已存为常用备注','success',t('下次一点即填，只保存在这台设备上'));}}>{t('☆ 存为常用')}</button>}</div>;
 }
 
 /* ================================================================== fee calculator */
 function Stepper({label,value,onChange}:{label:string;value:number;onChange:(v:number)=>void}){
-  return <div className="stepper"><span>{label}</span><div><button type="button" className="secondary" aria-label={`减少${label}`} disabled={value<=0} onClick={()=>onChange(value-1)}>−</button><output aria-live="polite">{value}</output><button type="button" className="secondary" aria-label={`增加${label}`} disabled={value>=9} onClick={()=>onChange(value+1)}>+</button></div></div>;
+  return <div className="stepper"><span>{label}</span><div><button type="button" className="secondary" aria-label={t('减少{0}',{0:label})} disabled={value<=0} onClick={()=>onChange(value-1)}>−</button><output aria-live="polite">{value}</output><button type="button" className="secondary" aria-label={t('增加{0}',{0:label})} disabled={value>=9} onClick={()=>onChange(value+1)}>+</button></div></div>;
 }
 /** Price preview built from the same pricing function the server uses; the order page still shows the server quote. */
 export function FeeCalculator(){
   const [small,setSmall]=useState(1),[large,setLarge]=useState(0),[room,setRoom]=useState(false);
   const mode=room?'ROOM':'DOWNSTAIRS';const total=small*priceFen('SMALL',mode)+large*priceFen('LARGE',mode);
-  return <div className="fee-calculator"><div className="fee-inputs"><Stepper label="小件" value={small} onChange={setSmall}/><Stepper label="大件" value={large} onChange={setLarge}/>
-    <label className="switch"><input type="checkbox" checked={room} onChange={e=>setRoom(e.target.checked)}/><span>送到寝室门口</span></label></div>
-    <div className="fee-result"><small>预计费用</small><strong><Odometer value={total} format={yuan}/></strong>
-      <ul>{small>0&&<li>小件 × {small} · {yuan(priceFen('SMALL',mode))}/件</li>}{large>0&&<li>大件 × {large} · {yuan(priceFen('LARGE',mode))}/件</li>}{!small&&!large&&<li>加一件包裹试试</li>}</ul>
-      {!room&&(small||large)?<p className="muted">下单后仍可升级到寝：小件补 {yuan(upgradePriceFen('SMALL'))}，大件补 {yuan(upgradePriceFen('LARGE'))}。</p>:null}
-      <p className="muted">每件包裹单独下单计费，不设打包折扣；实际金额以下单时的服务端报价为准。</p></div></div>;
+  return <div className="fee-calculator"><div className="fee-inputs"><Stepper label={t('小件')} value={small} onChange={setSmall}/><Stepper label={t('大件')} value={large} onChange={setLarge}/>
+    <label className="switch"><input type="checkbox" checked={room} onChange={e=>setRoom(e.target.checked)}/><span>{t('送到寝室门口')}</span></label></div>
+    <div className="fee-result"><small>{t('预计费用')}</small><strong><Odometer value={total} format={yuan}/></strong>
+      <ul>{small>0&&<li>{t('小件 × {0} · {1}/件',{0:small,1:yuan(priceFen('SMALL',mode))})}</li>}{large>0&&<li>{t('大件 × {0} · {1}/件',{0:large,1:yuan(priceFen('LARGE',mode))})}</li>}{!small&&!large&&<li>{t('加一件包裹试试')}</li>}</ul>
+      {!room&&(small||large)?<p className="muted">{t('下单后仍可升级到寝：小件补 {0}，大件补 {1}。',{0:yuan(upgradePriceFen('SMALL')),1:yuan(upgradePriceFen('LARGE'))})}</p>:null}
+      <p className="muted">{t('每件包裹单独下单计费，不设打包折扣；实际金额以下单时的服务端报价为准。')}</p></div></div>;
 }
 
 /* ================================================================== FAQ */
-const FAQ:[string,string,string][]=[
-  ['下单','取件码怎么填写？','可以手动输入，例如 87-5-2739；也可以在“添加快递”页粘贴驿站短信自动识别。识别只在你的浏览器里进行，系统不会读取菜鸟账号或短信。'],
-  ['下单','能直接识别截图里的取件码吗？','可以。在“添加快递”页展开“粘贴短信或上传截图”，点“上传截图识别”选择图片，也可以直接粘贴截图或拖进来，一次最多 6 张。识别在你的手机或电脑上完成，图片不会上传；第一次使用需要下载约 7 MB 的识别引擎，之后会缓存。图片识别偶尔会认错或漏掉数字，登记前请对照截图核对；快递公司需要手动选择。'],
-  ['下单','一次收到好几件快递怎么办？','在“添加快递”页一次粘贴多条短信，勾选要登记的取件码，按同一个站点和大小批量登记，再回到首页逐件安排配送。'],
-  ['下单','费用怎么算？','小件楼下 2 元、到寝 3 元；大件楼下 5 元、到寝 7 元。配送说明页有费用计算器，实际金额以下单时的服务端报价为准。'],
-  ['支付','为什么是模拟支付？','当前版本用于测试流程，支付、补款、退款和打赏都不会发生真实资金流转。'],
-  ['订单','取消后订单还在？','取消配送会保留订单和退款记录，你可以确认退款信息后再隐藏订单。'],
-  ['订单','配送员退单后怎么办？','订单会重新进入接单市场。如果包裹已经取出，必须先完成归还，并由另一位管理员核验。'],
-  ['订单','订单状态多久更新一次？','站点支持实时通道时，状态变化会立即推送到页面；否则订单详情页在配送过程中每 20 秒自动刷新一次。状态变化时页面顶部会弹出提示。'],
-  ['订单','收货码是什么？','付款后订单页会显示 4 位收货码。配送员送到时请当面告诉 TA，配送员输入核验通过后订单自动签收，不用你再点“确认收货”。请不要提前把收货码发给别人。'],
-  ['订单','可以预约送达时间吗？','可以。安排配送时选择今天到后天的午间（11:30–13:00）、傍晚（17:00–19:00）或晚间（20:00–22:00），每个时段有名额上限，开始前 30 分钟截止预约。'],
-  ['订单','怎么联系配送员？','配送员接单后，订单详情页会出现“和配送员沟通”，可以发文字或点常用语。聊天只在本订单内可见，订单完成后保留 90 天自动清理。'],
-  ['订单','预计送达时间准吗？','预计时间依据近 30 天同楼栋的实际送达用时估算，样本不够时按站点到楼栋的路线距离估算，仅供参考。地图底图是学校官方平面图，配送员位置在未校准时为估算。'],
-  ['账号','怎么注销账号？','在“我的寝室”页底部选择“注销账号”。需要先完成或取消所有进行中的订单。注销后姓名、电话、寝室、聊天和消息会被删除，订单只保留匿名记录用于对账。'],
-  ['评价','评价会被公开吗？','不会。确认收货后可以给本次配送打 1–5 星，评价只给运营管理员用来改进服务，其他同学看不到。每单只能评价一次。'],
-  ['评价','徽章是怎么获得的？','徽章完全根据你的真实订单计算，例如完成第 1 单、累计 5 单、3 次送到寝室等。徽章不设排行，也不能兑换任何东西。'],
-  ['订单','包裹到了能提醒我吗？','可以。在“我的寝室”页或配送中的订单页打开“到达提醒”，浏览器询问时选择允许。之后包裹状态变化时，即使切到其他页面也会弹出系统通知（需要这个网页仍然开着）。部分手机浏览器只允许已添加到主屏幕的网页发通知。'],
-  ['订单','能开具配送凭证吗？','订单详情页底部有“配送凭证”，可以打印或另存为 PDF。凭证只记录模拟支付，不是发票，也不能用于报销。'],
-  ['下单','怎样快速再下一单？','已完成或已取消的订单旁边有“再来一单”，会带上上次的包裹大小和配送方式，你只需要填写新的取件码。'],
-  ['账号','怎样切换账号？','点击页面上的“退出登录 / 切换账号”，退出后会回到登录页。'],
-  ['体验','页面上飘的雪花 / 樱花能关掉吗？','可以。点击顶部的“氛围”按钮，选择“关闭”或其他季节效果。系统开启“减少动态效果”时，这些动画会自动停止。'],
-  ['下单','能保存自己常用的备注吗？','可以。在“添加快递”的备注框里写好一句（20 字以内），点“☆ 存为常用”，下次一点即填；最多保存 6 条，只保存在当前设备的浏览器里，点旁边的 × 可以删除。'],
-  ['体验','配送足迹能分享吗？','“我的寝室”页的配送足迹下方有“生成分享卡片”，会生成一张图片，只包含订单数量和徽章，不含姓名、电话、寝室或取件码，可以保存或直接分享。'],
-  ['体验','有没有快捷搜索？','电脑上按 Ctrl+K（Mac 按 ⌘K）或点击顶部的“搜索”，可以快速跳转到任意页面，也能直接切换氛围动效。'],
-  ['体验','能把网站加到手机桌面吗？','可以。在手机浏览器的菜单里选择“添加到主屏幕”，之后就可以像 App 一样从桌面打开。具体入口因浏览器而异。'],
-];
+// The FAQ lives in shared/knowledge.ts: the same entries answer the 智能助手 (worker) and this page.
 function highlight(text:string,q:string):ReactNode{if(!q)return text;const i=text.toLowerCase().indexOf(q.toLowerCase());if(i<0)return text;return <>{text.slice(0,i)}<mark>{text.slice(i,i+q.length)}</mark>{highlight(text.slice(i+q.length),q)}</>;}
+/** The FAQ in the reader's language: English entries from faq-en.ts where they exist (topic stays the Chinese key). */
+const faq:[string,string,string][]=FAQ.map(([tp,q,a])=>{const en=getLang()==='en'?FAQ_EN[q]:undefined;return en?[tp,en[0],en[1]]:[tp,q,a];});
 export function FaqSearch(){
-  const [q,setQ]=useState(''),[topic,setTopic]=useState('全部');const id=useId();
-  const topics=['全部',...new Set(FAQ.map(f=>f[0]))];const query=q.trim();
-  const list=FAQ.filter(([t,question,answer])=>(topic==='全部'||t===topic)&&(!query||question.includes(query)||answer.includes(query)));
-  return <div className="faq"><label htmlFor={id} className="faq-search"><SymbolIcon name="help"/><input id={id} type="search" value={q} onChange={e=>setQ(e.target.value)} placeholder="搜索问题，例如：短信、退款、评价" autoComplete="off"/></label>
-    <div className="faq-topics" role="group" aria-label="问题分类">{topics.map(t=><button key={t} type="button" className="chip" aria-pressed={topic===t} onClick={()=>setTopic(t)}>{t}</button>)}</div>
+  const [q,setQ]=useState(''),[topic,setTopic]=useState(t('全部'));const id=useId();
+  const topics=[t('全部'),...new Set(FAQ.map(f=>f[0]))];const query=q.trim();
+  const list=faq.filter(([tp,question,answer])=>(topic===t('全部')||tp===topic)&&(!query||question.toLowerCase().includes(query.toLowerCase())||answer.toLowerCase().includes(query.toLowerCase())));
+  return <div className="faq"><label htmlFor={id} className="faq-search"><SymbolIcon name="help"/><input id={id} type="search" value={q} onChange={e=>setQ(e.target.value)} placeholder={t('搜索问题，例如：短信、退款、评价')} autoComplete="off"/></label>
+    <div className="faq-topics" role="group" aria-label={t('问题分类')}>{topics.map(tp=><button key={tp} type="button" className="chip" aria-pressed={topic===tp} onClick={()=>setTopic(tp)}>{t(tp)}</button>)}</div>
     <p className="sr-only" aria-live="polite">找到 {list.length} 个问题</p>
-    {list.map(([t,question,answer])=><details key={question} open={query.length>0||undefined}><summary><span className="faq-topic">{t}</span>{highlight(question,query)}</summary><p>{highlight(answer,query)}</p></details>)}
-    {!list.length&&<p className="muted">没有找到相关问题。可以换个关键词，或者<Link to="/tickets/new">发起售后工单</Link>。</p>}
-    <button type="button" className="secondary" onClick={()=>openOnboarding()}>重新查看新手引导</button></div>;
+    {list.map(([tp,question,answer])=><details key={question} open={query.length>0||undefined}><summary><span className="faq-topic">{t(tp)}</span>{highlight(question,query)}</summary><p>{highlight(answer,query)}</p></details>)}
+    {!list.length&&<p className="muted">{t('没有找到相关问题。可以换个关键词，或者')}<Link to="/tickets/new">{t('发起售后工单')}</Link>。</p>}
+    <button type="button" className="secondary" onClick={()=>openOnboarding()}>{t('重新查看新手引导')}</button></div>;
 }
 
 /* ================================================================== footprint & badges */
@@ -182,8 +161,8 @@ export function FootprintPanel(){
     if(!stats)return;const earnedNow=badgesFor(stats).filter(b=>b.earned),seen=readList(BADGES_KEY);
     const unseen=earnedNow.filter(b=>!seen.includes(b.id));if(!unseen.length)return;
     writeList(BADGES_KEY,[...seen,...unseen.map(b=>b.id)]);setFresh(unseen.map(b=>b.id));
-    const t=setTimeout(()=>{toast(`解锁新徽章：${unseen.map(b=>b.label).join('、')}`,'success',unseen.length>1?`一次解锁 ${unseen.length} 枚`:unseen[0].hint);celebrate({count:90});},700);
-    return()=>clearTimeout(t);
+    const timer=setTimeout(()=>{toast(t('解锁新徽章：{0}',{0:unseen.map(b=>t(b.label)).join(locale()==='en-GB'?', ':'、')}),'success',unseen.length>1?t('一次解锁 {0} 枚',{0:unseen.length}):t(unseen[0].hint));celebrate({count:90});},700);
+    return()=>clearTimeout(timer);
   },[stats]);
   if(!stats)return null;
   const badges=badgesFor(stats),earned=badges.filter(b=>b.earned).length;
@@ -196,32 +175,32 @@ export function FootprintPanel(){
       <div><small>{t('大件配送')}</small><strong><CountUp value={stats.largeParcels} from={0}/><em>{t('件')}</em></strong></div>
     </div>
     <div className="badge-head"><h3>{t('成就徽章')}</h3><small>{earned} / {badges.length}</small></div>
-    <ul className="badge-grid">{badges.map((b,i)=><li key={b.id} className={b.earned?(fresh.includes(b.id)?'is-earned is-new':'is-earned'):undefined} data-badge={b.id} data-index={i}><span className="badge-medal" aria-hidden="true">{b.earned?'★':'☆'}</span><strong>{fresh.includes(b.id)?<BounceText text={b.label}/>:b.label}</strong><small>{b.hint}</small><span className="sr-only">{b.earned?'已获得':'未获得'}</span></li>)}</ul>
+    <ul className="badge-grid">{badges.map((b,i)=><li key={b.id} className={b.earned?(fresh.includes(b.id)?'is-earned is-new':'is-earned'):undefined} data-badge={b.id} data-index={i}><span className="badge-medal" aria-hidden="true">{b.earned?'★':'☆'}</span><strong>{fresh.includes(b.id)?<BounceText text={t(b.label)}/>:t(b.label)}</strong><small>{t(b.hint)}</small><span className="sr-only">{b.earned?t('已获得'):t('未获得')}</span></li>)}</ul>
     {stats.paidOrders>0&&<Suspense fallback={null}><ShareCardButton stats={stats} badges={badges}/></Suspense>}
     {stats.paidOrders===0&&<p className="muted">{t('还没有配送记录。')}<Link to="/parcel/new">{t('登记第一件快递 →')}</Link></p>}
   </section>;
 }
 
 /* ================================================================== rating */
-const STAR_WORDS=['','很不满意','不太满意','一般','满意','非常满意'];
+const STAR_WORDS=['',t('很不满意'),t('不太满意'),t('一般'),t('满意'),t('非常满意')];
 export function RatingPanel({orderId}:{orderId:string}){
   const [state,setState]=useState<{eligible:boolean;rating:Rating|null}|null>(null),[stars,setStars]=useState(0),[hover,setHover]=useState(0),[tags,setTags]=useState<string[]>([]),[comment,setComment]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');
   const submitRef=useRef<HTMLButtonElement>(null);
   useEffect(()=>{let on=true;api<{eligible:boolean;rating:Rating|null}>(`/orders/${orderId}/rating`).then(r=>{if(on)setState(r);}).catch(()=>{});return()=>{on=false;};},[orderId]);
   if(!state?.eligible)return null;
-  if(state.rating)return <div className="rating-panel is-done"><h2>你的评价</h2><p className="rating-stars" aria-label={`${state.rating.stars} 星`}>{'★'.repeat(state.rating.stars)}<span aria-hidden="true">{'★'.repeat(5-state.rating.stars)}</span></p>{state.rating.tags.length>0&&<p className="rating-tags">{state.rating.tags.map(t=><span key={t} className="chip">{t}</span>)}</p>}{state.rating.comment&&<blockquote>{state.rating.comment}</blockquote>}<small className="muted">评价仅运营管理员可见，用于改进配送服务。</small></div>;
+  if(state.rating)return <div className="rating-panel is-done"><h2>{t('你的评价')}</h2><p className="rating-stars" aria-label={t('{0} 星',{0:state.rating.stars})}>{'★'.repeat(state.rating.stars)}<span aria-hidden="true">{'★'.repeat(5-state.rating.stars)}</span></p>{state.rating.tags.length>0&&<p className="rating-tags">{state.rating.tags.map(t=><span key={t} className="chip">{t}</span>)}</p>}{state.rating.comment&&<blockquote>{state.rating.comment}</blockquote>}<small className="muted">{t('评价仅运营管理员可见，用于改进配送服务。')}</small></div>;
   const pool=stars>=4?RATING_TAGS_GOOD:stars>0?RATING_TAGS_BAD:[];const shown=hover||stars;
   async function submit(){
     setBusy(true);setError('');
-    try{const r=await api<{rating:Rating}>(`/orders/${orderId}/rating`,'POST',{stars,tags:tags.filter(t=>(pool as readonly string[]).includes(t)),comment});setState({eligible:true,rating:r.rating});toast('感谢你的评价','success','你的反馈会帮助配送服务变得更好');if(stars>=4)celebrateFrom(submitRef.current,60);}
-    catch(e){setError(e instanceof RequestError&&e.status===503?'评价功能正在升级，请稍后再试。':(e as Error).message);}finally{setBusy(false);}
+    try{const r=await api<{rating:Rating}>(`/orders/${orderId}/rating`,'POST',{stars,tags:tags.filter(t=>(pool as readonly string[]).includes(t)),comment});setState({eligible:true,rating:r.rating});toast('感谢你的评价','success',t('你的反馈会帮助配送服务变得更好'));if(stars>=4)celebrateFrom(submitRef.current,60);}
+    catch(e){setError(e instanceof RequestError&&e.status===503?t('评价功能正在升级，请稍后再试。'):(e as Error).message);}finally{setBusy(false);}
   }
-  return <div className="rating-panel"><h2>为这次配送打个分</h2><p className="muted">评价只给运营管理员看，不会公开。</p>
-    <div className="star-picker" role="radiogroup" aria-label="评分" onPointerLeave={()=>setHover(0)}>{[1,2,3,4,5].map(n=><button key={n} type="button" role="radio" aria-checked={stars===n} aria-label={`${n} 星 · ${STAR_WORDS[n]}`} className={n<=shown?'is-lit':undefined} onPointerEnter={()=>setHover(n)} onClick={()=>{setStars(n);setTags([]);}}>★</button>)}<span className="star-word" aria-hidden="true">{STAR_WORDS[shown]}</span></div>
-    {pool.length>0&&<div className="note-chips" role="group" aria-label="评价标签">{pool.map(t=>{const on=tags.includes(t);return <button key={t} type="button" className="chip" aria-pressed={on} onClick={()=>setTags(on?tags.filter(x=>x!==t):[...tags,t])}>{t}</button>;})}</div>}
-    {stars>0&&<label>想说的话（选填）<textarea maxLength={120} rows={2} value={comment} onChange={e=>setComment(e.target.value)} placeholder={stars>=4?'谢谢配送员～':'哪里可以做得更好？'}/></label>}
+  return <div className="rating-panel"><h2>{t('为这次配送打个分')}</h2><p className="muted">{t('评价只给运营管理员看，不会公开。')}</p>
+    <div className="star-picker" role="radiogroup" aria-label={t('评分')} onPointerLeave={()=>setHover(0)}>{[1,2,3,4,5].map(n=><button key={n} type="button" role="radio" aria-checked={stars===n} aria-label={t('{0} 星 · {1}',{0:n,1:STAR_WORDS[n]})} className={n<=shown?'is-lit':undefined} onPointerEnter={()=>setHover(n)} onClick={()=>{setStars(n);setTags([]);}}>★</button>)}<span className="star-word" aria-hidden="true">{STAR_WORDS[shown]}</span></div>
+    {pool.length>0&&<div className="note-chips" role="group" aria-label={t('评价标签')}>{pool.map(tag=>{const on=tags.includes(tag);return <button key={tag} type="button" className="chip" aria-pressed={on} onClick={()=>setTags(on?tags.filter(x=>x!==tag):[...tags,tag])}>{t(tag)}</button>;})}</div>}
+    {stars>0&&<label>{t('想说的话（选填）')}<textarea maxLength={120} rows={2} value={comment} onChange={e=>setComment(e.target.value)} placeholder={stars>=4?t('谢谢配送员～'):t('哪里可以做得更好？')}/></label>}
     {error&&<p role="alert">{error}</p>}
-    <button ref={submitRef} type="button" className={busy?'is-busy':undefined} disabled={!stars||busy} onClick={()=>void submit()}>{busy?'正在提交…':'提交评价'}</button></div>;
+    <button ref={submitRef} type="button" className={busy?'is-busy':undefined} disabled={!stars||busy} onClick={()=>void submit()}>{busy?t('正在提交…'):t('提交评价')}</button></div>;
 }
 
 /* ================================================================== onboarding */
@@ -230,9 +209,9 @@ let onboardingOpen=false;const onboardingListeners=new Set<()=>void>();
 export function openOnboarding(){onboardingOpen=true;onboardingListeners.forEach(l=>l());}
 function closeOnboarding(){onboardingOpen=false;setItem(ONBOARD_KEY,'1');onboardingListeners.forEach(l=>l());}
 const STEPS=[
-  {icon:'chat',title:'登记包裹',text:'粘贴驿站短信自动识别取件码，或者手动填写。一次收到好几件，也能批量登记。'},
-  {icon:'room',title:'选择配送',text:'送到楼下或寝室门口，小件 2 元起。下单前会显示服务端报价，当前均为模拟支付。'},
-  {icon:'plane',title:'跟踪与收货',text:'在校园地图上看配送路线和预计送达时间。见到配送员时出示 4 位收货码，核验后自动签收。'},
+  {icon:'chat',title:t('登记包裹'),text:t('粘贴驿站短信自动识别取件码，或者手动填写。一次收到好几件，也能批量登记。')},
+  {icon:'room',title:t('选择配送'),text:t('送到楼下或寝室门口，小件 2 元起。下单前会显示服务端报价，当前均为模拟支付。')},
+  {icon:'plane',title:t('跟踪与收货'),text:t('在校园地图上看配送路线和预计送达时间。见到配送员时出示 4 位收货码，核验后自动签收。')},
 ];
 /** Three-step introduction, shown once per browser and reopenable from the FAQ page. */
 export function Onboarding({autoOpen}:{autoOpen:boolean}){
@@ -249,6 +228,6 @@ export function Onboarding({autoOpen}:{autoOpen:boolean}){
     <p className="eyebrow">新手引导 · {step+1}/{STEPS.length}</p>
     <div key={step} className="onboarding-step"><span className={`onboarding-icon icon-${s.icon}`} aria-hidden="true"><SymbolIcon name={s.icon}/></span><h2 id={titleId}>{s.title}</h2><p>{s.text}</p></div>
     <ol className="onboarding-dots" aria-hidden="true">{STEPS.map((_,i)=><li key={i} className={i===step?'is-current':i<step?'is-done':undefined}/>)}</ol>
-    <div className="actions">{step>0&&<button type="button" className="secondary" onClick={()=>setStep(step-1)}>上一步</button>}<button type="button" onClick={()=>{if(last){closeOnboarding();celebrate({count:70});}else setStep(step+1);}}>{last?'开始使用':'下一步'}</button>{!last&&<button type="button" className="text-button" onClick={closeOnboarding}>跳过</button>}</div>
+    <div className="actions">{step>0&&<button type="button" className="secondary" onClick={()=>setStep(step-1)}>{t('上一步')}</button>}<button type="button" onClick={()=>{if(last){closeOnboarding();celebrate({count:70});}else setStep(step+1);}}>{last?t('开始使用'):t('下一步')}</button>{!last&&<button type="button" className="text-button" onClick={closeOnboarding}>{t('跳过')}</button>}</div>
   </dialog>;
 }

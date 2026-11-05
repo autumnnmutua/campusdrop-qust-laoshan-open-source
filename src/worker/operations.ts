@@ -115,7 +115,7 @@ async function batchPlan(env: Env, admin: Admin, slot: string | null) {
 async function buildingHeat(env: Env): Promise<{ days: number; buildings: BuildingHeat[] }> {
   const since = now() - 7 * DAY;
   const rows = (await env.DB.prepare(`SELECT o.dorm_building_code AS code,(SELECT display_name FROM dorm_buildings WHERE code=o.dorm_building_code) AS name,count(*) AS orders
-    FROM delivery_orders o WHERE ${PAID} AND o.created_at>=? GROUP BY o.dorm_building_code HAVING count(*)>=3 ORDER BY orders DESC,code LIMIT 5`).bind(since).all<BuildingHeat>()).results;
+    FROM delivery_orders o WHERE ${PAID} AND o.demo_group IS NULL AND o.created_at>=? GROUP BY o.dorm_building_code HAVING count(*)>=3 ORDER BY orders DESC,code LIMIT 5`).bind(since).all<BuildingHeat>()).results;
   // Buildings with fewer than three orders are left out so a single student's activity cannot be singled out.
   return { days: 7, buildings: rows };
 }
@@ -168,7 +168,7 @@ async function monthReport(env: Env, admin: Admin, month: string): Promise<Month
   const t = totals.results[0] as { orders: number; paid: number; completed: number; cancelled: number; exceptions: number };
   const r = ratings.results[0] as { stars: number | null; n: number }, minutes = (speed.results[0] as { minutes: number | null } | undefined)?.minutes ?? null;
   const sends = admin.role === 'SUPER_ADMIN' ? await env.DB.prepare("SELECT count(*) AS n FROM send_requests WHERE status='DROPPED' AND created_at BETWEEN ? AND ?").bind(from, to - 1).first<number>('n').catch(() => 0) ?? 0 : 0;
-  const newStudents = admin.role === 'SUPER_ADMIN' ? await env.DB.prepare('SELECT count(*) AS n FROM users WHERE created_at BETWEEN ? AND ? AND deleted_at IS NULL').bind(from, to - 1).first<number>('n') ?? 0 : null;
+  const newStudents = admin.role === 'SUPER_ADMIN' ? await env.DB.prepare('SELECT count(*) AS n FROM users WHERE created_at BETWEEN ? AND ? AND deleted_at IS NULL AND demo_group IS NULL').bind(from, to - 1).first<number>('n') ?? 0 : null;
   const byDay = new Map((daily.results as { day: string; count: number }[]).map(d => [d.day, d.count]));
   return {
     month, days, orders: t.orders, paid: t.paid, completed: t.completed, cancelled: t.cancelled, exceptions: t.exceptions,

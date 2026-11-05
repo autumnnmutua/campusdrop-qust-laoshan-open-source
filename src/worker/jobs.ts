@@ -1,3 +1,4 @@
+import { demoCleanupStatements } from './demo';
 import type { Env } from './types';
 import { cleanupStatements } from './account';
 import { fanOut, inboxWatermark } from './live';
@@ -56,7 +57,7 @@ export async function frequentJobs(env: Env): Promise<void> {
   const t = now(), cases = STALL_RULES.map(r => `WHEN '${r.status}' THEN ${r.minutes}`).join(' ');
   const stalled = (await env.DB.prepare(`SELECT * FROM (SELECT o.id,o.status,json_extract(o.dorm_snapshot_json,'$.buildingName') AS building,
       coalesce((SELECT max(e.created_at) FROM order_events e WHERE e.order_id=o.id AND e.to_status=o.status),o.updated_at) AS since,CASE o.status ${cases} END AS limitMinutes
-    FROM delivery_orders o WHERE o.status IN (${STALL_RULES.map(r => `'${r.status}'`).join(',')}) AND EXISTS(SELECT 1 FROM payments p WHERE p.order_id=o.id AND p.type='DELIVERY'))
+    FROM delivery_orders o WHERE o.status IN (${STALL_RULES.map(r => `'${r.status}'`).join(',')}) AND o.demo_group IS NULL AND EXISTS(SELECT 1 FROM payments p WHERE p.order_id=o.id AND p.type='DELIVERY'))
     WHERE (?-since)/60>=limitMinutes ORDER BY since LIMIT 20`).bind(t).all<{ id: string; status: string; building: string; since: number; limitMinutes: number }>()).results;
   for (const s of stalled) {
     const rule = STALL_RULES.find(r => r.status === s.status);
@@ -71,6 +72,8 @@ export async function dailyJobs(env: Env): Promise<void> {
     env.DB.prepare('DELETE FROM error_events WHERE created_at<unixepoch()-604800'),
     ...cleanupStatements(env),
   ]);
+  // v3.6: close demos older than a day (separately, so a database without migration 0014 still runs the rest).
+  await env.DB.batch(demoCleanupStatements(env)).catch(error => console.error('demo cleanup', error));
 }
 
 /** One ten-minute trigger also runs daily cleanup at 03:20 UTC (11:20 Beijing). */

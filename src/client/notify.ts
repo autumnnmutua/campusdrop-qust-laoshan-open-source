@@ -1,3 +1,4 @@
+import {t} from './i18n';
 import {useSyncExternalStore} from 'react';
 import { inWeChat } from './wechat';
 import {getItem,removeItem,setItem} from './storage';
@@ -60,7 +61,7 @@ export async function enableNotify():Promise<NotifyState|'blocked'>{
   if(await subscribePush()){setItem(PUSH_KEY,'1');setItem(KEY,'1');refresh();return notifyState();}
   removeItem(PUSH_KEY);
   // Android Chrome throws on `new Notification` outside a service worker; find out now rather than when a parcel arrives.
-  try{const probe=new Notification('CampusDrop 到达提醒已开启',{body:'包裹状态变化时，即使切到其他页面也会提醒你。',icon:'/icon-192.png',tag:'campusdrop-notify-test'});setTimeout(()=>probe.close(),4000);}
+  try{const probe=new Notification(t('CampusDrop 到达提醒已开启'),{body:t('包裹状态变化时，即使切到其他页面也会提醒你。'),icon:'/icon-192.png',tag:'campusdrop-notify-test'});setTimeout(()=>probe.close(),4000);}
   catch{refresh();return 'blocked';}
   setItem(KEY,'1'); // if it cannot be remembered, reminders simply stay off
   refresh();return notifyState();

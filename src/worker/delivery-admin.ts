@@ -103,7 +103,7 @@ export async function createBatch(env:Env,admin:Admin,ids:string[],assigneeId:st
   const id=crypto.randomUUID();
   const creatorScope=orderScope(admin),assigneeScope=orderScope({...assignee,scopes:[]});
   const grant=assignee.role==='DELIVERY_STAFF'
-    ? {sql:"EXISTS(SELECT 1 FROM admin_users recipient WHERE recipient.id=? AND recipient.role='DELIVERY_STAFF' AND recipient.status='ACTIVE')",params:[assigneeId]}
+    ? {sql:"EXISTS(SELECT 1 FROM admin_users recipient WHERE recipient.id=? AND recipient.role='DELIVERY_STAFF' AND recipient.status='ACTIVE' AND recipient.demo_group IS NULL)",params:[assigneeId]}
     : assigneeScope;
   try {
     await env.DB.batch([

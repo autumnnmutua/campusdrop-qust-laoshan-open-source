@@ -7,6 +7,29 @@ import { AdminShell } from './admin-delivery';
 import { useResource } from './student-delivery';
 import { WeatherCredit } from './v3-ui';
 import { ASAP_TARGETS, PUNCTUALITY_DAYS, rate, weatherLabel, type PunctualityReport, type PunctualityRow, type WeatherInfo } from '../shared/v3';
+import type { OpsSummary } from '../shared/assistant';
+
+// ---------------------------------------------------------------- v3.5 · AI 运营小结
+const SUMMARY_REASON = { NOT_CONFIGURED: '本站未配置大模型，以下由统计规则生成', DAILY_LIMIT: '今日大模型调用已达上限，以下由统计规则生成', MODEL_ERROR: '大模型暂时没有响应，以下由统计规则生成' } as const;
+/** Writes a short operations summary from the on-time figures of the admin's scope (model, or rules without one). */
+export function OpsSummaryCard({ days }: { days: number }) {
+  const [summary, setSummary] = useState<OpsSummary | null>(null), [busy, setBusy] = useState(false), [error, setError] = useState('');
+  async function run() {
+    setBusy(true); setError('');
+    try { setSummary((await api<{ summary: OpsSummary }>(`/admin/ops-summary?days=${days}`)).summary); }
+    catch (e) { setError((e as Error).message); } finally { setBusy(false); }
+  }
+  return <section className="ops-summary" aria-live="polite">
+    <div className="row"><h2><SymbolIcon name="chat"/>AI 运营小结</h2><button type="button" className="secondary" disabled={busy} onClick={() => void run()}>{busy ? '正在分析…' : summary ? '重新生成' : `分析近 ${days} 天`}</button></div>
+    {!summary && !busy && <p className="muted">根据近 {days} 天的准时率、天气、楼栋和待处理订单，用大模型写几条运营建议；统计数字与本页看板一致，可以展开核对。</p>}
+    {error && <p role="alert">{error}</p>}
+    {summary && <>
+      <ul>{summary.bullets.map((b, i) => <li key={i}>{b}</li>)}</ul>
+      <small className="muted">{summary.source === 'MODEL' ? `由大模型 ${summary.model} 根据下列统计生成，仅供参考` : SUMMARY_REASON[summary.fallbackReason ?? 'NOT_CONFIGURED']} · {new Date(summary.generatedAt * 1000).toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit' })}</small>
+      <details><summary>查看所用统计</summary><dl className="summary-facts">{Object.entries(summary.facts).map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v ?? '—'}</dd></div>)}</dl></details>
+    </>}
+  </section>;
+}
 
 /*
  * v3.0 admin pages: 准时率看板 (on-time dashboard) and the weather panel in 运营设置. Single-series charts in one hue
@@ -51,6 +74,7 @@ export function AdminPunctuality() {
         <div className="range-chips" role="group" aria-label="尽快送达的目标时长">{ASAP_TARGETS.map(n => <button key={n} type="button" className="chip" aria-pressed={asap === n} onClick={() => setAsap(n)}>尽快 {n} 分钟</button>)}</div></div></div>
     <p className="muted">准时的定义：预约时段的订单在时段结束前送达；“尽快送达”的订单在支付后 {asap} 分钟内送达。送达时间取配送员第一次标记“已送达”（或当面核验收货码）的时刻。只统计你授权范围内的订单。</p>
     <p role="alert">{r.error}</p>{r.loading && !rep && <LoadingState label="正在统计…"/>}
+    <OpsSummaryCard days={days}/>
     {rep && <div className="analytics punctuality">
       <div className="kpi-grid">
         <div className="kpi kpi-hero"><small>准时率</small><strong>{pct(rep.total)}</strong><span>{rep.total.onTime} / {rep.total.delivered} 单准时</span></div>

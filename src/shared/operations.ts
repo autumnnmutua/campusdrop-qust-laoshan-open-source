@@ -12,6 +12,8 @@ const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 export const sendCreateSchema = z.object({
   packageSize: z.enum(['SMALL', 'LARGE']), carrier: z.enum(CARRIERS), note: plainText(120),
   slotDate: dateSchema, slotCode: z.enum(SLOT_CODES), confirmed: z.literal(true),
+  // v3.5: where the courier hands it in; omitted means the station nearest the student's dorm.
+  stationCode: z.string().regex(/^[A-Z0-9_]{2,32}$/).optional(),
 }).strict();
 export const sendActionSchema = z.object({ version, confirmed: z.literal(true) }).strict();
 export const sendDropSchema = z.object({ version, trackingNo: z.string().trim().max(40).regex(/^[A-Za-z0-9-]*$/, '单号只能包含字母、数字和横线') }).strict();

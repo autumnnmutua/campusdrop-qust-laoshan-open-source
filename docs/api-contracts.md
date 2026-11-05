@@ -61,6 +61,7 @@ HANDOFF_REQUIRED：包裹仍由配送员持有，需归还核验。HANDOFF_PENDI
 |---|---|---|
 | 公共资料 | GET /health、/dorm-buildings、/stations | service、buildings、stations |
 | 学生认证 | POST /auth/register、/auth/login、/auth/logout | register/login；HttpOnly cookie |
+| 登录状态（v3.5.1） | GET /auth/session、GET /admin/auth/session | 无；`{signedIn}`，未登录也返回 200 |
 | 学生资料 | GET/PATCH /me | profile；`{user,address?}` |
 | 寝室 | GET/POST/PUT/DELETE /me/address | address；`{address}` 或 `{ok:true}` |
 | 包裹 | GET/POST /parcels、GET/DELETE /parcels/:id | parcel；`{parcels}`/`{parcel}`/`{ok:true}` |
@@ -98,3 +99,36 @@ GET /admin/tasks增加group：ALL、ACTIVE、AWAITING_RECEIPT、CLOSED；非ALL�
 Order 新增 groupId、groupSize（同组未取消的订单数）、ruleId；待接订单（GET /admin/available）新增 groupId、groupSize。管理员认领（POST /admin/orders/:id/claim）合并配送中的一件时，同组其余已支付、未被接走的订单进入同一批次；推进 PICKED_UP / OUT_FOR_DELIVERY / DELIVERED_* 时同批次的同组订单一起推进（异常只作用于当前订单）；收货码核验（POST /admin/orders/:id/handoff-code）一次签收同批次中已出发或已送达的同组订单。合并配送订单不支持单件升级到寝（409 GROUP_UPGRADE）。
 
 常用配送由每 10 分钟的定时任务执行：时段开始前 3 小时起至截止预约前 10 分钟，为规则所属学生已登记、无订单的包裹生成该时段的未付款订单（同一站点多件自动合并），发站内消息（kind RULE_ORDER，link 指向支付页）。规则生成的未付款订单在该时段截止预约时自动取消。
+
+## v3.5：第二个站点、智能助手、AI 运营小结
+
+| 方法/路径 | 请求 schema | 成功响应 | 语义 |
+|---|---|---|---|
+| GET /stations | 无 | `{stations}` | 按 sort_order 排序：YIHAIYUAN（颐海苑）、NANSHI（南苑十号楼对面） |
+| GET /sends | 无 | 新增 `stations:[{code,name}]`、`suggested` | suggested 为按地图步行路线离学生寝室最近的站点 |
+| POST /sends | sendCreate | 201 `{send}` | 新增可选 stationCode；省略时用离寝室最近的站点；站点不可用 409 LOCATION_INACTIVE |
+| POST /assistant | assistantAsk | `{reply:{answer,source,model,fallbackReason,links,references}}` | 仅学生；15 分钟 30 次；source 为 MODEL 或 LOCAL；fallbackReason 为 NOT_CONFIGURED / DAILY_LIMIT / MODEL_ERROR；links 只来自服务端固定列表 |
+| GET /assistant/status | 无 | `{configured,model,faq}` | 公开；是否配置了大模型 |
+| GET /admin/ops-summary?days=7\|14\|30 | 无 | `{summary:{days,bullets,source,model,fallbackReason,generatedAt,facts}}` | 管理员；按授权范围统计；15 分钟 12 次 |
+
+发送给大模型的内容只有问题、最近 6 轮对话和服务端整理的订单状态摘要（状态、站点、楼栋、时段），不含姓名、电话、房间号、取件码、收货码和备注。大模型地址只接受 HTTPS（开发环境允许本机 http）。
+
+## v3.6：一键体验、智能体助手、一句话下单、成效看板、单量预测、截图识别大模型兜底
+
+| 方法/路径 | 请求 schema | 成功响应 | 语义 |
+|---|---|---|---|
+| POST /demo/start | demoStart | 201 `{ok,status:{active,auto,courierName}}` | 公开；口令为 DEMO_PASSCODE（未设置或设为 `off` 时关闭 → 404 DEMO_DISABLED）；口令错误 403 DEMO_PASSCODE；每 IP 15 分钟 12 次、全站每小时 120 次。创建一对体验账号（学生 + 配送员，同一 demo_group）、北苑4号楼 301 的寝室和 3 件包裹，同时写入学生与管理员两个会话 Cookie |
+| GET /demo/status | 无 | `{status:{active,auto,courierName}}` | 用任一体验会话查询；非体验账号返回 active=false |
+| POST /demo/tick | `{}` | `{steps,auto}` | 体验会话；auto 开启时，模拟配送员把已支付的体验订单推进一步（付款 6 秒后接单 → 14 秒后取件 → 10 秒后出发 → 75 秒后送达）；15 分钟 600 次 |
+| PUT /demo/auto | demoAuto | `{auto}` | 开关自动配送；关闭后由访客扮演配送员 |
+| POST /demo/end | `{}` | `{ok}` | 停用两个体验账号、删除会话并清除 Cookie |
+| POST /agent/plan | agentPlan | `{plan:{answer,drafts,steps,source,model,fallbackReason}}` | 仅学生；与智能助手共用 15 分钟 30 次。生成配送草稿，不创建订单；草稿由页面调用 POST /orders 或 /order-groups 确认 |
+| POST /assistant | assistantAsk | `reply` 新增可选 `drafts`、`steps` | 句子是在要求安排配送时附带草稿；配置大模型时由大模型通过 function calling 调用 list_waiting_parcels / list_open_slots / quote / draft_delivery |
+| GET /assistant/status | 无 | 新增 `vision`、`visionModel` | 截图识别大模型兜底是否可用 |
+| POST /parcels/vision | 原始图片（image/jpeg、image/png、image/webp，≤ 800 KB） | `{codes,model}` | 仅学生；仅当配置了大模型且 AI_VISION 不为 off；15 分钟 10 次；每日上限为 AI_DAILY_LIMIT 的 1/5（至少 10 次），超过 429 VISION_LIMIT；未开启 404 VISION_OFF；模型失败 502 VISION_FAILED；图片类型与内容不符 415。图片不保存、不记录 |
+| GET /impact | 无 | `{impact:{all,last7,onTimeRate,onTimeSample,mergedParcels,since,generatedAt}}` | 公开；只含汇总数字；只统计真实订单；缓存 5 分钟 |
+| GET /admin/forecast | 无 | `{forecast:{days,trend,trendApplied,backtest,perCourier,perCourierBasis,weather,historyDays,generatedAt},staffing}` | 管理员；按授权范围统计；排班对比（staffing）仅超级管理员 |
+
+**体验数据隔离**：users、admin_users、delivery_orders 新增 demo_group。orderScope 与接单市场只让同一 demo_group 的配送员看到体验订单，真实管理员看不到；体验订单不占时段名额、不发群通知与站内推送、不进入成效看板与楼栋热度；体验账号无密码、不能用用户名登录、不出现在管理员列表；代寄件对体验账号返回 403 DEMO_UNSUPPORTED。每日任务停用超过 24 小时的体验账号。
+
+**草稿校验**（与下单一致，但不写库）：包裹属于本人、尚未下单；合并配送须同一站点且不超过 6 件；约定地点只能配楼下；时段须开放且名额足够；暂停接单时（体验账号除外）不生成草稿。发给大模型的工具结果只有包裹编号 P1、P2…、站点、大小、承运商和时段，不含取件码、姓名、电话、房间号。

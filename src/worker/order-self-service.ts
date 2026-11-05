@@ -12,7 +12,7 @@ import { orderScope } from './order-access';
 
 function availableScope(admin:Admin){
   return admin.role==='DELIVERY_STAFF'
-    ? {sql:"o.campus_id=? AND EXISTS(SELECT 1 FROM admin_users WHERE id=? AND role='DELIVERY_STAFF' AND status='ACTIVE')",params:[CAMPUS_ID,admin.id]}
+    ? {sql:"o.campus_id=? AND EXISTS(SELECT 1 FROM admin_users WHERE id=? AND role='DELIVERY_STAFF' AND status='ACTIVE') AND coalesce(o.demo_group,'')=coalesce((SELECT demo_group FROM admin_users WHERE id=?),'')",params:[CAMPUS_ID,admin.id,admin.id]}
     : orderScope(admin);
 }
 const available="o.status='WAITING_PICKUP' AND o.student_deleted=0 AND NOT EXISTS(SELECT 1 FROM batch_items WHERE order_id=o.id) AND EXISTS(SELECT 1 FROM payments WHERE order_id=o.id AND type='DELIVERY')";

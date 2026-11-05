@@ -1,8 +1,9 @@
 import './zod-config';
+import {DemoBar,DemoStart,demoStarting} from './demo';
 import {useUnreadCount} from './service-links';
 import {installMobileShell,pageTitle} from './wechat';
 import {StudentSessionProvider,isUnauthorized,useStudentSession} from './session';
-import {ServicePages} from './campus-design';
+import {ServicePages,SymbolIcon} from './campus-design';
 import {MobileTabs,SiteFooter,SiteHeader} from './chart-shell';
 import {SeaChartView} from './sea-chart/SeaChartView';
 import {coverView} from './sea-chart/renderer';
@@ -90,11 +91,11 @@ function Auth({ register = false, admin = false }: { register?: boolean; admin?:
   // Warm the lazily loaded form schemas so submitting does not wait on them.
   useEffect(()=>{void import('./validation');},[]);
   // Students: reuse the app-wide session check instead of a second /me request (a guaranteed 401 for visitors).
-  useEffect(()=>{if(!admin&&session==='signed-in'&&!registered)navigate('/profile',{replace:true});},[admin,session,registered,navigate]);
+  useEffect(()=>{if(!admin&&session==='signed-in'&&!registered&&!demoStarting())navigate('/profile',{replace:true});},[admin,session,registered,navigate]);
   useEffect(() => {
     if(!admin)return;
     let active=true;
-    void api('/admin/me').then(()=>{if(active)navigate('/admin/account',{replace:true});}).catch(()=>{});
+    void api<{signedIn:boolean}>('/admin/auth/session').then(r=>{if(active&&r.signedIn)navigate('/admin/account',{replace:true});}).catch(()=>{});
     return ()=>{active=false;};
   },[admin,navigate]);
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -142,6 +143,7 @@ function Auth({ register = false, admin = false }: { register?: boolean; admin?:
     </form>
     <p><Link to="/recover">{t('忘记密码 / 使用恢复码')}</Link></p>
     {!admin && <p>{register ? <Link to="/login">{t('已有账号，去登录')}</Link> : <Link to="/register">{t('创建学生账号')}</Link>}</p>}
+    {!register && <DemoStart/>}
   </section>;
 }
 
@@ -233,6 +235,15 @@ function useDeepLinks(){
     return()=>navigator.serviceWorker.removeEventListener('message',onMessage);
   },[navigate]);
 }
+// v3.5 智能助手: a floating button on student pages (signed in); the panel is loaded the first time it opens.
+const AssistantPanel=lazy(()=>import('./assistant'));
+// Pages for reading and tracking; forms (adding a parcel, checkout, sending) keep the corner free for their buttons.
+const ASSISTANT_PAGES=/^\/($|orders(\/[^/]+)?$|help|guide|map|messages|contact|profile|report|tickets$)/;
+function AssistantLauncher(){
+  const [open,setOpen]=useState(false);
+  return <>{!open&&<button type="button" className="assistant-launcher" onClick={()=>setOpen(true)} aria-haspopup="dialog"><SymbolIcon name="chat"/><span>{t('问问助手')}</span></button>}
+    {open&&<Suspense fallback={null}><AssistantPanel onClose={()=>setOpen(false)}/></Suspense>}</>;
+}
 function App() {
   const location=useLocation(); const admin=location.pathname.startsWith('/admin'); const mainRef=useRef<HTMLElement>(null);
   useEasterEgg(!admin);
@@ -244,12 +255,12 @@ function App() {
   useDeepLinks();
   // Students: destinations in the header (desktop) and the tab bar (phones). Admins: the workspace sidebar (AdminShell).
   const bare=['/login','/register','/admin/login'].includes(location.pathname);
-  return <div className={bare?'site is-bare':'site'}>{!admin&&!bare&&<PageAmbient/>}<IntroSplash/><div key={location.key} className="route-progress" aria-hidden="true"/><a className="skip-link" href="#main-content">{t('跳至主要内容')}</a><SiteHeader unread={unread} admin={admin}/>
+  return <div className={bare?'site is-bare':'site'}>{!admin&&!bare&&<PageAmbient/>}<IntroSplash/><div key={location.key} className="route-progress" aria-hidden="true"/><a className="skip-link" href="#main-content">{t('跳至主要内容')}</a><SiteHeader unread={unread} admin={admin}/><DemoBar/>
     <main id="main-content" ref={mainRef} tabIndex={-1}>{!admin&&!['/login','/register','/privacy'].includes(location.pathname)&&<AnnouncementBanner/>}<PageErrorBoundary resetKey={location.pathname}><Suspense fallback={pageFallback}><Routes><Route path="/" element={<Home />} /><Route path="/login" element={<Auth />} /><Route path="/register" element={<Auth register />} /><Route path="/profile" element={<Profile />} /><Route path="/admin/login" element={<Auth admin />} /><Route path="/admin" element={<AdminTasks />} /><Route path="/admin/account" element={<AdminHome />} />
       <Route path="/parcel/merge" element={<MergeOrder/>}/><Route path="/checkout-group/:id" element={<GroupCheckout/>}/><Route path="/rules" element={<RulesPage/>}/><Route path="/admin/punctuality" element={<AdminPunctuality/>}/><Route path="/parcel/new" element={<NewParcel/>}/><Route path="/parcel/:id" element={<ParcelDetail/>}/><Route path="/orders" element={<Orders/>}/><Route path="/orders/:id" element={<OrderDetail/>}/><Route path="/orders/:id/receipt" element={<OrderReceipt/>}/><Route path="/play" element={<PlayPage/>}/><Route path="/checkout/:orderId" element={<OrderDetail checkout/>}/><Route path="/tip/:orderId" element={<TipPage/>}/>
       <Route path="/admin/orders/:id" element={<AdminOrderDetail/>}/><Route path="/admin/tasks" element={<AdminTasks/>}/><Route path="/admin/batches" element={<Batches/>}/><Route path="/admin/batches/:id" element={<BatchDetail/>}/><Route path="/admin/admins" element={<AdminAccounts/>}/><Route path="/admin/audit" element={<Audit/>}/><Route path="/admin/analytics" element={<AdminAnalytics/>}/><Route path="/admin/announcements" element={<AdminAnnouncements/>}/><Route path="/map" element={<CampusMapPage/>}/><Route path="/admin/map" element={<AdminLiveMap/>}/><Route path="/admin/route-sheet" element={<RouteSheet/>}/><Route path="/admin/sends" element={<AdminSends/>}/><Route path="/admin/settlement" element={<AdminSettlement/>}/><Route path="/admin/report" element={<AdminMonthReport/>}/><Route path="/admin/settings" element={<AdminSettings/>}/><Route path="/send" element={<SendPage/>}/><Route path="/send/:id" element={<SendDetail/>}/><Route path="/track/:token" element={<TrackPage/>}/><Route path="/report" element={<YearReportPage/>}/>
-      <Route path="/messages" element={<Inbox/>}/><Route path="/tickets" element={<TicketList/>}/><Route path="/tickets/new" element={<TicketNew/>}/><Route path="/tickets/:id" element={<TicketDetail/>}/><Route path="/admin/tickets" element={<TicketList admin/>}/><Route path="/admin/tickets/:id" element={<TicketDetail admin/>}/><Route path="/recover" element={<RecoveryPage/>}/><Route path="/admin/recovery" element={<RecoveryAdmin/>}/><Route path="/admin/errors" element={<ErrorMonitor/>}/><Route path="/guide" element={<ServicePages kind="guide" slot={<FeeCalculator/>}/>}/><Route path="/help" element={<ServicePages kind="help" slot={<FaqSearch/>}/>}/><Route path="/contact" element={<ServicePages kind="contact"/>}/><Route path="/handoff-rules" element={<section><h1>{t('包裹交接与退单规则')}</h1><p>{t('未取件可说明原因后退回市场。已取件的包裹由当前配送员继续妥善保管，不得随意放置或交给身份未确认的人。')}</p><p>{t('无法继续配送时，先标记配送异常，联系学生，并将包裹归还原取件站点；填写准确存放位置、包裹完整性和交接情况。另一位有权限的管理员核验实物后，才能退回接单市场或取消退款。')}</p><p>{t('不得仅凭口头承诺点击核验。遗失、损坏、站点拒收或无法联系时，保持异常状态，联系负责该区域的管理员处理；未完成交接不得停用原配送账号。')}</p><p>{t('核验记录只证明管理员作出了确认，不代表系统自动验证实物。当前资金操作为模拟，未发生真实扣款或退款。')}</p></section>}/><Route path="/privacy" element={<section><h1>{t('资料用途')}</h1><p>{t('姓名、联系电话及寝室资料用于校园配送联系与地址管理。你可以在个人页面移除当前寝室；修改前的地址与操作记录会保留用于业务追溯。')}</p><p>{t('目前为开发版本，尚未开放真实配送。正式运营前将补充数据保留期限、账号删除渠道及运营联系方式。测试请使用虚构资料。')}</p><p>{t('本项目非青岛科技大学或菜鸟官方产品，不绑定菜鸟账号。')}</p><Link to="/register">{t('返回注册')}</Link></section>} />
-      <Route path="*" element={<section className="not-found"><p className="eyebrow">{t('404 · 页面不存在')}</p><h1><BounceText text={t('这个地址没有找到内容')} variant="wave"/></h1><p className="muted">{t('链接可能已失效，或页面已经调整。')}</p><Link className="button" to="/">{t('返回首页')}</Link><Suspense fallback={null}><ParcelGame title={t('迷路了？先玩一局接包裹')}/></Suspense></section>} /></Routes></Suspense></PageErrorBoundary></main>
+      <Route path="/messages" element={<Inbox/>}/><Route path="/tickets" element={<TicketList/>}/><Route path="/tickets/new" element={<TicketNew/>}/><Route path="/tickets/:id" element={<TicketDetail/>}/><Route path="/admin/tickets" element={<TicketList admin/>}/><Route path="/admin/tickets/:id" element={<TicketDetail admin/>}/><Route path="/recover" element={<RecoveryPage/>}/><Route path="/admin/recovery" element={<RecoveryAdmin/>}/><Route path="/admin/errors" element={<ErrorMonitor/>}/><Route path="/guide" element={<ServicePages kind="guide" slot={<FeeCalculator/>}/>}/><Route path="/help" element={<ServicePages kind="help" slot={<FaqSearch/>}/>}/><Route path="/contact" element={<ServicePages kind="contact"/>}/><Route path="/handoff-rules" element={<section><h1>{t('包裹交接与退单规则')}</h1><p>{t('未取件可说明原因后退回市场。已取件的包裹由当前配送员继续妥善保管，不得随意放置或交给身份未确认的人。')}</p><p>{t('无法继续配送时，先标记配送异常，联系学生，并将包裹归还原取件站点；填写准确存放位置、包裹完整性和交接情况。另一位有权限的管理员核验实物后，才能退回接单市场或取消退款。')}</p><p>{t('不得仅凭口头承诺点击核验。遗失、损坏、站点拒收或无法联系时，保持异常状态，联系负责该区域的管理员处理；未完成交接不得停用原配送账号。')}</p><p>{t('核验记录只证明管理员作出了确认，不代表系统自动验证实物。当前资金操作为模拟，未发生真实扣款或退款。')}</p></section>}/><Route path="/privacy" element={<section><h1>{t('资料用途')}</h1><p>{t('姓名、联系电话及寝室资料用于校园配送联系与地址管理。你可以在个人页面移除当前寝室；修改前的地址与操作记录会保留用于业务追溯。')}</p><p>{t('目前为开发版本，尚未开放真实配送。正式运营前将补充数据保留期限、账号删除渠道及运营联系方式。测试请使用虚构资料。')}</p><p>{t('智能助手：你提的问题和你自己订单的状态摘要（不含姓名、电话、房间号、取件码和收货码）会发送给本站配置的大模型服务（默认为阿里云百炼的通义千问）来生成回答；本站未配置大模型时，只在本站按规则和常见问题回答。对话内容不保存。')}</p><p>{t('一句话下单与智能体：安排配送时，发送给大模型的只有你的这句话、待配送包裹的编号（P1、P2…）、站点、大小、承运商和可约时段，不含取件码和个人资料；大模型只能生成草稿，确认下单和付款由你完成。')}</p><p>{t('截图识别：默认只在你的设备上识别。只有你在某张截图上点“用大模型识别”并确认时，才会把这张截图（缩小后）发送给大模型服务识别取件码，识别后不保存；请尽量裁掉手机号等无关信息。')}</p><p>{t('本项目非青岛科技大学或菜鸟官方产品，不绑定菜鸟账号。')}</p><Link to="/register">{t('返回注册')}</Link></section>} />
+      <Route path="*" element={<section className="not-found"><p className="eyebrow">{t('404 · 页面不存在')}</p><h1><BounceText text={t('这个地址没有找到内容')} variant="wave"/></h1><p className="muted">{t('链接可能已失效，或页面已经调整。')}</p><Link className="button" to="/">{t('返回首页')}</Link><Suspense fallback={null}><ParcelGame title={t('迷路了？先玩一局接包裹')}/></Suspense></section>} /></Routes></Suspense></PageErrorBoundary></main>{!admin&&!bare&&session==='signed-in'&&ASSISTANT_PAGES.test(location.pathname)&&<AssistantLauncher/>}
     <MobileTabs unread={unread} hidden={admin}/><SiteFooter/><AmbientLayer enabled={!admin}/><Toaster/><NetworkStatus/><CommandPalette/>{!admin&&<Onboarding autoOpen={location.pathname==='/'}/>}</div>;
 }
 const cloudbaseStatic=typeof __CLOUDBASE_STATIC__!=='undefined'&&__CLOUDBASE_STATIC__;

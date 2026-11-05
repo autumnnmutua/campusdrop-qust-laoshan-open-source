@@ -5,7 +5,7 @@ cd /d "%~dp0"
 title CampusDrop 生产部署
 echo.
 echo ==============================================
-echo   CampusDrop 校园快递  v3.0.0  生产部署
+echo   CampusDrop 校园快递  v3.6.0  生产部署
 echo ==============================================
 echo.
 
@@ -44,7 +44,7 @@ if errorlevel 1 goto :fail
 
 echo.
 echo [4/5] 数据库升级
-echo   v3.0 需要执行迁移 0012_v3_delivery.sql（合并配送、常用配送规则、天气联动、准时率记录）。
+echo   v3.6 需要执行迁移 0014_v36_demo.sql（一键体验的隔离标记与体验记录、截图识别用量记录）；线上还没升级到 v3.5 的话会一并列出 0013 或更早的迁移。
 echo   它只新增表、列和触发器，不删除任何账号或订单。线上还没升级到 v2.7 的话会一并列出 0011（没升级过 v2.6 还有 0010）。
 echo   如果显示 No migrations to apply，说明已经升级过，按 N 跳过即可。
 echo   线上数据库待执行的迁移：
@@ -57,7 +57,7 @@ call npm run db:migrate:production
 if errorlevel 1 goto :fail
 goto :deploy
 :skipmigrate
-echo   已跳过。注意：列表里还有 0012（或 0011、0010）时不能跳过，新版代码依赖它，跳过后订单页面会报错。
+echo   已跳过。注意：列表里还有 0014（或 0013、0012、0011、0010）时不能跳过，新版代码依赖它，跳过后订单页面会报错。
 choice /c YN /m "  确认线上已经没有待执行的迁移吗？按 Y 继续发布，按 N 退出"
 if errorlevel 2 goto :fail
 
@@ -78,6 +78,6 @@ exit /b 0
 
 :fail
 echo.
-echo 部署没有完成。请把上面的报错截图或复制给 Claude。
+echo 部署没有完成。请把上面的报错截图，发给负责部署的同学排查。
 pause
 exit /b 1

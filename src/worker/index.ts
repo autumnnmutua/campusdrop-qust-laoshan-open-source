@@ -24,6 +24,12 @@ import { groupRoutes } from './order-groups';
 import { ruleRoutes, runRules } from './rules';
 import { weatherRoutes } from './weather';
 import { punctualityRoutes } from './punctuality';
+import { aiRoutes } from './ai';
+import { demoRoutes } from './demo';
+import { agentRoutes } from './agent';
+import { visionRoutes } from './vision';
+import { impactRoutes } from './impact';
+import { forecastRoutes } from './forecast';
 import { publish } from './live';
 import { background, withBackground } from './background';
 export { LiveHub } from './live';
@@ -42,7 +48,7 @@ async function route(request: Request, env: Env): Promise<Response> {
   }
   if (method === 'GET' && pathname === '/api/v1/stations') {
     const rows = await env.DB.prepare(`SELECT code, canonical_name AS canonicalName, aliases_json AS aliasesJson,
-      relative_location AS relativeLocation, lat, lng FROM stations WHERE campus_id = ? AND active = 1`).bind(CAMPUS_ID).all();
+      relative_location AS relativeLocation, lat, lng FROM stations WHERE campus_id = ? AND active = 1 ORDER BY sort_order, code`).bind(CAMPUS_ID).all();
     return json({ stations: rows.results });
   }
   if (method === 'POST' && pathname === '/api/v1/auth/register') {
@@ -67,7 +73,8 @@ async function route(request: Request, env: Env): Promise<Response> {
     await rateLimit(env, `${kind}:username:${data.username}`, 8);
     // Table name comes exclusively from the fixed route, never from submitted input.
     const table = kind === 'admin' ? 'admin_users' : 'users';
-    const account = await env.DB.prepare(`SELECT id, password_hash, status ${kind==='admin'?',development_only':''} FROM ${table} WHERE username = ?`)
+    // Demo accounts (v3.6) have no password and can only be entered through POST /demo/start.
+    const account = await env.DB.prepare(`SELECT id, password_hash, status ${kind==='admin'?',development_only':''} FROM ${table} WHERE username = ? AND demo_group IS NULL`)
       .bind(data.username).first<{ id: string; password_hash: string; status: string; development_only?: number }>();
     const valid = await verifyPassword(data.password, account?.password_hash ?? DUMMY_HASH);
     if (!valid || !account || account.status !== 'ACTIVE' || (account.development_only && !localCookie(request,env))) throw new ApiError(401, 'INVALID_CREDENTIALS', '用户名或密码错误');
@@ -79,6 +86,13 @@ async function route(request: Request, env: Env): Promise<Response> {
     const actor = await (kind === 'admin' ? requireAdmin(request, env) : requireStudent(request, env)).catch(() => null);
     if (actor) await publish(env, `${kind}:${actor.id}`, { type: 'bye' }).catch(() => {});
     return json({ ok: true }, 200, { 'Set-Cookie': await revokeSession(request, env, kind) });
+  }
+  // v3.5.1: "am I signed in?" without a 401 for visitors (the browser logs every 401 as a console error).
+  if (method === 'GET' && (pathname === '/api/v1/auth/session' || pathname === '/api/v1/admin/auth/session')) {
+    const admin = pathname.startsWith('/api/v1/admin/');
+    const actor = await (admin ? requireAdmin(request, env) : requireStudent(request, env))
+      .catch((error: unknown) => { if (error instanceof ApiError && error.status === 401) return null; throw error; });
+    return json({ signedIn: Boolean(actor) });
   }
   if (pathname === '/api/v1/me') {
     const user = await requireStudent(request, env);
@@ -99,7 +113,7 @@ async function route(request: Request, env: Env): Promise<Response> {
     if (method === 'DELETE') { await deleteAddress(env, user.id); return json({ ok: true }); }
   }
   const recoveryResponse=await recoveryRoutes(request,env);if(recoveryResponse)return recoveryResponse;
-  for(const routes of [accountRoutes,pushRoutes,liveDeliveryRoutes,orderExtraRoutes,sendRoutes,operationsRoutes,groupRoutes,ruleRoutes,weatherRoutes,punctualityRoutes]){const response=await routes(request,env);if(response)return response;}
+  for(const routes of [demoRoutes,accountRoutes,pushRoutes,liveDeliveryRoutes,orderExtraRoutes,sendRoutes,operationsRoutes,groupRoutes,ruleRoutes,weatherRoutes,punctualityRoutes,aiRoutes,agentRoutes,visionRoutes,impactRoutes,forecastRoutes]){const response=await routes(request,env);if(response)return response;}
   const engagementResponse=await engagementRoutes(request,env);if(engagementResponse)return engagementResponse;
   const serviceResponse=await serviceRoutes(request,env);if(serviceResponse)return serviceResponse;
   const deliveryResponse=await deliveryRoutes(request,env);
@@ -126,7 +140,7 @@ async function route(request: Request, env: Env): Promise<Response> {
     }
     if (method === 'GET' && pathname === '/api/v1/admin/admins') {
       requireSuper(admin);
-      return json({ admins: (await env.DB.prepare('SELECT id, username, role, status FROM admin_users ORDER BY created_at, id').all()).results });
+      return json({ admins: (await env.DB.prepare('SELECT id, username, role, status FROM admin_users WHERE demo_group IS NULL ORDER BY created_at, id').all()).results });
     }
     const scopeMatch=/^\/api\/v1\/admin\/admins\/([a-f0-9-]{36})\/scopes$/.exec(pathname);
     if(scopeMatch&&method==='PUT'){

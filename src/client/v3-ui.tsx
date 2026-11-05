@@ -1,7 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from './api';
-import { t } from './i18n';
+import { getLang, t } from './i18n';
 import { SymbolIcon } from './campus-design';
 import type { Order, Parcel } from '../shared/delivery';
 import { GROUP_MAX_PARCELS, type WeatherInfo } from '../shared/v3';
@@ -40,11 +40,17 @@ export function WeatherChip() {
     {o && <WeatherCredit/>}
   </p>;
 }
+/** The server writes the notice in Chinese; English readers get the same facts (the operator's own note stays as written). */
+function weatherNoticeEn(w: WeatherInfo): string {
+  const head = w.level === 'SEVERE' ? 'Severe weather: deliveries may be noticeably delayed' : 'Rain or snow: deliveries may be a little slower';
+  const note = w.notice.match(/。([^。]+。?)$/)?.[1]?.trim();
+  return `${head}; "as soon as possible" estimates include an extra ${w.paddingMinutes} minutes.${note ? ` ${note}` : ''}`;
+}
 /** Notice on the ordering and order pages when the weather slows deliveries. */
 export function WeatherNotice() {
   const w = useWeather();
   if (!w?.enabled || w.level === 'CLEAR' || !w.notice) return null;
-  return <div className={`weather-notice level-${w.level.toLowerCase()}`} role="note"><span className="weather-glyph" aria-hidden="true">{w.level === 'SEVERE' ? '⛈\uFE0E' : '☂\uFE0E'}</span><p>{w.notice}{w.observed && <><br/><WeatherCredit/></>}</p></div>;
+  return <div className={`weather-notice level-${w.level.toLowerCase()}`} role="note"><span className="weather-glyph" aria-hidden="true">{w.level === 'SEVERE' ? '⛈\uFE0E' : '☂\uFE0E'}</span><p>{getLang() === 'en' ? weatherNoticeEn(w) : w.notice}{w.observed && <><br/><WeatherCredit/></>}</p></div>;
 }
 
 // ---------------------------------------------------------------- merged delivery

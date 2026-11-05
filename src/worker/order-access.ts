@@ -7,8 +7,9 @@ export function orderScope(admin:Admin):{sql:string;params:string[]} {
     (? IN ('ZONE_ADMIN','BUILDING_ADMIN') AND EXISTS(SELECT 1 FROM admin_scopes s WHERE s.admin_id=? AND s.campus_id=o.campus_id
       AND (s.zone IS NULL OR s.zone=o.zone) AND (s.building_code IS NULL OR s.building_code=o.dorm_building_code)
       AND (?='ZONE_ADMIN' OR s.building_code IS NOT NULL))) OR
-    (?='DELIVERY_STAFF' AND EXISTS(SELECT 1 FROM batch_items bi JOIN delivery_batches b ON b.id=bi.batch_id WHERE bi.order_id=o.id AND b.assignee_admin_id=?)))`,
-    params:[admin.id,admin.role,CAMPUS_ID,admin.role,admin.role,admin.id,admin.role,admin.role,admin.id]};
+    (?='DELIVERY_STAFF' AND EXISTS(SELECT 1 FROM batch_items bi JOIN delivery_batches b ON b.id=bi.batch_id WHERE bi.order_id=o.id AND b.assignee_admin_id=?)))
+    AND coalesce(o.demo_group,'')=coalesce((SELECT demo_group FROM admin_users WHERE id=?),'')`,
+    params:[admin.id,admin.role,CAMPUS_ID,admin.role,admin.role,admin.id,admin.role,admin.role,admin.id,admin.id]};
 }
 export async function adminOrder(env:Env,admin:Admin,id:string):Promise<OrderRow> {
   const scope=orderScope(admin);
