@@ -35,7 +35,8 @@ const shape = (r: SendRequest) => ({ ...r, hasAssignee: Boolean(r.hasAssignee) }
 
 /** Which send requests an admin may see: same building/zone rules as orders; couriers see the open pool and their own. */
 function sendScope(admin: Admin): { sql: string; params: string[] } {
-  if (admin.role === 'SUPER_ADMIN') return { sql: 's.campus_id=?', params: [CAMPUS_ID] };
+  // The demo's super admin (v3.7.1) sees no send requests: demo students cannot book them, and real ones are not its business.
+  if (admin.role === 'SUPER_ADMIN') return admin.demo ? { sql: '0', params: [] } : { sql: 's.campus_id=?', params: [CAMPUS_ID] };
   if (admin.role === 'DELIVERY_STAFF') return { sql: "s.campus_id=? AND (s.assignee_admin_id=? OR (s.assignee_admin_id IS NULL AND s.status='WAITING_PICKUP'))", params: [CAMPUS_ID, admin.id] };
   return {
     sql: `s.campus_id=? AND EXISTS(SELECT 1 FROM admin_scopes sc WHERE sc.admin_id=? AND sc.campus_id=s.campus_id AND (sc.zone IS NULL OR sc.zone=s.zone)

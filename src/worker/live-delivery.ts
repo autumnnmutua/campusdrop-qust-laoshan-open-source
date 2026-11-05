@@ -117,7 +117,7 @@ async function historySeconds(env: Env, fromStatus: string, building: string | n
   const row = await env.DB.prepare(`SELECT avg(d.created_at-s.created_at) AS secs,count(*) AS n FROM order_events s
     JOIN order_events d ON d.order_id=s.order_id AND d.to_status IN ('DELIVERED_DOWNSTAIRS','DELIVERED_TO_ROOM') AND d.created_at>s.created_at AND d.created_at-s.created_at<21600
     JOIN delivery_orders o ON o.id=s.order_id
-    WHERE s.to_status=? AND s.created_at>unixepoch()-2592000 AND (? IS NULL OR o.dorm_building_code=?)`)
+    WHERE s.to_status=? AND s.created_at>unixepoch()-2592000 AND o.demo_group IS NULL AND (? IS NULL OR o.dorm_building_code=?)`)
     .bind(fromStatus, building, building).first<{ secs: number | null; n: number }>();
   return row?.secs && row.n >= (building ? 3 : 5) ? row.secs : null;
 }
@@ -188,7 +188,7 @@ async function liveMap(env: Env, admin: Admin): Promise<LiveMapData> {
   // v3.6 one-click demo: the visitor's courier has no GPS; show it where its timetable puts it on the route.
   const simulated: LiveMapData['couriers'] = [];
   if (admin.demo) {
-    const rows = (await env.DB.prepare(`SELECT ${orderColumns} FROM delivery_orders o WHERE o.status IN ('PICKED_UP','OUT_FOR_DELIVERY') AND ${scope.sql} LIMIT 6`).bind(...scope.params).all<OrderRow>()).results;
+    const rows = (await env.DB.prepare(`SELECT ${orderColumns} FROM delivery_orders o WHERE o.status IN ('PICKED_UP','OUT_FOR_DELIVERY') AND ${scope.sql} ORDER BY o.status='OUT_FOR_DELIVERY' DESC,o.updated_at DESC LIMIT 6`).bind(...scope.params).all<OrderRow>()).results;
     for (const row of rows) { const live = await orderLive(env, row); if (live.courier && !simulated.length) simulated.push({ id: admin.id, username: admin.username, x: live.courier.x, y: live.courier.y, updatedAt: t, active: rows.length }); }
   }
   return {
@@ -271,7 +271,7 @@ export async function liveDeliveryRoutes(request: Request, env: Env): Promise<Re
   if (path === '/admin/live-map' && method === 'GET') return json(await liveMap(env, await requireAdmin(request, env)));
   if (path === '/admin/map-calibration') {
     const admin = await requireAdmin(request, env);
-    if (method === 'GET') { const cal = await calibration(env); return json({ calibrated: Boolean(cal), calibration: admin.role === 'SUPER_ADMIN' ? cal : null }); }
+    if (method === 'GET') { const cal = await calibration(env); return json({ calibrated: Boolean(cal), calibration: admin.role === 'SUPER_ADMIN' && !admin.demo ? cal : null }); }
     if (method === 'PUT') {
       requireSuper(admin);
       const data = await body(request, calibrationSchema);

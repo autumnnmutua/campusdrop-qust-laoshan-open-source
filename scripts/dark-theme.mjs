@@ -13,7 +13,7 @@ import { join } from 'node:path';
  */
 const DIR = 'src/client/styles', OUT = join(DIR, 'theme-dark-auto.css');
 const SKIP_FILES = new Set(['tokens.css', 'index.css', 'theme-dark.css', 'theme-dark-auto.css', 'chart.css']);
-const ALWAYS_DARK = /map-courier|route-|courier-|station-|load-badge|map-compass|game-|\.toast-icon|unread-dot|route-progress|chart-|intro|home-hero|is-night|auth-scenery|home-quick|current-order:first-child/;
+const ALWAYS_DARK = /map-courier|route-|courier-|station-|load-badge|map-compass|game-|\.toast-icon|unread-dot|route-progress|chart-|intro|home-hero|is-night|auth-scenery|home-quick|current-order:first-child|demo-bar|demo-badge|demo-roles|demo-steps|demo-auto|demo-start-button/;
 const COLOR_PROPS = /^(color|background|background-color|background-image|border|border-(top|right|bottom|left)(-color)?|border-color|outline(-color)?|fill|stroke|box-shadow|text-shadow|caret-color|text-decoration-color|accent-color)$/;
 
 // ---------------------------------------------------------------- colour maths (sRGB ↔ HSL)

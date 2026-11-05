@@ -4,7 +4,9 @@ const known=new Set(['health','auth','admin','me','orders','parcels','quotes','s
  // v3.5.1: segments added since v2.6, so error routes keep their names instead of turning into :id
  'session','sends','slots','live','chat','handoff-code','location','live-map','map-calibration','share','track','push','subscribe','settings','shifts','plan','pause','webhook','report','settlement','pickup','drop','near','proxy','photo','account','year-report',
  // v3.6
- 'demo','start','tick','auto','end','agent','vision','impact','forecast']);
+ 'demo','start','tick','auto','end','agent','vision','impact','forecast',
+ // v3.7
+ 'role','coupons','quote']);
 export function safeRoute(request:Request){const parts=new URL(request.url).pathname.split('/').slice(3,10);return '/api/v1/'+parts.map(p=>known.has(p)?p:':id').join('/');}
 export function classifyError(error:unknown){
  const message=error instanceof Error?error.message:String(error);

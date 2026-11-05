@@ -113,6 +113,33 @@ Order 新增 groupId、groupSize（同组未取消的订单数）、ruleId；待
 
 发送给大模型的内容只有问题、最近 6 轮对话和服务端整理的订单状态摘要（状态、站点、楼栋、时段），不含姓名、电话、房间号、取件码、收货码和备注。大模型地址只接受 HTTPS（开发环境允许本机 http）。
 
+## v3.7.1：优惠券、一键体验的超级管理员
+
+| 方法/路径 | 请求 schema | 成功响应 | 语义 |
+|---|---|---|---|
+| GET /coupons | 无 | `{coupons:[{id,name,summary,expiresAt,state}]}` | 学生；“我的优惠券”（专属券、新人券、自动匹配的优惠码），state 为 AVAILABLE / USED / EXPIRED |
+| GET /coupons/quote?orderId= 或 ?groupId=[&code=] | couponQuoteQuery | `{quote:{amountFen,orders,options,best,code?}}` | 学生；列出这次付款可用的券与优惠金额，best 为不需要输码的最省钱的一张；带 code 时（大小写不限，15 分钟 30 次）核对优惠码，更划算时 best 指向它 |
+| POST /orders/:id/mock-pay、POST /order-groups/:id/mock-pay | payWithCoupon（可省略） | 同前 | 可带 `{couponId, code?}`（凭码使用的券必须带码）；服务端重新校验与计算，同一事务写入优惠记录、订单优惠与支付；券不可用 409 COUPON_UNAVAILABLE；不带参数即不用券（兼容旧页面） |
+| GET /admin/coupons | 无 | `{coupons:[AdminCoupon]}` | 超级管理员（含体验中的超级管理员，只看本次体验的券与只读的预置券） |
+| POST /admin/coupons | couponCreate | 201 `{id}` | kind：CODE / PERSONAL（usernames）/ NEW_USER；usage：PER_ACCOUNT / ONCE_TOTAL；重复码 409 COUPON_CODE_TAKEN；用户名不存在 400 COUPON_USERS_MISSING |
+| PUT /admin/coupons/:id/status | couponStatus | `{ok}` | 停用或重新启用（只能改自己范围内的券） |
+
+**金额规则**：打折券 discountValue 为仍需支付的百分比（50 = 五折），立减券为分；可设满减门槛与最多减；每单至少支付 0.01 元。订单的 `discountFen` 为优惠金额，`amountFen` 仍为原价。取消退款按实付金额退，全部订单取消后优惠记录变为 RELEASED（券退回）。
+
+**体验中的超级管理员**：`requireSuper` 对体验账号返回 403 DEMO_READONLY（全站设置、公告、管理员、天气、群机器人、地图校准、账号恢复）；`GET /admin/admins`、`/admin/audit` 只返回本次体验的数据，`/admin/errors`、`/admin/announcements`、代寄件为空。`PUT /demo/role` 的 role 为 `courier` / `super`（旧值 `senior` 仍接受）；`GET /demo/status` 新增 `studentUsername`。
+
+## v3.7：更多可配送楼栋、一键体验的第三个身份与初始数据
+
+| 方法/路径 | 请求 schema | 成功响应 | 语义 |
+|---|---|---|---|
+| POST /demo/start | demoStart | 201 `{ok,status:{active,auto,courierName,seniorName,adminRole}}` | 在 v3.6 基础上：另建第三个体验身份（v3.7.0 为 ZONE_ADMIN“高级配送员”，v3.7.1 起为 SUPER_ADMIN“超级管理员”，仍只限本 demo_group）和 7 位邻居学生，写入约三周的已完成订单（评价、打赏）、当天的待接 / 已接单 / 已取件 / 配送中 / 已送达未确认 / 配送异常订单、5 张售后工单和排班；每天最多 DEMO_DAILY_LIMIT 次（默认 12，按北京时间日期），超过 429 DEMO_DAILY_LIMIT |
+| GET /demo/status | 无 | 新增 `seniorName`、`adminRole`（`courier` / `senior` / null） | `adminRole` 为当前管理员 Cookie 所登录的体验身份 |
+| PUT /demo/role | demoRole | `{role}` | 体验会话；把管理员 Cookie 换成本次体验的演示配送员（`courier`）或第三个身份（`super`，旧值 `senior`）；旧体验没有第三个身份时 409 DEMO_ROLE_MISSING |
+| POST /demo/end | `{}` | `{ok}` | 本次体验的全部账号退出登录并停用；手上还有未完成体验订单的配送员账号保持启用（数据库触发器不允许停用），但没有会话、无法登录 |
+| GET /dorm-buildings | 无 | 新增 12 栋：NORTH_B1–B4、GYM、EAST_1–3（北区）、LIBRARY_HALL、ADMIN_HALL、ACTIVITY_CENTER、ART_CENTER（南区） | 楼栋代码校验放宽为 `^[A-Z][A-Z0-9_]{1,23}$`，是否存在、是否启用以数据库为准（寝室、管理员楼栋授权、公告定向同此） |
+
+**体验范围修正**：可分配配送员列表和批次分配原来只认 `demo_group IS NULL` 的配送员，现在按当前管理员所在的 demo_group 匹配（真实管理员仍只看到真实配送员）；预计送达时间的历史样本排除体验订单。
+
 ## v3.6：一键体验、智能体助手、一句话下单、成效看板、单量预测、截图识别大模型兜底
 
 | 方法/路径 | 请求 schema | 成功响应 | 语义 |

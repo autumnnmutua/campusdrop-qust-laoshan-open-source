@@ -14,7 +14,7 @@ export const announcementCreate = z.object({
   /** Scheduled start (unix seconds, up to 14 days ahead); omit to publish now. */
   startsAt: z.number().int().positive().optional(),
   /** Only students whose saved dorm is one of these buildings see it; omit for everyone. */
-  targets: z.array(z.string().regex(/^(SOUTH|NORTH)_\d{2}$/)).min(1).max(19).refine(v => new Set(v).size === v.length).optional(),
+  targets: z.array(z.string().regex(/^[A-Z][A-Z0-9_]{1,23}$/)).min(1).max(40).refine(v => new Set(v).size === v.length).optional(),
 }).strict();
 export const announcementArchive = z.object({ confirmed: z.literal(true) }).strict();
 

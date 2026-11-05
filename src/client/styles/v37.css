@@ -1,0 +1,137 @@
+/* v3.7 · depth. The sea chart keeps its palette, but the page is no longer a flat sheet: a soft atmospheric wash with
+   faint depth contours behind everything, raised panels with a gentle shadow, a glass sidebar for the workbench and a
+   deep-water control strip for the one-click demo. Screen only — prints stay on the plain light chart. */
+
+:root {
+  --shadow-soft: 0 1px 2px #0f28330f, 0 14px 34px -18px #0f283340;
+  --shadow-lift: 0 2px 4px #0f283312, 0 22px 48px -20px #0f283352;
+  --surface-glass: color-mix(in srgb, var(--paper) 86%, transparent);
+  --surface-glass-line: color-mix(in srgb, var(--contour) 70%, transparent);
+  --backdrop-lines: .5;
+}
+
+@media screen {
+  body {
+    background:
+      radial-gradient(1100px 620px at 6% -8%, color-mix(in srgb, var(--isobath) 20%, transparent), transparent 70%),
+      radial-gradient(900px 560px at 104% 4%, color-mix(in srgb, var(--route) 9%, transparent), transparent 68%),
+      radial-gradient(1200px 760px at 50% 118%, color-mix(in srgb, var(--sea) 13%, transparent), transparent 70%),
+      var(--color-page);
+    background-attachment: fixed;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background: url(/images/backdrop-contours.svg) center / cover no-repeat;
+    opacity: var(--backdrop-lines);
+  }
+
+  /* ---------------------------------------------------------------- raised surfaces */
+  .panel, .parcel-card, .chart, .faq-list details, .ticket-card, .message-item, .settings-card, .report-card {
+    background: var(--surface-glass);
+    border-color: var(--surface-glass-line);
+    box-shadow: var(--shadow-soft);
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  }
+  .parcel-card { border-radius: var(--radius-3xl); }
+  .parcel-card:hover { box-shadow: var(--shadow-lift); border-color: var(--color-line-strong); }
+  .panel, .chart { border-radius: 14px; }
+
+  /* Sign-in: the form sits on its own sheet next to the scenery. */
+  .auth-page form, .auth-page .demo-start { position: relative; }
+  .auth-page form { padding: var(--space-6); border: 1px solid var(--surface-glass-line); border-radius: 16px; background: var(--surface-glass); box-shadow: var(--shadow-lift); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+  .auth-page form>label:first-of-type, .auth-page form>fieldset:first-child label:first-of-type { margin-top: 0; }
+
+  /* ---------------------------------------------------------------- workbench frame */
+  .admin-sidebar { padding: var(--space-4) var(--space-3); border: 1px solid var(--surface-glass-line); border-radius: 16px; background: var(--surface-glass); box-shadow: var(--shadow-soft); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+  .admin-nav a.active { background: var(--paper); box-shadow: inset 0 0 0 1px var(--color-line), 0 4px 14px -8px #0f283340; }
+  .admin-identity { padding: var(--space-3); border-radius: 12px; background: color-mix(in srgb, var(--shoal-soft) 70%, transparent); }
+  .admin-content h1 { letter-spacing: .01em; }
+  .stats { padding: 0 var(--space-4); border: 1px solid var(--surface-glass-line); border-radius: 14px; background: var(--surface-glass); box-shadow: var(--shadow-soft); }
+
+  /* ---------------------------------------------------------------- one-click demo: a deep-water control strip */
+  .demo-bar {
+    --demo-ink: #eaf4f2; --demo-muted: #b5cdca;
+    background:
+      radial-gradient(600px 140px at 12% 0%, #e77aa83d, transparent 70%),
+      radial-gradient(700px 180px at 92% 120%, #5aa6c040, transparent 70%),
+      linear-gradient(115deg, #0b2430 0%, #123947 55%, #0f2f3c 100%);
+    border-bottom: 1px solid #ffffff1f;
+    color: var(--demo-ink);
+    box-shadow: 0 10px 30px -18px #05121acc;
+    padding: 10px 16px;
+  }
+  .demo-bar a, .demo-bar .text-button { color: var(--demo-ink); }
+  .demo-bar .text-button:hover:not(:disabled) { color: #ffffff; text-decoration: underline; }
+  .demo-badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; background: linear-gradient(135deg, #d2457f, #a3245a); color: #fff; box-shadow: 0 0 0 1px #ffffff2e, 0 6px 18px -6px #e77aa8aa; letter-spacing: .02em; }
+  .demo-badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #ffd5e5; box-shadow: 0 0 0 0 #ffd5e5aa; animation: demo-live 2.4s ease-out infinite; }
+  @keyframes demo-live { 0% { box-shadow: 0 0 0 0 #ffd5e5aa; } 70% { box-shadow: 0 0 0 7px #ffd5e500; } 100% { box-shadow: 0 0 0 0 #ffd5e500; } }
+  .demo-roles { border: 1px solid #ffffff33; background: #ffffff12; padding: 2px; gap: 2px; }
+  .demo-roles button { color: var(--demo-ink); border-radius: 999px; min-height: 30px; }
+  .demo-roles button:hover:not(:disabled):not([aria-pressed="true"]) { background: #ffffff1a; }
+  .demo-roles button[aria-pressed="true"] { background: #f4fbfa; color: #0b2430; box-shadow: 0 4px 14px -6px #000000a0; }
+  .demo-auto { color: var(--demo-ink); }
+  .demo-auto input { accent-color: #e77aa8; }
+  .demo-steps { list-style: none; counter-reset: demo; padding: 0; margin: 10px auto 4px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; }
+  .demo-steps li { counter-increment: demo; position: relative; padding: 8px 10px 8px 38px; border: 1px solid #ffffff1f; border-radius: 12px; background: #ffffff0d; line-height: 1.45; font-size: .9rem; }
+  .demo-steps li::before { content: counter(demo); position: absolute; left: 10px; top: 8px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: #ffffff1f; color: #fff; font: 600 .75rem/1 var(--font-figure); }
+  .demo-steps li a { color: var(--demo-ink); text-decoration: none; }
+  .demo-steps li:hover { background: #ffffff17; border-color: #ffffff33; }
+  .demo-steps li.muted { grid-column: 1 / -1; padding-left: 12px; border-style: dashed; background: transparent; color: var(--demo-muted); }
+  .demo-steps li.muted::before { content: none; }
+
+  /* The start button on the sign-in page reads as the way in for reviewers. */
+  .demo-start-button { border-color: transparent; background: linear-gradient(120deg, #0f2f3c, #1f6680); color: #f4fbfa; box-shadow: var(--shadow-soft); }
+  .demo-start-button:hover:not(:disabled) { background: linear-gradient(120deg, #123947, #2a7894); color: #fff; }
+  .demo-start-button .symbol-icon { color: #ffc2da; }
+}
+
+@media screen and (max-width: 720px) {
+  .demo-steps { grid-template-columns: 1fr; }
+  .admin-sidebar { padding: var(--space-2); border-radius: 12px; }
+  .auth-page form { padding: var(--space-5) var(--space-4); }
+}
+@media (prefers-reduced-motion: reduce) { .demo-badge::before { animation: none; } }
+
+/* ---------------------------------------------------------------- v3.7.1 · coupons */
+.coupon-picker { margin: var(--space-6) 0 var(--space-3); padding: var(--space-5); border: 1px solid var(--surface-glass-line); border-radius: 14px; background: var(--surface-glass); box-shadow: var(--shadow-soft); }
+.coupon-picker h2, .coupon-wallet h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 var(--space-3); font-size: var(--text-lg); }
+.coupon-list { margin: 0; padding: 0; display: grid; gap: 8px; }
+.coupon-option { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; margin: 0; padding: 10px 12px; border: 1px dashed var(--color-line-strong); border-radius: 12px; background: var(--paper); cursor: pointer; font-size: var(--text-base); color: var(--color-text); }
+.coupon-option input { width: 18px; height: 18px; min-height: 0; margin: 0; accent-color: var(--route); }
+.coupon-option span { display: grid; gap: 2px; min-width: 0; }
+.coupon-option small { color: var(--sounding); }
+.coupon-option b { font-family: var(--font-figure); font-size: var(--text-lg); color: var(--route-strong); font-variant-numeric: lining-nums tabular-nums; }
+.coupon-option.is-on { border-style: solid; border-color: var(--route); background: color-mix(in srgb, var(--route-soft) 55%, var(--paper)); }
+.coupon-best { display: flex; align-items: center; gap: 6px; margin: 8px 0 0; color: var(--route-strong); font-size: var(--text-sm); font-weight: 650; }
+.coupon-blocked { margin-top: 10px; font-size: var(--text-sm); color: var(--sounding); }
+.coupon-blocked ul { margin: 6px 0 0; padding-left: 18px; }
+.coupon-blocked small { display: inline; margin-left: 6px; }
+.coupon-code { margin-top: var(--space-4); }
+.coupon-code label { margin-top: 0; }
+.coupon-code > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-top: 6px; }
+.coupon-code input { text-transform: uppercase; letter-spacing: .06em; }
+.coupon-code input::placeholder { text-transform: none; letter-spacing: 0; }
+.coupon-total { display: grid; gap: 4px; max-width: 360px; margin: 0 0 var(--space-4) auto; font-size: var(--text-sm); }
+.coupon-total div { display: flex; justify-content: space-between; gap: 12px; }
+.coupon-total dt { color: var(--sounding); }
+.coupon-total dd { margin: 0; font-family: var(--font-figure); font-variant-numeric: lining-nums tabular-nums; }
+.coupon-total .is-pay { padding-top: 6px; border-top: 1px solid var(--color-line); font-size: var(--text-lg); font-weight: 700; }
+.coupon-total .is-pay dd { color: var(--route-strong); }
+.price .price-was { display: block; margin-top: 2px; font-family: var(--font-sans); font-size: var(--text-xs); color: var(--sounding); }
+.coupon-wallet ul { list-style: none; margin: 0 0 var(--space-3); padding: 0; display: grid; gap: 8px; }
+.coupon-wallet li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; border: 1px dashed var(--color-line-strong); border-radius: 12px; background: var(--paper); }
+.coupon-wallet li span { display: grid; gap: 2px; min-width: 0; }
+.coupon-wallet li small { color: var(--sounding); }
+.coupon-wallet li em { font-style: normal; font-size: var(--text-sm); font-weight: 650; color: var(--route-strong); white-space: nowrap; }
+.coupon-wallet li.is-used, .coupon-wallet li.is-expired { opacity: .6; }
+.coupon-wallet li.is-used em, .coupon-wallet li.is-expired em { color: var(--sounding); }
+.coupon-admin-form .radio-row { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: var(--space-4) 0 0; padding: 0; border: 0; }
+.coupon-admin-form .radio-row legend { margin-bottom: 6px; }
+.coupon-admin-form .radio-row .check { margin-top: 0; }
+.coupon-admin-form .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0 16px; }
+.coupon-preview { margin: var(--space-4) 0; padding: 10px 12px; border-radius: 10px; background: var(--shoal-soft); font-size: var(--text-sm); }
+.coupon-code-tag { padding: 2px 8px; border-radius: 6px; background: var(--route-soft); color: var(--route-strong); font-weight: 700; letter-spacing: .06em; }
+.coupon-admin-list .row { flex-wrap: wrap; gap: 8px; }
+.parcel-card.is-disabled { opacity: .65; }
+.demo-readonly-note { margin: 0 0 var(--space-4); padding: 10px 14px; border-radius: 12px; background: var(--amber-50); color: var(--amber-700); font-size: var(--text-sm); font-weight: 600; }
+@media (max-width: 560px) { .coupon-total { max-width: none; } .coupon-option { grid-template-columns: auto 1fr; } .coupon-option b { grid-column: 2; } }

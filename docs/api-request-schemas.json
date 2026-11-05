@@ -3,6 +3,158 @@
   "basePath": "/api/v1",
   "note": "JSON Schema captures structural validation. Shared Zod refinements and server authorization are authoritative; do not infer ownership or business permission from schema acceptance.",
   "schemas": {
+    "payWithCoupon": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "couponId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "code": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        }
+      },
+      "additionalProperties": false
+    },
+    "couponCreate": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "CODE",
+            "PERSONAL",
+            "NEW_USER"
+          ]
+        },
+        "usage": {
+          "type": "string",
+          "enum": [
+            "PER_ACCOUNT",
+            "ONCE_TOTAL"
+          ]
+        },
+        "code": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "discountType": {
+          "type": "string",
+          "enum": [
+            "RATE",
+            "AMOUNT"
+          ]
+        },
+        "discountValue": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "minSpendFen": {
+          "default": 0,
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100000
+        },
+        "maxDiscountFen": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "totalLimit": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "autoApply": {
+          "default": false,
+          "type": "boolean"
+        },
+        "validDays": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 366
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "endsAt": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "usernames": {
+          "maxItems": 100,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 32,
+            "pattern": "^[A-Za-z0-9_]+$"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "kind",
+        "usage",
+        "discountType",
+        "discountValue"
+      ],
+      "additionalProperties": false
+    },
+    "couponStatus": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "ACTIVE",
+            "DISABLED"
+          ]
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "additionalProperties": false
+    },
     "demoStart": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "type": "object",
@@ -28,6 +180,24 @@
       },
       "required": [
         "auto"
+      ],
+      "additionalProperties": false
+    },
+    "demoRole": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": [
+            "courier",
+            "super",
+            "senior"
+          ]
+        }
+      },
+      "required": [
+        "role"
       ],
       "additionalProperties": false
     },
@@ -1009,7 +1179,7 @@
         },
         "buildingCode": {
           "type": "string",
-          "pattern": "^(SOUTH|NORTH)_\\d{2}$"
+          "pattern": "^[A-Z][A-Z0-9_]{1,23}$"
         },
         "roomNo": {
           "type": "string",
@@ -1109,7 +1279,7 @@
                 "anyOf": [
                   {
                     "type": "string",
-                    "pattern": "^(SOUTH|NORTH)_\\d{2}$"
+                    "pattern": "^[A-Z][A-Z0-9_]{1,23}$"
                   },
                   {
                     "type": "null"
@@ -1547,11 +1717,11 @@
         },
         "targets": {
           "minItems": 1,
-          "maxItems": 19,
+          "maxItems": 40,
           "type": "array",
           "items": {
             "type": "string",
-            "pattern": "^(SOUTH|NORTH)_\\d{2}$"
+            "pattern": "^[A-Z][A-Z0-9_]{1,23}$"
           }
         }
       },

@@ -6,9 +6,10 @@
   line-height: var(--leading-body);
   color: var(--color-text);
   background: var(--color-page);
+  /* v3.7: body text one step heavier (PingFang / Noto Medium; fonts without a 500 face keep their regular). */
+  font-weight: 500;
   font-synthesis: none;
   font-kerning: normal;
-  -webkit-font-smoothing: antialiased;
   /* Keep the type scale in landscape iOS and in WeChat's in-app browser, which otherwise inflate text. */
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
@@ -41,7 +42,7 @@ h1, h2, h3, h4, p { margin-top: 0; }
 h1 {
   font-family: var(--font-display);
   font-size: var(--display-2);
-  font-weight: 500;
+  font-weight: 600;
   line-height: var(--leading-tight);
   letter-spacing: .01em;
   margin-bottom: var(--space-4);
@@ -50,12 +51,12 @@ h1 {
 }
 h2 {
   font-size: var(--text-xl);
-  font-weight: 600;
+  font-weight: 650;
   line-height: 1.35;
   margin: var(--space-8) 0 var(--space-3);
   color: var(--color-heading);
 }
-h3 { font-size: var(--text-lg); font-weight: 600; line-height: 1.4; margin-bottom: var(--space-2); }
+h3 { font-size: var(--text-lg); font-weight: 650; line-height: 1.4; margin-bottom: var(--space-2); }
 
 small, .muted { color: var(--muted); }
 small { display: block; font-size: var(--text-xs); line-height: 1.55; }
@@ -66,7 +67,7 @@ code, .identifier { overflow-wrap: anywhere; }
   font-size: var(--text-sm);
   letter-spacing: 0;
   color: var(--sounding);
-  font-weight: 500;
+  font-weight: 600;
   margin-bottom: var(--space-2);
 }
 
@@ -78,7 +79,7 @@ code, .identifier { overflow-wrap: anywhere; }
 label {
   display: block;
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: 650;
   color: var(--ink-700);
   margin-top: var(--space-5);
 }
@@ -120,13 +121,13 @@ fieldset {
   padding: var(--space-4) 0 0;
 }
 fieldset:disabled { opacity: .6; }
-legend { font-size: var(--text-sm); font-weight: 600; color: var(--ink-700); padding: 0 var(--space-2) 0 0; }
+legend { font-size: var(--text-sm); font-weight: 650; color: var(--ink-700); padding: 0 var(--space-2) 0 0; }
 
 form>button { width: 100%; margin-top: var(--space-6); }
 form>small { margin-top: 6px; }
 
 input[aria-invalid=true] { border-color: var(--red-700); box-shadow: 0 0 0 1px var(--red-700); background: var(--paper); }
-small.field-error { margin-top: 6px; color: var(--color-danger); font-size: var(--text-sm); font-weight: 600; }
+small.field-error { margin-top: 6px; color: var(--color-danger); font-size: var(--text-sm); font-weight: 650; }
 
 [role=alert] { color: var(--red-700); }
 [role=alert]:empty, [role=status]:empty { display: none; }
@@ -134,7 +135,7 @@ small.field-error { margin-top: 6px; color: var(--color-danger); font-size: var(
 summary {
   cursor: pointer;
   padding: var(--space-3) 0;
-  font-weight: 600;
+  font-weight: 650;
   list-style: none;
   display: flex;
   align-items: center;

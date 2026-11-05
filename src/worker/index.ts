@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { ApiError, body, checkOrigin, json } from './http';
 import { adminContactSchema, addressSchema, CAMPUS_ID, createAdminSchema, loginSchema, profileSchema, registerSchema,roleSchema,scopeSchema } from '../shared/contracts';
 import { DUMMY_HASH, hashPassword, verifyPassword } from '../domain/password';
-import { createSession, requireAdmin, requireStudent, requireSuper, revokeSession, localCookie } from './session';
+import { createSession, requireAdmin, requireStudent, requireSuper, requireSuperView, revokeSession, localCookie } from './session';
 import { authRateLimit, rateLimit } from './rate-limit';
 import { deleteAddress, readAddress, saveAddress } from './addresses';
 import { adminBuildings, createAdmin,updateAdminScopes } from './admin';
@@ -26,6 +26,7 @@ import { weatherRoutes } from './weather';
 import { punctualityRoutes } from './punctuality';
 import { aiRoutes } from './ai';
 import { demoRoutes } from './demo';
+import { couponRoutes, grantOnRegister } from './coupons';
 import { agentRoutes } from './agent';
 import { visionRoutes } from './vision';
 import { impactRoutes } from './impact';
@@ -59,6 +60,8 @@ async function route(request: Request, env: Env): Promise<Response> {
     try {
       await env.DB.prepare('INSERT INTO users(id, username, password_hash, name, phone) VALUES (?, ?, ?, ?, ?)')
         .bind(id, data.username, passwordHash, data.name, data.phone).run();
+      // v3.7.1: a new account (registered with its phone number) receives the new-user coupons, e.g. 新人五折券.
+      await grantOnRegister(env, id).run().catch(error => { if (!/no such table/i.test(String(error))) throw error; });
     } catch (error) {
       if (String(error).includes('UNIQUE constraint')) throw new ApiError(409, 'USERNAME_TAKEN', '该用户名已被使用');
       throw error;
@@ -113,7 +116,7 @@ async function route(request: Request, env: Env): Promise<Response> {
     if (method === 'DELETE') { await deleteAddress(env, user.id); return json({ ok: true }); }
   }
   const recoveryResponse=await recoveryRoutes(request,env);if(recoveryResponse)return recoveryResponse;
-  for(const routes of [demoRoutes,accountRoutes,pushRoutes,liveDeliveryRoutes,orderExtraRoutes,sendRoutes,operationsRoutes,groupRoutes,ruleRoutes,weatherRoutes,punctualityRoutes,aiRoutes,agentRoutes,visionRoutes,impactRoutes,forecastRoutes]){const response=await routes(request,env);if(response)return response;}
+  for(const routes of [demoRoutes,couponRoutes,accountRoutes,pushRoutes,liveDeliveryRoutes,orderExtraRoutes,sendRoutes,operationsRoutes,groupRoutes,ruleRoutes,weatherRoutes,punctualityRoutes,aiRoutes,agentRoutes,visionRoutes,impactRoutes,forecastRoutes]){const response=await routes(request,env);if(response)return response;}
   const engagementResponse=await engagementRoutes(request,env);if(engagementResponse)return engagementResponse;
   const serviceResponse=await serviceRoutes(request,env);if(serviceResponse)return serviceResponse;
   const deliveryResponse=await deliveryRoutes(request,env);
@@ -121,7 +124,7 @@ async function route(request: Request, env: Env): Promise<Response> {
   if (pathname.startsWith('/api/v1/admin/')) {
     const admin = await requireAdmin(request, env);
     if(method==='GET'&&pathname==='/api/v1/admin/errors'){
-      requireSuper(admin);const events=await env.DB.prepare('SELECT request_id AS requestId,route,method,category,http_status AS status,created_at AS createdAt FROM error_events WHERE created_at>=unixepoch()-604800 ORDER BY created_at DESC,request_id DESC LIMIT 100').all();
+      requireSuperView(admin);if(admin.demo)return json({events:[],counts:[],retentionDays:7});const events=await env.DB.prepare('SELECT request_id AS requestId,route,method,category,http_status AS status,created_at AS createdAt FROM error_events WHERE created_at>=unixepoch()-604800 ORDER BY created_at DESC,request_id DESC LIMIT 100').all();
       const counts=await env.DB.prepare('SELECT category,count(*) AS count FROM error_events WHERE created_at>unixepoch()-86400 GROUP BY category').all();return json({events:events.results,counts:counts.results,retentionDays:7});
     }
     if (method === 'GET' && pathname === '/api/v1/admin/me') return json({ admin });
@@ -139,8 +142,9 @@ async function route(request: Request, env: Env): Promise<Response> {
       return json({ id: await createAdmin(env, admin, await body(request, createAdminSchema)) }, 201);
     }
     if (method === 'GET' && pathname === '/api/v1/admin/admins') {
-      requireSuper(admin);
-      return json({ admins: (await env.DB.prepare('SELECT id, username, role, status FROM admin_users WHERE demo_group IS NULL ORDER BY created_at, id').all()).results });
+      requireSuperView(admin);
+      // Real super admins see real accounts; the demo's super admin sees its own demo accounts.
+      return json({ admins: (await env.DB.prepare("SELECT id, username, role, status FROM admin_users WHERE coalesce(demo_group,'')=coalesce((SELECT demo_group FROM admin_users WHERE id=?),'') ORDER BY created_at, id").bind(admin.id).all()).results });
     }
     const scopeMatch=/^\/api\/v1\/admin\/admins\/([a-f0-9-]{36})\/scopes$/.exec(pathname);
     if(scopeMatch&&method==='PUT'){

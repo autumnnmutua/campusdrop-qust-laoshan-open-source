@@ -41,10 +41,11 @@ export async function forecastRoutes(request: Request, env: Env): Promise<Respon
   } catch (error) { if (!/no such table/i.test(String(error))) throw error; }
   const weather = await weatherInfo(env).catch(() => null);
   let shifts: Map<string, number> | null = null;
-  if (admin.role === 'SUPER_ADMIN' && !admin.demo) {
+  if (admin.role === 'SUPER_ADMIN') {
+    // Staffing compares with the shifts of the same world: real couriers for a real super admin, the demo's own for a demo.
     const dates = bookableDates(t);
     shifts = new Map((await env.DB.prepare(`SELECT s.slot_date||s.slot_code AS k,count(*) AS n FROM courier_shifts s JOIN admin_users a ON a.id=s.admin_id
-      WHERE a.status='ACTIVE' AND a.demo_group IS NULL AND s.slot_date IN (${dates.map(() => '?').join(',')}) GROUP BY s.slot_date,s.slot_code`).bind(...dates).all<{ k: string; n: number }>()).results.map(r => [r.k, r.n]));
+      WHERE a.status='ACTIVE' AND coalesce(a.demo_group,'')=coalesce((SELECT demo_group FROM admin_users WHERE id=?),'') AND s.slot_date IN (${dates.map(() => '?').join(',')}) GROUP BY s.slot_date,s.slot_code`).bind(admin.id, ...dates).all<{ k: string; n: number }>()).results.map(r => [r.k, r.n]));
   }
   const report = buildForecast({
     daily, firstDay: first ? cnDate(first) : null, today, wetDays,

@@ -27,6 +27,8 @@ export interface OrderGroup {
   orders: Order[];
   /** Sum over the members that are not cancelled; unpaid = still waiting for the mock payment. */
   totalFen: number; unpaidFen: number; unpaidCount: number;
+  /** v3.7.1: coupon discount on the paid members. */
+  discountFen?: number;
 }
 
 // ---------------------------------------------------------------- standing delivery rules (常用配送规则)

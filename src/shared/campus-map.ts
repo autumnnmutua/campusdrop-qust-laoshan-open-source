@@ -45,6 +45,13 @@ export const NODES: Record<string, Point> = {
   N5: { x: 1065, y: 472 }, N7: { x: 1240, y: 472 }, N9: { x: 1395, y: 472 },
   N6: { x: 1065, y: 640 }, N12: { x: 1195, y: 642 }, N8: { x: 1240, y: 640 }, N10: { x: 1395, y: 632 },
   M3: { x: 885, y: 750 }, N11: { x: 1140, y: 750 },
+  // v3.7: roads to the non-dorm buildings that take deliveries. North of 北苑: the road along 北2/北3/北4 (y≈165) and its
+  // two links down to the 北苑 grid, plus the lane from N4 to 北1. 图书馆: the lane west of the library off the east loop.
+  // 行政楼: the road south of the teaching buildings and the 南门 road.
+  NW1: { x: 690, y: 165 }, NW2: { x: 835, y: 165 }, NW3: { x: 1065, y: 165 }, NW4: { x: 835, y: 282 },
+  NE1: { x: 1395, y: 150 }, NE2: { x: 1575, y: 150 },
+  LB1: { x: 1585, y: 1000 }, LB2: { x: 1597, y: 1160 },
+  SG1: { x: 1400, y: 1415 }, SG2: { x: 1405, y: 1560 },
 };
 export const EDGES: [string, string][] = [
   ['R1W', 'R1A'], ['R1A', 'R1E'], ['R1W', 'R2W'], ['R1E', 'R2X'],
@@ -58,6 +65,10 @@ export const EDGES: [string, string][] = [
   ['N2', 'N5'], ['N5', 'N6'], ['N3', 'N7'], ['N7', 'N8'], ['N4', 'N9'], ['N9', 'N10'],
   ['N5', 'N7'], ['N7', 'N9'], ['N6', 'N12'], ['N12', 'N8'], ['N8', 'N10'],
   ['M3', 'N11'], ['N11', 'N12'],
+  ['NW1', 'NW2'], ['NW2', 'NW3'], ['NW2', 'NW4'], ['NW4', 'N1'], ['NW3', 'N2'],
+  ['N4', 'NE1'], ['NE1', 'NE2'],
+  ['E3', 'LB1'], ['LB1', 'LB2'],
+  ['R2C', 'SG1'], ['SG1', 'SG2'],
 ];
 
 const building = (code: string, x: number, y: number, w: number, h: number, door: Point): MapBuilding => ({ code, x, y, w, h, door });
@@ -78,7 +89,29 @@ export const BUILDINGS: MapBuilding[] = [
   building('NORTH_03', 1255, 300, 135, 140, { x: 1240, y: 370 }),
   building('NORTH_08', 1080, 490, 145, 90, { x: 1152, y: 472 }),
   building('NORTH_04', 1255, 490, 132, 42, { x: 1320, y: 472 }),
+  // v3.7: every other building on the plan takes deliveries too — except 人才公寓 (staff flats), the canteens and the
+  // teaching buildings (南1–南4, 弘毅楼, 明德楼), per the project owner. Hotspots traced over the plan like the dorms.
+  building('NORTH_B4', 678, 50, 122, 75, { x: 740, y: 165 }),
+  building('NORTH_B3', 858, 68, 92, 62, { x: 905, y: 165 }),
+  building('NORTH_B2', 952, 68, 93, 62, { x: 1000, y: 165 }),
+  building('NORTH_B1', 1480, 75, 290, 195, { x: 1555, y: 150 }),
+  building('GYM', 720, 320, 138, 395, { x: 885, y: 520 }),
+  building('EAST_3', 1745, 632, 135, 55, { x: 1712, y: 655 }),
+  building('EAST_2', 1705, 726, 145, 36, { x: 1690, y: 745 }),
+  building('EAST_1', 1662, 798, 140, 34, { x: 1648, y: 815 }),
+  building('LIBRARY_HALL', 1612, 960, 105, 400, { x: 1600, y: 1160 }),
+  building('ADMIN_HALL', 1450, 1515, 145, 70, { x: 1425, y: 1550 }),
+  building('ACTIVITY_CENTER', 965, 1178, 48, 40, { x: 950, y: 1198 }),
+  building('ART_CENTER', 1100, 1025, 165, 75, { x: 1180, y: 1112 }),
 ];
+/** Buildings that are not numbered dorms: their names (the dorms' names follow from the code, e.g. SOUTH_04 → 南苑4号楼). */
+export const BUILDING_NAMES: Record<string, { name: string; short: string }> = {
+  NORTH_B1: { name: '北1楼', short: '北1' }, NORTH_B2: { name: '北2楼', short: '北2' }, NORTH_B3: { name: '北3楼', short: '北3' }, NORTH_B4: { name: '北4楼', short: '北4' },
+  GYM: { name: '体育馆', short: '体馆' }, EAST_1: { name: '东1楼', short: '东1' }, EAST_2: { name: '东2楼', short: '东2' }, EAST_3: { name: '东3楼', short: '东3' },
+  LIBRARY_HALL: { name: '图书馆', short: '图书馆' }, ADMIN_HALL: { name: '行政楼', short: '行政' }, ACTIVITY_CENTER: { name: '大学生活动中心', short: '活动' }, ART_CENTER: { name: '艺术教育中心', short: '艺教' },
+};
+/** True for numbered student dorms (南苑/北苑 n号楼). */
+export const isDormCode = (code: string) => /^(SOUTH|NORTH)_\d+$/.test(code);
 
 export const PLACES: MapPlace[] = [
   { id: 'YIHAIYUAN', label: '颐海苑站点', x: 440, y: 1700, w: 80, h: 34, kind: 'station', door: { x: 480, y: 1690 } },

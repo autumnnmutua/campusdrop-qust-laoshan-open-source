@@ -4,8 +4,9 @@ import { handoffHistory,reviseHandoff,rejectHandoff,cancelStudentOrder,hideStude
 import { listPageSchema,releaseSchema,handoffSchema } from '../shared/delivery';
 import { z } from 'zod';
 import type { Env } from './types';
-import { ApiError,body,json } from './http';
-import { requireAdmin,requireStudent,requireSuper } from './session';
+import { ApiError,body,json,optionalBody } from './http';
+import { payWithCouponSchema } from '../shared/coupons';
+import { requireAdmin,requireStudent,requireSuperView } from './session';
 import { batchSchema,batchTransitionSchema,MOCK_MESSAGE,orderSchema,parcelSchema,quoteSchema,tipSchema,transitionSchema } from '../shared/delivery';
 import { createParcel,ownParcel,parcelColumns,cancelParcel } from './parcels';
 import type { Parcel } from '../shared/delivery';
@@ -58,7 +59,7 @@ export async function deliveryRoutes(request:Request,env:Env):Promise<Response|n
       if(!action&&method==='GET'){const row=await ownOrder(env,user.id,id),details=await orderDetails(env,row);return json({...details,order:{...details.order,handoffCode:await handoffCodeFor(env,row),shareToken:await env.DB.prepare('SELECT share_token AS t FROM delivery_orders WHERE id=?').bind(row.id).first<string>('t')}});}
       if(action==='mock-pay'&&method==='POST'){
         await rateLimit(env,`payment:${user.id}`,60);
-        return json({order:await new MockPaymentProvider().pay(env,user.id,id),message:MOCK_MESSAGE});
+        return json({order:await new MockPaymentProvider().pay(env,user.id,id,await optionalBody(request,payWithCouponSchema)),message:MOCK_MESSAGE});
       }
       if(action==='tips/mock-pay'&&method==='POST'){
         await rateLimit(env,`tip:${user.id}`,60);const data=await body(request,tipSchema);
@@ -86,7 +87,7 @@ export async function deliveryRoutes(request:Request,env:Env):Promise<Response|n
     if(path==='/admin/tasks'&&method==='GET')return json(await adminTasks(env,admin,request));
     if(path==='/admin/assignees'&&method==='GET'){
       if(admin.role==='DELIVERY_STAFF')throw new ApiError(403,'FORBIDDEN','配送人员不能分配任务');
-      return json({admins:(await env.DB.prepare("SELECT id,username,role FROM admin_users WHERE status='ACTIVE' AND demo_group IS NULL AND (role='DELIVERY_STAFF' OR id=?) ORDER BY username").bind(admin.id).all()).results});
+      return json({admins:(await env.DB.prepare("SELECT id,username,role FROM admin_users WHERE status='ACTIVE' AND coalesce(demo_group,'')=coalesce((SELECT demo_group FROM admin_users WHERE id=?),'') AND (role='DELIVERY_STAFF' OR id=?) ORDER BY username").bind(admin.id,admin.id).all()).results});
     }
     const edit=/^\/admin\/orders\/([a-f0-9-]{36})\/handoffs\/([a-f0-9-]{36})(?:\/(reject))?$/.exec(path);
     if(edit&&method==='PATCH'&&!edit[3]){const data=await body(request,handoffSchema);return json(await reviseHandoff(env,admin,edit[1],edit[2],data.version,data.location,data.note));}
@@ -122,7 +123,9 @@ export async function deliveryRoutes(request:Request,env:Env):Promise<Response|n
       return json(await batchTransition(env,admin,batchMatch[1],data.status,data.versions,data.exceptionCode,data.exceptionNote));
     }
     if(path==='/admin/audit'&&method==='GET'){
-      requireSuper(admin);
+      requireSuperView(admin);
+      if(admin.demo)return json({logs:(await env.DB.prepare(`SELECT id,actor_type AS actorType,actor_id AS actorId,action,resource_id AS resourceId,metadata_redacted AS metadata,created_at AS createdAt FROM audit_logs
+        WHERE actor_id IN (SELECT id FROM admin_users WHERE demo_group=?1 UNION ALL SELECT id FROM users WHERE demo_group=?1) ORDER BY created_at DESC,rowid DESC LIMIT 100`).bind(await env.DB.prepare('SELECT demo_group AS g FROM admin_users WHERE id=?').bind(admin.id).first<string>('g')).all()).results});
       return json({logs:(await env.DB.prepare('SELECT id,actor_type AS actorType,actor_id AS actorId,action,resource_id AS resourceId,metadata_redacted AS metadata,created_at AS createdAt FROM audit_logs ORDER BY created_at DESC,rowid DESC LIMIT 100').all()).results});
     }
   }

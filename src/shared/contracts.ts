@@ -11,13 +11,15 @@ export const profileSchema = z.object({ name: safeText, phone: z.string().regex(
 export const studentPasswordSchema = z.string().min(6).max(128).refine(v => new TextEncoder().encode(v).length <= 256);
 export const registerSchema = profileSchema.extend({ username: usernameSchema, password: studentPasswordSchema }).strict();
 export const loginSchema = z.object({ username: usernameSchema, password: z.string().min(1).max(128) }).strict();
+/** Building codes: numbered dorms (SOUTH_04, NORTH_10) and, since v3.7, other buildings (LIBRARY_HALL, NORTH_B1 …). The database decides which exist. */
+export const buildingCodeSchema = z.string().regex(/^[A-Z][A-Z0-9_]{1,23}$/);
 export const addressSchema = z.object({
   campusId: z.literal(CAMPUS_ID), zone: zoneSchema,
-  buildingCode: z.string().regex(/^(SOUTH|NORTH)_\d{2}$/), roomNo: safeText,
+  buildingCode: buildingCodeSchema, roomNo: safeText,
 }).strict();
 export const scopeSchema = z.object({
   campusId: z.literal(CAMPUS_ID), zone: zoneSchema.nullable(),
-  buildingCode: z.string().regex(/^(SOUTH|NORTH)_\d{2}$/).nullable(),
+  buildingCode: buildingCodeSchema.nullable(),
 }).strict();
 export const createAdminSchema = z.object({
   username: usernameSchema, password: passwordSchema, role: roleSchema,

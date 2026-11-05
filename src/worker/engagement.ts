@@ -1,6 +1,6 @@
 import type { Env } from './types';
 import { ApiError, body, json } from './http';
-import { requireAdmin, requireStudent, requireSuper } from './session';
+import { requireAdmin, requireStudent, requireSuper, requireSuperView } from './session';
 import { rateLimit } from './rate-limit';
 import { orderScope } from './order-access';
 import { STALL_RULES, announcementArchive, announcementCreate, ratingCreate, type Analytics, type StalledOrder, type StudentStats } from '../shared/engagement';
@@ -194,7 +194,10 @@ export async function engagementRoutes(request: Request, env: Env): Promise<Resp
   }
 
   if (path === '/admin/announcements') {
-    const admin = await requireAdmin(request, env); requireSuper(admin);
+    const admin = await requireAdmin(request, env);
+    if (method === 'GET') requireSuperView(admin); else requireSuper(admin);
+    // Announcements reach every real student, so the demo's super admin can open the page but has none of its own.
+    if (method === 'GET' && admin.demo) return json({ announcements: [] });
     if (method === 'GET') {
       const rows = await orEmpty(async () => (await env.DB.prepare(`SELECT ${announcementColumns},coalesce(u.username,'已移除管理员') AS author
         FROM announcements a LEFT JOIN admin_users u ON u.id=a.created_by ORDER BY a.created_at DESC,a.id DESC LIMIT 30`).all<AnnouncementRow>()).results, [] as AnnouncementRow[]);

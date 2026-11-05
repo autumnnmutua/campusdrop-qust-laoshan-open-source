@@ -51,6 +51,8 @@ export interface Station { code: string; canonicalName: string; relativeLocation
 export interface Order {
   /** v3.6 one-click demo: made by a demo account; invisible to real operators. */
   demo?:boolean;
+  /** v3.7.1 coupon: what the coupon took off the delivery fee (amountFen stays the full price; paid = amountFen − discountFen). */
+  discountFen?:number;
   /** v3.0 merged delivery: the group this order belongs to and how many of its orders are not cancelled. */
   groupId?:string|null; groupSize?:number; ruleId?:string|null;
   /** Shown to the student while the order is in progress; the courier enters it at the door to sign for them. */

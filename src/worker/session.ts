@@ -58,6 +58,18 @@ export async function requireAdmin(request: Request, env: Env): Promise<Admin> {
   const scopes = await env.DB.prepare('SELECT campus_id AS campusId, zone, building_code AS buildingCode FROM admin_scopes WHERE admin_id = ?').bind(admin.id).all<Scope>();
   return { ...admin, demo: Boolean(admin.demo), scopes: scopes.results };
 }
+/**
+ * Super-admin only. The one-click demo's 超级管理员 (v3.7.1) is a SUPER_ADMIN fenced into its demo group: it may open
+ * every page, but anything that changes the whole site (pausing orders, announcements, admin accounts, weather, the
+ * group robot, map calibration, account recovery) is refused, because it would reach the real service.
+ */
 export function requireSuper(admin: Admin): void {
+  requireSuperView(admin);
+  if (admin.demo) throw new ApiError(403, 'DEMO_READONLY', '体验中的超级管理员不能修改全站设置（会影响真实运营），可以查看页面了解功能');
+}
+/** Super-admin pages a demo super admin may read too; the handler must keep what it returns inside the demo group. */
+export function requireSuperView(admin: Admin): void {
   if (admin.role !== 'SUPER_ADMIN') throw new ApiError(403, 'FORBIDDEN', '仅超级管理员可执行此操作');
 }
+/** A real super admin (not the demo's): may see site-wide numbers such as all send requests or all new students. */
+export const isRealSuper = (admin: Admin) => admin.role === 'SUPER_ADMIN' && !admin.demo;

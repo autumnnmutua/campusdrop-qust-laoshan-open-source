@@ -7,7 +7,7 @@ import {useLiveConnected,useLiveEvents} from './live';
 import {useStudentSession} from './session';
 import type {Order} from '../shared/delivery';
 import type {CourierPosition,MapBuildingLoad,MapCourier,OrderLive} from '../shared/live';
-import {BUILDINGS,DROP_PLACE_LABELS,MAP_HEIGHT,MAP_IMAGE,MAP_WIDTH,STATION_PLACES,campusRoute,nearestStation,pathLength,placeById,routeMeters,routeMinutes,type Point} from '../shared/campus-map';
+import {BUILDINGS,BUILDING_NAMES,DROP_PLACE_LABELS,MAP_HEIGHT,MAP_IMAGE,MAP_WIDTH,STATION_PLACES,campusRoute,nearestStation,pathLength,placeById,routeMeters,routeMinutes,type Point} from '../shared/campus-map';
 import {BuildingHeatBoard} from './heat-board';
 
 /*
@@ -16,8 +16,8 @@ import {BuildingHeatBoard} from './heat-board';
  * appears once a super admin calibrated the map on site; until then courier positions are estimated along the route
  * and labelled as such.
  */
-export const buildingShort=(code:string)=>t('{0}{1}',{0:code.startsWith('NORTH')?t('北'):t('南'),1:Number(code.split('_')[1])});
-export const buildingLong=(code:string)=>t('{0}{1}号楼',{0:code.startsWith('NORTH')?t('北苑'):t('南苑'),1:Number(code.split('_')[1])});
+export const buildingShort=(code:string)=>BUILDING_NAMES[code]?t(BUILDING_NAMES[code].short):t('{0}{1}',{0:code.startsWith('NORTH')?t('北'):t('南'),1:Number(code.split('_')[1])});
+export const buildingLong=(code:string)=>BUILDING_NAMES[code]?t(BUILDING_NAMES[code].name):t('{0}{1}号楼',{0:code.startsWith('NORTH')?t('北苑'):t('南苑'),1:Number(code.split('_')[1])});
 const pathD=(points:Point[])=>points.map((p,i)=>`${i?'L':'M'}${Math.round(p.x)} ${Math.round(p.y)}`).join(' ');
 
 /** A view box around the given points, padded and kept between landscape and slightly portrait. */
@@ -91,13 +91,13 @@ export function CampusMapPage(){
   const route=useMemo(()=>picked?campusRoute(stationCode,picked):null,[picked,stationCode]);
   const station=placeById(stationCode)!;
   return <section className="map-page"><h1>{t('崂山校区配送地图')}</h1>
-    <p className="muted">{t('点选宿舍楼，看看从最近的站点出发的配送路线和步行时间。全校有颐海苑、南十对面两个站点，路线与时间为估算。')}</p>
+    <p className="muted">{t('点选楼栋（宿舍楼、图书馆、行政楼、北1–北4、东1–东3 等，除人才公寓外都能送），看看从最近的站点出发的配送路线和步行时间。全校有颐海苑、南十对面两个站点，路线与时间为估算。')}</p>
     <div className="map-layout"><CampusMap route={route} highlight={picked} onBuilding={code=>{setPicked(code);setFrom(null);}}/>
       <aside className="map-side">{picked&&route?<div key={picked+stationCode} className="map-pick"><h2>{buildingLong(picked)}</h2><p className="map-minutes"><strong>{routeMinutes(route)}</strong> {t('分钟')}</p><p className="muted">{t('从{0}步行约 {1} 米（估算）',{0:t(station.label),1:routeMeters(route)})}{stationCode===nearest?t(' · 最近的站点'):''}</p>
         <div className="range-chips" role="group" aria-label={t('出发站点')}>{STATION_PLACES.map(id=><button key={id} type="button" className="chip" aria-pressed={stationCode===id} onClick={()=>setFrom(id)}>{t(placeById(id)!.label)}</button>)}</div>
         <Link className="button" to="/parcel/new">{t('安排一单送到这里')}</Link></div>
         :<div className="map-pick empty"><SymbolIcon name="room"/><p>{t('选择地图上的楼栋')}</p></div>}
-        <ul className="map-legend"><li><i className="lg-station"/>{t('取件站点')}</li><li><i className="lg-building"/>{t('宿舍楼')}</li><li><i className="lg-route"/>{t('配送路线')}</li><li><i className="lg-courier"/>{t('配送员')}</li></ul><BuildingHeatBoard/></aside></div>
+        <ul className="map-legend"><li><i className="lg-station"/>{t('取件站点')}</li><li><i className="lg-building"/>{t('可配送楼栋')}</li><li><i className="lg-route"/>{t('配送路线')}</li><li><i className="lg-courier"/>{t('配送员')}</li></ul><BuildingHeatBoard/></aside></div>
   </section>;
 }
 

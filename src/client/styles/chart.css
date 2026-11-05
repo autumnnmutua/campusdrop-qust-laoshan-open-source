@@ -65,7 +65,7 @@ html.intro-open { overflow: hidden; }
 .intro-name text {
   font-family: var(--font-display);
   font-style: italic;
-  font-weight: 500;
+  font-weight: 600;
   font-size: 104px;
   letter-spacing: -1px;
   fill: var(--intro-ink);
@@ -79,7 +79,7 @@ html.intro-open { overflow: hidden; }
 }
 .intro-place { padding-left: 6px; font-size: clamp(13px, 1.2vw, 16px); letter-spacing: .34em; color: var(--intro-muted); opacity: 0; animation: intro-rise .5s var(--ease-out) 2.3s forwards; }
 
-.intro-skip { position: absolute; z-index: 4; right: clamp(20px, 3vw, 44px); bottom: clamp(20px, 3vw, 40px); min-height: 34px; padding: 4px 16px; border-color: var(--intro-skip-line); background: var(--intro-skip-bg); color: var(--intro-muted); font-size: var(--text-sm); font-weight: 500; border-radius: var(--radius-pill); }
+.intro-skip { position: absolute; z-index: 4; right: clamp(20px, 3vw, 44px); bottom: clamp(20px, 3vw, 40px); min-height: 34px; padding: 4px 16px; border-color: var(--intro-skip-line); background: var(--intro-skip-bg); color: var(--intro-muted); font-size: var(--text-sm); font-weight: 600; border-radius: var(--radius-pill); }
 .intro-skip:not(:disabled):hover { background: var(--intro-skip-bg); border-color: var(--intro-ink); color: var(--intro-ink); box-shadow: none; }
 
 @keyframes intro-in { from { opacity: 0; } }

@@ -25,6 +25,7 @@ export function OrderReceipt(){
         <div><dt>{t('收货寝室')}</dt><dd>{o.dormSnapshot.buildingName} · {o.dormSnapshot.roomNo}</dd></div>
         <div><dt>{t('收件人')}</dt><dd>{o.dormSnapshot.name}</dd></div>
         <div><dt>{t('取件站点')}</dt><dd>{o.stationSnapshot.canonicalName}</dd></div>
+        {(o.discountFen??0)>0&&<div><dt>{t('优惠券')}</dt><dd>{t('配送费 {0}，优惠券抵扣 {1}',{0:money(o.amountFen),1:money(o.discountFen??0)})}</dd></div>}
         <div><dt>{t('包裹与方式')}</dt><dd>{o.packageSize==='SMALL'?t('小件'):t('大件')} · {o.deliveryMode==='ROOM'?t('送到寝室'):t('送到楼下')}</dd></div>
         {o.note&&<div className="wide"><dt>{t('备注')}</dt><dd>{o.note}</dd></div>}
       </dl>

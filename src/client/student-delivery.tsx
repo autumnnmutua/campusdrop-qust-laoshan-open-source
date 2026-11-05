@@ -1,4 +1,5 @@
 import {getLang,locale,t} from './i18n';
+import {CouponPicker,CouponTotal,type CouponChoice} from './coupons-ui';
 import {SeaChartView} from './sea-chart/SeaChartView';
 import {RouteProgress} from './route-progress';
 import {coverView,lightOrigin,type SeaChart} from './sea-chart/renderer';
@@ -272,21 +273,23 @@ export function OrderDetail({checkout=false}:{checkout?:boolean}){
   const params=useParams();const id=params.id??params.orderId;const {data,error,refresh,revalidate,loading,unauthorized}=useStudentResource<Details>(`/orders/${id}`);
   useLiveOrder(data?.order.status,revalidate);useStatusToast(data?.order);const {session}=useStudentSession();const baseline=useOrderBaseline(data?.order);const statusChanged=!!baseline&&!!data&&baseline.status!==data.order.status;
   const [message,setMessage]=useState(''),[busy,setBusy]=useState(false);
-  async function pay(){setBusy(true);try{await api(`/orders/${id}/mock-pay`,'POST');setMessage('');toast('模拟支付成功','success',t('订单已进入接单市场，配送员接单后会通知你'));celebrate();await refresh();}catch(e){setMessage((e as Error).message);}finally{setBusy(false);}}
+  const [coupon,setCoupon]=useState<CouponChoice|null>(null);
+  async function pay(){setBusy(true);try{await api(`/orders/${id}/mock-pay`,'POST',coupon?{couponId:coupon.couponId,...(coupon.code?{code:coupon.code}:{})}:{});setMessage('');toast('模拟支付成功','success',t('订单已进入接单市场，配送员接单后会通知你'));celebrate();await refresh();}catch(e){setMessage((e as Error).message);}finally{setBusy(false);}}
   async function cancel(){setBusy(true);try{await api(`/orders/${id}/cancel`,'POST',{version:(data?.order??o)!.version,confirmed:true});setMessage(t('订单已取消'));await refresh();}catch(e){setMessage((e as Error).message);}finally{setBusy(false);}}
   const o=data?.order??(id?seenOrders.get(id):undefined);const live=!!o&&['WAITING_PICKUP','PICKED_UP','OUT_FOR_DELIVERY'].includes(o.status);
   return <section className="order-page"><div className="page-head"><Link className="back-link" to="/orders">{t('← 我的订单')}</Link><h1>{checkout&&o?.status==='WAITING_PAYMENT'?t('确认模拟支付'):t('配送进度')}</h1>{o&&<div className="status-line"><span key={o.status} data-status={o.status} className={statusChanged?'badge just-advanced':'badge'}><BounceText text={t(STATUS_LABELS[o.status])} playOnMount={statusChanged}/></span>{session==='signed-in'&&shouldWatchOrder(o.status)&&o.status!=='WAITING_PAYMENT'&&<LiveIndicator/>}</div>}</div><Notice error={error} unauthorized={unauthorized}/>{loading&&!o&&<LoadingState/>}{o&&<div className={live?'order-layout is-live':'order-layout'}>
     <div className="order-main">
       <GroupStrip order={o}/>{live&&!o.slotDate&&<WeatherNotice/>}
       {o.status==='COMPLETED'&&<div className="success-panel"><SuccessMark/><p><strong><BounceText text={t('订单已完成')}/></strong><br/><small>{t('感谢使用 CampusDrop 校园配送')}</small></p></div>}{o.status==='COMPLETED'&&<RatingPanel orderId={o.id}/>}<NearBanner order={o}/>{o.handoffCode&&<HandoffCodeCard code={o.handoffCode} status={o.status}/>}{live&&<Suspense fallback={<div className="live-map-skeleton" aria-hidden="true"/>}><OrderLiveMap order={o}/></Suspense>}{o.hasAssignee&&!['COMPLETED','CANCELLED'].includes(o.status)&&<OrderChat orderId={o.id} unread={o.chatUnreadStudent??0} startOpen={(o.chatUnreadStudent??0)>0}/>}{o.hasPhoto&&<DeliveryPhotoView orderId={o.id}/>}
-      {o.status==='WAITING_PAYMENT'&&<div className="actions"><MockPaymentDialog amount={o.amountFen} busy={busy} onPay={pay}/><button className="secondary" disabled={busy} onClick={()=>void cancel()}>{t('取消订单')}</button></div>}
+      {o.status==='WAITING_PAYMENT'&&<><CouponPicker orderId={o.id} amountFen={o.amountFen} onChange={setCoupon}/><CouponTotal amountFen={o.amountFen} choice={coupon}/></>}
+      {o.status==='WAITING_PAYMENT'&&<div className="actions"><MockPaymentDialog amount={o.amountFen-(coupon?.discountFen??0)} busy={busy} onPay={pay}/><button className="secondary" disabled={busy} onClick={()=>void cancel()}>{t('取消订单')}</button></div>}
       {o.exceptionCode&&<p role="alert">异常原因：{{CODE_INVALID:t('取件码无效'),SIZE_MISMATCH:t('大小件不符'),UNREACHABLE:t('暂时无法联系'),OTHER:t('其他异常')}[o.exceptionCode]??t('其他异常')}，请联系管理员处理。</p>}
       {['DELIVERED_DOWNSTAIRS','DELIVERED_TO_ROOM'].includes(o.status)&&<ConfirmAction label={t('确认收货')} title={t('确认已经收到包裹？')} busy={busy} onConfirm={async()=>{setBusy(true);try{await api(`/orders/${id}/receive`,'POST',{version:o.version,confirmed:true});await refresh();setMessage(t('收货已确认，谢谢使用'));toast('收货已确认','success',t('顺手给这次配送打个分吧'));celebrate();}catch(e){setMessage((e as Error).message);}finally{setBusy(false);}}}><p>{t('请核对实际包裹。未收到或有问题时，请先发起售后。')}</p></ConfirmAction>}
       <h2 className="section-title">{t('配送时间线')}</h2>{data?<OrderTimeline events={data.events}/>:<LoadingState/>}
       <button className="text-button" onClick={()=>void refresh()}>{t('刷新配送进度')}</button>
     </div>
     <aside className="order-aside">
-      <div className="waybill" style={viewTransitionsEnabled?{viewTransitionName:vtName('o',o.id)}:undefined}><p className="price">{money(o.amountFen)}</p><OrderFacts order={o}/></div>
+      <div className="waybill" style={viewTransitionsEnabled?{viewTransitionName:vtName('o',o.id)}:undefined}><p className="price">{money(o.amountFen-(o.discountFen??0))}{(o.discountFen??0)>0&&<small className="price-was">{t('原价 {0} · 优惠券 -{1}',{0:money(o.amountFen),1:money(o.discountFen??0)})}</small>}</p><OrderFacts order={o}/></div>
       {data?.payments.some(p=>p.type==='DELIVERY')&&<p className="success">{t('模拟支付成功，未发生真实扣款')}</p>}
       {data?.payments.filter(p=>p.type==='REFUND').map(p=><p className="success" key={p.id}>已模拟退款 {money(p.amountFen)}，未发生真实资金流转</p>)}
       <DeliveryContact order={o}/><RoommatePanel order={o} refresh={refresh}/>

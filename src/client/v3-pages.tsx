@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { CouponPicker, CouponTotal, type CouponChoice } from './coupons-ui';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api } from './api';
 import { t } from './i18n';
@@ -79,11 +80,11 @@ export function MergeOrder() {
 export function GroupCheckout() {
   const { id } = useParams();
   const { data, error, loading, unauthorized, refresh } = useStudentResource<{ group: OrderGroup }>(`/order-groups/${id}`);
-  const [busy, setBusy] = useState(false), [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false), [message, setMessage] = useState(''), [coupon, setCoupon] = useState<CouponChoice | null>(null);
   const g = data?.group, live = g?.orders.filter(o => o.status !== 'CANCELLED') ?? [];
   async function pay() {
     setBusy(true); setMessage('');
-    try { const r = await api<{ paid: number; missed: number; message: string }>(`/order-groups/${id}/mock-pay`, 'POST'); toast(t('模拟支付成功'), 'success', r.message); if (!r.missed) celebrate(); else setMessage(r.message); await refresh(); }
+    try { const r = await api<{ paid: number; missed: number; message: string }>(`/order-groups/${id}/mock-pay`, 'POST', coupon ? { couponId: coupon.couponId, ...(coupon.code ? { code: coupon.code } : {}) } : {}); toast(t('模拟支付成功'), 'success', r.message); if (!r.missed) celebrate(); else setMessage(r.message); await refresh(); }
     catch (e) { setMessage((e as Error).message); } finally { setBusy(false); }
   }
   async function cancel() {
@@ -104,7 +105,9 @@ export function GroupCheckout() {
           <b>{money(o.amountFen)}</b><Link to={`/orders/${o.id}`}>{t('详情 ›')}</Link>
         </li>)}</ol>
       </div>
-      {g.unpaidCount > 0 ? <div className="actions"><MockPaymentDialog amount={g.unpaidFen} busy={busy} onPay={pay}/><button type="button" className="secondary" disabled={busy} onClick={() => void cancel()}>{t('取消未支付的 {0} 件', { 0: g.unpaidCount })}</button></div>
+      {g.unpaidCount > 0 && <><CouponPicker groupId={g.id} amountFen={g.unpaidFen} onChange={setCoupon}/><CouponTotal amountFen={g.unpaidFen} choice={coupon}/></>}
+      {!g.unpaidCount && (g.discountFen ?? 0) > 0 && <p className="muted">{t('优惠券已抵扣 {0}，实付 {1}', { 0: money(g.discountFen ?? 0), 1: money(g.totalFen - (g.discountFen ?? 0)) })}</p>}
+      {g.unpaidCount > 0 ? <div className="actions"><MockPaymentDialog amount={g.unpaidFen - (coupon?.discountFen ?? 0)} busy={busy} onPay={pay}/><button type="button" className="secondary" disabled={busy} onClick={() => void cancel()}>{t('取消未支付的 {0} 件', { 0: g.unpaidCount })}</button></div>
         : live.length > 0 && <p className="success">{t('已全部支付（模拟），配送员接单后会一起取件、一起送达。')}</p>}
       <p role="alert">{message}</p>
       <WeatherNotice/>

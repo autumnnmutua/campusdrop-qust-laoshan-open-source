@@ -45,7 +45,7 @@ export async function shiftCounts(env: Env, dates: string[]): Promise<Map<string
   if (!dates.length) return counts;
   try {
     const rows = (await env.DB.prepare(`SELECT s.slot_date AS date,s.slot_code AS code,count(*) AS n FROM courier_shifts s JOIN admin_users a ON a.id=s.admin_id
-      WHERE a.status='ACTIVE' AND s.slot_date IN (${dates.map(() => '?').join(',')}) GROUP BY s.slot_date,s.slot_code`).bind(...dates).all<{ date: string; code: string; n: number }>()).results;
+      WHERE a.status='ACTIVE' AND a.demo_group IS NULL AND s.slot_date IN (${dates.map(() => '?').join(',')}) GROUP BY s.slot_date,s.slot_code`).bind(...dates).all<{ date: string; code: string; n: number }>()).results;
     for (const r of rows) counts.set(r.date + r.code, r.n);
   } catch (error) { if (!missing(error)) throw error; }
   return counts;

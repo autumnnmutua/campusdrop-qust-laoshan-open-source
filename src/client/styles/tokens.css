@@ -36,7 +36,7 @@
   --action-deep: #124558;
   --action-glow: #1f668033;
   --sea: #1c5b73;          /* channel blue: links, secondary emphasis */
-  --sounding: #4d646b;     /* muted text (passes AA on fog, chart and paper) */
+  --sounding: #3e555c;     /* muted text (v3.7: darker, reads clearly on fog, chart and paper) */
   --contour: #b9c9c8;      /* hairlines */
   --contour-strong: #8ea6a8;
   --isobath: #5e8f99;      /* sea contours in the art */
@@ -63,10 +63,10 @@
 
   --ink-900: var(--abyss);
   --ink-800: #183642;
-  --ink-700: #2a4651;
-  --ink-600: #3e5a64;
+  --ink-700: #223e49;
+  --ink-600: #314d57;
   --ink-500: var(--sounding);
-  --ink-400: #7d9298;
+  --ink-400: #647a81;
   --gray-100: #e4eae9;
 
   /* Status: buoy green, light-vessel red, sand amber. Text tones pass AA on their tints. */

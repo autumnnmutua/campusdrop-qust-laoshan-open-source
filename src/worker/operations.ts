@@ -1,6 +1,6 @@
 import type { Env } from './types';
 import { ApiError, body, json } from './http';
-import { requireAdmin, requireStudent, requireSuper } from './session';
+import { requireAdmin, requireStudent, requireSuper, requireSuperView, isRealSuper } from './session';
 import { rateLimit } from './rate-limit';
 import { orderScope } from './order-access';
 import { publish } from './live';
@@ -58,7 +58,7 @@ async function settlement(env: Env, admin: Admin, week: string | null) {
   const row = (id: string, username: string) => { if (!rows.has(id)) rows.set(id, { adminId: id, username, deliveries: 0, deliveryFen: 0, sends: 0, sendFen: 0, tipFen: 0, payoutFen: 0 }); return rows.get(id)!; };
   for (const d of deliveries) Object.assign(row(d.adminId, d.username), { deliveries: d.n, deliveryFen: d.fen });
   // Sends are counted only for super admins and the couriers themselves (send requests are not scoped by building).
-  if (admin.role === 'SUPER_ADMIN' || admin.role === 'DELIVERY_STAFF') for (const s of sends) Object.assign(row(s.adminId, s.username), { sends: s.n, sendFen: s.fen });
+  if (isRealSuper(admin) || admin.role === 'DELIVERY_STAFF') for (const s of sends) Object.assign(row(s.adminId, s.username), { sends: s.n, sendFen: s.fen });
   for (const t of tips) if (rows.has(t.adminId)) rows.get(t.adminId)!.tipFen = t.fen;
   for (const r of rows.values()) r.payoutFen = Math.round((r.deliveryFen + r.sendFen) * COURIER_SHARE) + r.tipFen;
   return { week: monday, from, to, share: COURIER_SHARE, rows: [...rows.values()].sort((a, b) => b.payoutFen - a.payoutFen) };
@@ -167,8 +167,8 @@ async function monthReport(env: Env, admin: Admin, month: string): Promise<Month
   ]);
   const t = totals.results[0] as { orders: number; paid: number; completed: number; cancelled: number; exceptions: number };
   const r = ratings.results[0] as { stars: number | null; n: number }, minutes = (speed.results[0] as { minutes: number | null } | undefined)?.minutes ?? null;
-  const sends = admin.role === 'SUPER_ADMIN' ? await env.DB.prepare("SELECT count(*) AS n FROM send_requests WHERE status='DROPPED' AND created_at BETWEEN ? AND ?").bind(from, to - 1).first<number>('n').catch(() => 0) ?? 0 : 0;
-  const newStudents = admin.role === 'SUPER_ADMIN' ? await env.DB.prepare('SELECT count(*) AS n FROM users WHERE created_at BETWEEN ? AND ? AND deleted_at IS NULL AND demo_group IS NULL').bind(from, to - 1).first<number>('n') ?? 0 : null;
+  const sends = isRealSuper(admin) ? await env.DB.prepare("SELECT count(*) AS n FROM send_requests WHERE status='DROPPED' AND created_at BETWEEN ? AND ?").bind(from, to - 1).first<number>('n').catch(() => 0) ?? 0 : 0;
+  const newStudents = isRealSuper(admin) ? await env.DB.prepare('SELECT count(*) AS n FROM users WHERE created_at BETWEEN ? AND ? AND deleted_at IS NULL AND demo_group IS NULL').bind(from, to - 1).first<number>('n') ?? 0 : null;
   const byDay = new Map((daily.results as { day: string; count: number }[]).map(d => [d.day, d.count]));
   return {
     month, days, orders: t.orders, paid: t.paid, completed: t.completed, cancelled: t.cancelled, exceptions: t.exceptions,
@@ -193,7 +193,7 @@ async function insightsExtra(env: Env, admin: Admin, days: number): Promise<Insi
     q(`SELECT date(o.created_at+${CN},'unixepoch') AS day,cast(strftime('%H',o.created_at+${CN},'unixepoch') AS INTEGER) AS hour,count(*) AS n
       FROM delivery_orders o WHERE ${scope.sql} AND ${PAID} AND o.created_at>=? AND o.created_at<? GROUP BY day,hour`, today - 28 * DAY, today),
   ]);
-  const parcels = admin.role === 'SUPER_ADMIN' ? await env.DB.prepare('SELECT count(*) AS n FROM parcels WHERE created_at>=?').bind(since).first<number>('n') : null;
+  const parcels = isRealSuper(admin) ? await env.DB.prepare('SELECT count(*) AS n FROM parcels WHERE created_at>=?').bind(since).first<number>('n') : null;
   const f = funnel.results[0] as InsightsExtra['funnel'], s = students.results[0] as { students: number; repeaters: number };
   const firstOrder = await env.DB.prepare(`SELECT min(o.created_at) AS t FROM delivery_orders o WHERE ${scope.sql} AND ${PAID}`).bind(...scope.params).first<number>('t');
   const rows = history.results as { day: string; hour: number; n: number }[];
@@ -214,10 +214,11 @@ async function insightsExtra(env: Env, admin: Admin, days: number): Promise<Insi
 }
 
 // ---------------------------------------------------------------- shifts
-async function listShifts(env: Env): Promise<Shift[]> {
+async function listShifts(env: Env, admin: Admin): Promise<Shift[]> {
   const dates = bookableDates(now());
+  // Demo couriers (v3.6+) and real couriers never see each other's shifts; demo shifts never count towards real capacity.
   return (await env.DB.prepare(`SELECT s.admin_id AS adminId,a.username,s.slot_date AS date,s.slot_code AS code FROM courier_shifts s JOIN admin_users a ON a.id=s.admin_id
-    WHERE a.status='ACTIVE' AND s.slot_date IN (${dates.map(() => '?').join(',')}) ORDER BY s.slot_date,s.slot_code,a.username`).bind(...dates).all<Shift>()).results;
+    WHERE a.status='ACTIVE' AND coalesce(a.demo_group,'')=coalesce((SELECT demo_group FROM admin_users WHERE id=?),'') AND s.slot_date IN (${dates.map(() => '?').join(',')}) ORDER BY s.slot_date,s.slot_code,a.username`).bind(admin.id, ...dates).all<Shift>()).results;
 }
 
 export async function operationsRoutes(request: Request, env: Env): Promise<Response | null> {
@@ -247,7 +248,8 @@ export async function operationsRoutes(request: Request, env: Env): Promise<Resp
     }
   }
   if (path === '/admin/settings/webhook') {
-    requireSuper(admin);
+    if (method === 'GET') { requireSuperView(admin); if (admin.demo) return json({ webhook: null }); }
+    else requireSuper(admin);
     if (method === 'GET') { const s = await webhookSetting(env); return json({ webhook: s ? { ...s, url: maskWebhook(s.url) } : null }); }
     if (method === 'PUT') {
       const data = await body(request, webhookSchema) as WebhookSetting;
@@ -273,7 +275,7 @@ export async function operationsRoutes(request: Request, env: Env): Promise<Resp
     }
   }
   if (path === '/admin/shifts') {
-    if (method === 'GET') return json({ shifts: await listShifts(env), dates: bookableDates(now()), shiftCapacity: (await readSetting<ShiftCapacity>(env, 'shift_capacity')) ?? { enabled: false, quota: DEFAULT_SHIFT_QUOTA } });
+    if (method === 'GET') return json({ shifts: await listShifts(env, admin), dates: bookableDates(now()), shiftCapacity: (await readSetting<ShiftCapacity>(env, 'shift_capacity')) ?? { enabled: false, quota: DEFAULT_SHIFT_QUOTA } });
     if (method === 'PUT') {
       const data = await body(request, shiftsSchema), dates = bookableDates(now());
       if (data.slots.some(s => !dates.includes(s.date))) throw new ApiError(400, 'INVALID_INPUT', '只能登记今天到后天的班次');
@@ -283,7 +285,7 @@ export async function operationsRoutes(request: Request, env: Env): Promise<Resp
       ]);
       // Capacity may have changed for students looking at the slot picker; the hub only relays "something changed".
       await publish(env, `admin:${admin.id}`, { type: 'hello' }).catch(() => {});
-      return json({ shifts: await listShifts(env) });
+      return json({ shifts: await listShifts(env, admin) });
     }
   }
   if (path === '/admin/settlement' && method === 'GET') return json(await settlement(env, admin, url.searchParams.get('week')));

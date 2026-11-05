@@ -15,6 +15,12 @@ export function checkOrigin(request: Request, env: Env): void {
   if (['GET', 'HEAD', 'OPTIONS'].includes(request.method)) return;
   if (request.headers.get('Origin') !== env.APP_ORIGIN) throw new ApiError(403, 'ORIGIN_REJECTED', '请从本站页面提交操作');
 }
+/** A JSON body that may be left out (older pages post nothing): an empty object is parsed instead. */
+export async function optionalBody<T>(request: Request, schema: z.ZodType<T>): Promise<T> {
+  const hasBody = Number(request.headers.get('Content-Length') ?? '0') > 0 || request.headers.has('Transfer-Encoding');
+  if (!hasBody) { const parsed = schema.safeParse({}); if (parsed.success) return parsed.data; }
+  return body(request, schema);
+}
 export async function body<T>(request: Request, schema: z.ZodType<T>): Promise<T> {
   if (request.headers.get('Content-Type')?.split(';')[0].trim() !== 'application/json') throw new ApiError(415, 'JSON_REQUIRED', '请提交 JSON 数据');
   if (Number(request.headers.get('Content-Length')) > 8192) throw new ApiError(413, 'BODY_TOO_LARGE', '提交内容过长');

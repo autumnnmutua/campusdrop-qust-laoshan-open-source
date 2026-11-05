@@ -35,7 +35,7 @@
 
 /* ---------------------------------------------------------------- 预约时段 */
 .slot-picker { display: grid; gap: 10px; margin: var(--space-4) 0; padding: 0; border: 0; }
-.slot-picker legend { margin-bottom: 8px; font-weight: 650; color: var(--color-heading); }
+.slot-picker legend { margin-bottom: 8px; font-weight: 700; color: var(--color-heading); }
 .slot-asap, .slot-card {
   display: flex;
   align-items: center;
@@ -52,7 +52,7 @@
 }
 .slot-asap { justify-content: flex-start; }
 .slot-asap span { display: grid; }
-.slot-asap small, .slot-card small { color: var(--color-text-muted); font-weight: 500; }
+.slot-asap small, .slot-card small { color: var(--color-text-muted); font-weight: 600; }
 .slot-asap.selected, .slot-card.selected { border-color: var(--blue-500); box-shadow: 0 0 0 3px var(--blue-100); }
 .slot-asap:hover:not(:disabled), .slot-card:hover:not(:disabled) { transform: translateY(-2px); }
 .slot-days { display: flex; gap: 6px; overflow-x: auto; }
@@ -103,10 +103,10 @@
   border-radius: 0;
   background: var(--blue-25);
   color: var(--color-heading);
-  font-weight: 650;
+  font-weight: 700;
   box-shadow: none;
 }
-.order-chat-toggle b { margin-left: auto; font-weight: 500; font-size: var(--text-sm); color: var(--color-text-muted); }
+.order-chat-toggle b { margin-left: auto; font-weight: 600; font-size: var(--text-sm); color: var(--color-text-muted); }
 .order-chat-body { padding: 12px 14px 14px; }
 .chat-list { display: grid; gap: 8px; max-height: 300px; margin: 0 0 10px; padding: 0; overflow-y: auto; list-style: none; scroll-behavior: smooth; }
 .chat-list li { display: grid; max-width: 82%; animation: bubble-in .32s var(--ease-out) backwards; }
@@ -205,7 +205,7 @@
 /* ---------------------------------------------------------------- order ETA */
 .order-live { display: grid; gap: var(--space-3); margin: var(--space-4) 0; }
 .eta-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; border-radius: var(--radius-2xl); background: linear-gradient(135deg, var(--blue-50), #ffffff); border: 1px solid var(--color-line); }
-.eta-copy small { color: var(--color-text-secondary); font-weight: 600; }
+.eta-copy small { color: var(--color-text-secondary); font-weight: 650; }
 .eta-copy .muted { margin: 0; font-size: var(--text-sm); }
 .eta-minutes { display: flex; align-items: baseline; gap: 4px; margin: 2px 0; color: var(--blue-600); }
 .eta-minutes strong { font-size: 40px; line-height: 1.05; font-variant-numeric: tabular-nums; animation: eta-pop .5s var(--ease-out); }
@@ -228,7 +228,7 @@
 .heat-list button { display: grid; grid-template-columns: 1fr auto; grid-template-areas: 'name n' 'bar bar'; gap: 4px 8px; width: 100%; padding: 8px 10px; border: 1px solid var(--color-line); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text); text-align: left; box-shadow: none; }
 .heat-list span { grid-area: name; }
 .heat-list b { grid-area: n; font-variant-numeric: tabular-nums; }
-.heat-list em { font-style: normal; color: var(--red-700); font-weight: 600; }
+.heat-list em { font-style: normal; color: var(--red-700); font-weight: 650; }
 .heat-list i, .slot-load i { grid-area: bar; display: block; height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--blue-500) var(--w), var(--blue-100) var(--w)); }
 .slot-load li { display: grid; grid-template-columns: 1fr auto; grid-template-areas: 'name n' 'bar bar'; gap: 3px 8px; font-size: var(--text-sm); }
 .slot-load span { grid-area: name; }
@@ -246,6 +246,6 @@
 
 /* ---------------------------------------------------------------- account deletion */
 .account-delete { margin-top: var(--space-8); padding: 12px 16px; border-radius: var(--radius-xl); border: 1px solid #f5c9cb; background: var(--red-50); }
-.account-delete summary { color: var(--red-700); font-weight: 650; }
+.account-delete summary { color: var(--red-700); font-weight: 700; }
 .account-delete p { font-size: var(--text-sm); color: var(--color-text-secondary); }
 

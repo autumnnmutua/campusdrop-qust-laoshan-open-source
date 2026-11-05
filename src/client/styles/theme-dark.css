@@ -57,6 +57,9 @@
   --violet-50: #241c2e;
 
   --shadow-raised: 0 1px 0 #00000040;
+  --shadow-soft: 0 1px 2px #00000059, 0 16px 38px -18px #000000b3;
+  --shadow-lift: 0 2px 4px #00000066, 0 24px 52px -20px #000000cc;
+  --backdrop-lines: .32;
   --shadow-dialog: 0 24px 64px #000000a6, 0 2px 6px #00000066;
   --shadow-menu: 0 12px 32px #00000080, 0 1px 3px #00000066;
 }

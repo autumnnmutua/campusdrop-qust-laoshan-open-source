@@ -7,7 +7,7 @@
 .page-head h1 { margin: 0; }
 .back-link, main>section>a:first-child:not(.button) { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-sm); color: var(--sounding); text-decoration: none; margin-bottom: var(--space-2); }
 .back-link:hover, main>section>a:first-child:not(.button):hover { color: var(--abyss); }
-.section-title { font-family: var(--font-display); font-weight: 500; font-size: var(--text-2xl); margin: var(--space-10) 0 var(--space-2); padding-top: var(--space-5); border-top: var(--hairline); }
+.section-title { font-family: var(--font-display); font-weight: 600; font-size: var(--text-2xl); margin: var(--space-10) 0 var(--space-2); padding-top: var(--space-5); border-top: var(--hairline); }
 
 /* Reading-width pages: forms and short pages keep a comfortable measure. */
 main>section:not(.student-home):not(.admin-section):not(.order-page):not(.auth-page):not(.map-page):not(.report-page) { max-width: 880px; }
@@ -27,19 +27,19 @@ main>section:not(.student-home):not(.admin-section):not(.order-page):not(.auth-p
 .order-facts>div:nth-child(even) { padding-left: 12px; border-left: var(--hairline); }
 .order-facts>div.wide { grid-column: 1 / -1; padding-left: 0; border-left: 0; }
 .order-facts>div:last-child { border-bottom: 0; }
-.order-facts dt { display: flex; align-items: center; gap: 4px; margin: 0; color: var(--sounding); font-size: var(--text-xs); font-weight: 500; }
+.order-facts dt { display: flex; align-items: center; gap: 4px; margin: 0; color: var(--sounding); font-size: var(--text-xs); font-weight: 600; }
 .order-facts dt .symbol-icon { width: 14px; height: 14px; color: var(--ink-400); }
-.order-facts dd { margin: 2px 0 0; color: var(--abyss); font-size: var(--text-sm); font-weight: 600; overflow-wrap: anywhere; }
+.order-facts dd { margin: 2px 0 0; color: var(--abyss); font-size: var(--text-sm); font-weight: 650; overflow-wrap: anywhere; }
 
 .order-links { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); padding: var(--space-3) 0; border-top: var(--hairline); border-bottom: var(--hairline); }
-.order-links a { padding: 0; border: 0; border-radius: 0; background: none; color: var(--sea); font-weight: 500; font-size: var(--text-sm); box-shadow: none; }
+.order-links a { padding: 0; border: 0; border-radius: 0; background: none; color: var(--sea); font-weight: 600; font-size: var(--text-sm); box-shadow: none; }
 .order-links a:hover { color: var(--abyss); text-decoration: underline; }
 .order-links .symbol-icon { width: 15px; height: 15px; }
 
 /* Handoff code: four figures to read out at the door, on a shallow-water card with paper flaps. */
 .handoff-code-card { margin: 0 0 var(--space-5); padding: var(--space-5) var(--space-6); border: 1px solid var(--color-line); border-radius: var(--radius-lg); background: linear-gradient(160deg, var(--chart), var(--shoal-soft)); color: var(--abyss); box-shadow: 0 12px 30px #0f283314; }
 .handoff-code-card.is-near { box-shadow: inset 4px 0 0 var(--route), 0 12px 30px #0f283314; }
-.handoff-code-head h2 { font-family: var(--font-sans); font-size: var(--text-base); font-weight: 600; }
+.handoff-code-head h2 { font-family: var(--font-sans); font-size: var(--text-base); font-weight: 650; }
 .handoff-code-head .text-button { color: var(--sea); }
 .handoff-code-head .text-button:not(:disabled):hover { color: var(--abyss); }
 .handoff-code-card .muted { color: var(--sounding); font-size: var(--text-sm); }
@@ -54,10 +54,10 @@ main>section:not(.student-home):not(.admin-section):not(.order-page):not(.auth-p
 /* ETA and the live map */
 .order-live { margin: 0 0 var(--space-5); gap: 0; border: var(--hairline); border-radius: var(--radius-lg); background: var(--chart); overflow: hidden; }
 .eta-card { padding: var(--space-5) var(--space-6); border: 0; border-bottom: var(--hairline); border-radius: 0; background: none; }
-.eta-copy small { color: var(--sounding); font-weight: 500; font-size: var(--text-sm); }
+.eta-copy small { color: var(--sounding); font-weight: 600; font-size: var(--text-sm); }
 .eta-minutes { color: var(--abyss); gap: 6px; }
-.eta-minutes strong { font-family: var(--font-figure); font-weight: 450; font-size: 56px; line-height: 1; font-variant-numeric: lining-nums tabular-nums; }
-.eta-source { padding: 2px 10px; border: var(--hairline); background: none; font-weight: 500; color: var(--ink-600); }
+.eta-minutes strong { font-family: var(--font-figure); font-weight: 500; font-size: 56px; line-height: 1; font-variant-numeric: lining-nums tabular-nums; }
+.eta-source { padding: 2px 10px; border: var(--hairline); background: none; font-weight: 600; color: var(--ink-600); }
 .eta-source.source-gps { border-color: var(--green-700); color: var(--green-700); }
 .order-live .campus-map svg { border: 0; border-radius: 0; }
 .order-live .campus-map figcaption { padding: 0 var(--space-4) var(--space-3); }
@@ -87,7 +87,7 @@ main>section:not(.student-home):not(.admin-section):not(.order-page):not(.auth-p
 .map-compass path { fill: var(--abyss); }
 .map-pick { border-radius: var(--radius-lg); animation: none; }
 .map-minutes { color: var(--abyss); }
-.map-minutes strong { font-family: var(--font-figure); font-weight: 450; font-size: 48px; }
+.map-minutes strong { font-family: var(--font-figure); font-weight: 500; font-size: 48px; }
 .map-legend { border: var(--hairline); border-radius: var(--radius-sm); background: var(--chart); }
 .lg-station { background: var(--paper); border: 1.5px solid var(--abyss); }
 .lg-route { background: var(--route); }
@@ -95,21 +95,21 @@ main>section:not(.student-home):not(.admin-section):not(.order-page):not(.auth-p
 
 /* Chat: ruled thread, ink for my messages. */
 .order-chat { margin: 0 0 var(--space-5); border-radius: var(--radius-lg); }
-.order-chat-toggle { background: var(--chart); color: var(--abyss); font-weight: 600; }
+.order-chat-toggle { background: var(--chart); color: var(--abyss); font-weight: 650; }
 .order-chat-toggle:not(:disabled):hover { background: var(--shoal-soft); color: var(--abyss); border-color: transparent; }
 .chat-list li p { border-radius: 12px; }
 .chat-list .theirs p { background: var(--shoal-soft); }
 .chat-list .mine p { background: var(--abyss); }
-.chat-phrases button { border-radius: var(--radius-pill); background: transparent; color: var(--abyss); border: 1px solid var(--color-line-strong); font-weight: 500; }
+.chat-phrases button { border-radius: var(--radius-pill); background: transparent; color: var(--abyss); border: 1px solid var(--color-line-strong); font-weight: 600; }
 .chat-phrases button:not(:disabled):hover { background: var(--shoal-soft); color: var(--abyss); border-color: var(--abyss); }
 
 .roommate-panel { padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg); }
-.roommate-panel summary { font-weight: 600; color: var(--abyss); }
+.roommate-panel summary { font-weight: 650; color: var(--abyss); }
 .share-link code { border-radius: var(--radius-sm); border: var(--hairline); background: var(--paper); }
 .delivery-photo img { border-radius: var(--radius-md); }
 
 /* ================================================================ slots and drop-off points */
-.slot-picker legend { font-size: var(--text-sm); font-weight: 600; color: var(--ink-700); }
+.slot-picker legend { font-size: var(--text-sm); font-weight: 650; color: var(--ink-700); }
 .slot-asap, .slot-card { border-color: var(--color-line-strong); border-radius: var(--radius-lg); background: var(--paper); }
 .slot-asap.selected, .slot-card.selected { border-color: var(--abyss); box-shadow: inset 0 0 0 1px var(--abyss); background: var(--chart); }
 .slot-asap:hover:not(:disabled), .slot-card:hover:not(:disabled) { transform: none; border-color: var(--ink-400); background: var(--shoal-soft); }
@@ -117,10 +117,10 @@ main>section:not(.student-home):not(.admin-section):not(.order-page):not(.auth-p
 .slot-days { gap: 0; border-bottom: var(--hairline); }
 .slot-days button { min-width: 84px; padding: 8px 14px 10px; border: 0; border-radius: 0; background: none; color: var(--ink-600); position: relative; }
 .slot-days button:not(:disabled):hover { background: none; color: var(--abyss); border-color: transparent; }
-.slot-days button.active { background: none; color: var(--abyss); font-weight: 600; }
+.slot-days button.active { background: none; color: var(--abyss); font-weight: 650; }
 .slot-days button.active::after { content: ""; position: absolute; left: 14px; right: 14px; bottom: -1px; height: 2px; background: var(--route); }
 .slot-days button.active small { color: var(--ink-600); }
-.slot-card strong { font-weight: 600; }
+.slot-card strong { font-weight: 650; }
 .slot-meter { height: 2px; border-radius: 0; background: var(--color-line); }
 .slot-meter::after { background: var(--abyss); }
 .slot-summary { color: var(--abyss); }
@@ -148,8 +148,8 @@ main>section:not(.student-home):not(.admin-section):not(.order-page):not(.auth-p
 /* ================================================================ messages: a ruled log */
 .inbox-page .inbox-item { display: grid; grid-template-columns: 1fr auto; column-gap: var(--space-4); align-items: baseline; margin: 0; padding: var(--space-4) 0 var(--space-4) var(--space-5); border: 0; border-bottom: var(--hairline); border-radius: 0; background: none; position: relative; }
 .inbox-page .inbox-item:first-of-type { border-top: 1px solid var(--abyss); margin-top: var(--space-5); }
-.inbox-page .inbox-item strong { font-weight: 500; color: var(--ink-600); }
-.inbox-page .inbox-item.is-unread strong { font-weight: 600; color: var(--abyss); }
+.inbox-page .inbox-item strong { font-weight: 600; color: var(--ink-600); }
+.inbox-page .inbox-item.is-unread strong { font-weight: 650; color: var(--abyss); }
 .inbox-page .inbox-item.is-unread::before { content: ""; position: absolute; left: 4px; top: 25px; width: 7px; height: 7px; border-radius: 50%; background: var(--route); }
 .inbox-page .inbox-item p { grid-column: 1; margin: 2px 0 0; font-size: var(--text-xs); color: var(--sounding); font-variant-numeric: tabular-nums; }
 .inbox-page .inbox-item .actions { grid-column: 2; grid-row: 1 / span 2; margin: 0; gap: var(--space-3); flex-wrap: nowrap; }
@@ -157,8 +157,8 @@ main>section:not(.student-home):not(.admin-section):not(.order-page):not(.auth-p
 
 /* ================================================================ fee calculator: the result reads like a fare slip */
 .fee-result { padding: var(--space-5); border: 1px solid var(--abyss); border-radius: var(--radius-sm); background: var(--paper); color: var(--abyss); box-shadow: none; }
-.fee-result>small { opacity: 1; color: var(--sounding); font-weight: 500; }
-.fee-result>strong { font-family: var(--font-figure); font-weight: 450; font-size: 52px; letter-spacing: -.01em; }
+.fee-result>small { opacity: 1; color: var(--sounding); font-weight: 600; }
+.fee-result>strong { font-family: var(--font-figure); font-weight: 500; font-size: 52px; letter-spacing: -.01em; }
 .fee-result .muted { color: var(--sounding); }
 .contact-illustration { display: none; }
 
@@ -205,7 +205,7 @@ main>section:not(.student-home):not(.admin-section):not(.order-page):not(.auth-p
 .route-progress-chart li { position: absolute; left: var(--x); transform: translateX(-50%); white-space: nowrap; }
 .route-progress-chart li:first-child { transform: translateX(-12%); }
 .route-progress-chart li:last-child { transform: translateX(-88%); }
-.route-progress-chart li.is-reached { color: var(--abyss); font-weight: 600; }
+.route-progress-chart li.is-reached { color: var(--abyss); font-weight: 650; }
 
 /* ---------------------------------------------------------------- odometer (rolling price) */
 .odometer { display: inline-flex; align-items: baseline; font-variant-numeric: tabular-nums; }

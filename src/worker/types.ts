@@ -19,4 +19,6 @@ export type Env = Omit<WorkerBindings, 'LIVE'> & {
   AI_VISION?: string;
   /** v3.6 demo passcode (all environments default to "off"; set privately to enable). */
   DEMO_PASSCODE?: string;
+  /** v3.7: one-click demos per Beijing day (default 12). Each demo writes a few thousand rows of starting data. */
+  DEMO_DAILY_LIMIT?: string;
 };
