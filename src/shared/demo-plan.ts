@@ -1,6 +1,6 @@
 /*
  * v3.7 · one-click demo data plan. Pure functions (unit-tested): who lives where, and which orders the demo starts with —
- * three weeks of finished deliveries (for 结算, 月报, 准时率, 数据看板 and the forecast) plus a realistic current
+ * finished deliveries of the session's own couriers (for 结算, 月报, 准时率 and the forecast) plus a realistic current
  * workload for the couriers: orders waiting in the market, claimed but not yet collected, collected and waiting to set
  * off, on the way, delivered and waiting for the student, and one delivery exception. The worker turns the plan into
  * rows (worker/demo-seed.ts). Everything here is made up for the demo and only ever lives under the demo's own group.

@@ -5,7 +5,7 @@ cd /d "%~dp0"
 title CampusDrop 生产部署
 echo.
 echo ==============================================
-echo   CampusDrop 校园快递  v3.7.1  生产部署
+echo   CampusDrop 校园快递  v3.8.0  生产部署
 echo ==============================================
 echo.
 
@@ -44,7 +44,7 @@ if errorlevel 1 goto :fail
 
 echo.
 echo [4/5] 数据库升级
-echo   v3.7.1 需要执行迁移 0016_v371_coupons.sql（优惠券）；线上还没执行 0015（新增可配送楼栋、一键体验第三个身份）或 0014 的话会一并列出，按顺序一起执行。
+echo   v3.8.0 需要执行迁移 0017_v38_checkout_bundle_history.sql（多件下单、多件满减、一键体验测试数据）；线上还没执行 0016（优惠券）、0015 或 0014 的话会一并列出，按顺序一起执行。
 echo   它只新增表、列和触发器，不删除任何账号或订单。线上还没升级到 v2.7 的话会一并列出 0011（没升级过 v2.6 还有 0010）。
 echo   如果显示 No migrations to apply，说明已经升级过，按 N 跳过即可。
 echo   线上数据库待执行的迁移：
@@ -57,7 +57,7 @@ call npm run db:migrate:production
 if errorlevel 1 goto :fail
 goto :deploy
 :skipmigrate
-echo   已跳过。注意：列表里还有 0016（或 0015、0014、0013、0012、0011、0010）时不能跳过，新版代码依赖它，跳过后订单页面会报错。
+echo   已跳过。注意：列表里还有 0017（或 0016、0015、0014、0013、0012、0011、0010）时不能跳过，新版代码依赖它，跳过后订单页面会报错。
 choice /c YN /m "  确认线上已经没有待执行的迁移吗？按 Y 继续发布，按 N 退出"
 if errorlevel 2 goto :fail
 

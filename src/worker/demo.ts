@@ -11,13 +11,14 @@ import { changeStatus } from './delivery-admin';
 import { demoAutoSchema, demoRoleSchema, demoStartSchema, DEMO_RIDE_SECONDS, DEMO_STEPS, type DemoStatus } from '../shared/demo';
 import { seedDemo } from './demo-seed';
 import { grantOnRegister } from './coupons';
+import { ensureDemoHistory } from './demo-history';
 
 /*
  * One-click demo (一键体验, v3.6; v3.7 adds a third role and starting data). A visitor with the passcode gets throw-away
  * accounts that share a demo_group id: a student (北苑4号楼, three parcels waiting), a courier and a 超级管理员 (v3.7.1:
  * SUPER_ADMIN fenced into the demo — every courier's tasks, tickets, coupons, reports; site-wide settings are read-only,
  * see requireSuper), plus neighbour
- * students whose three weeks of orders fill the reports and keep the couriers busy (worker/demo-seed.ts). The student
+ * students whose orders keep the couriers busy (worker/demo-seed.ts); the reports also read a shared set of test data (demo-history.ts). The student
  * cookie and one admin cookie are set at once; PUT /demo/role swaps the admin cookie between the two couriers. Demo orders carry the group id: real operators,
  * couriers, dashboards, slot capacity and group notifications never see them (orderScope and friends), and the demo
  * courier sees only its own student's orders. With "auto" on, the simulated courier moves the orders along by itself
@@ -113,10 +114,12 @@ export async function demoRoutes(request: Request, env: Env): Promise<Response |
       grantOnRegister(env, studentId, group),
       env.DB.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,resource_id) VALUES(?,'STUDENT',?,'DEMO_STARTED',?)").bind(crypto.randomUUID(), studentId, group),
     ]);
-    // Two parcels at 南十对面 (they can travel together) and one at 颐海苑; the dorm is 北苑4号楼, the longest walk on campus.
     const seeded = await seedDemo(env, { group, tag, studentId, courierId: adminId, seniorId }, t);
     console.log(JSON.stringify({ event: 'demo_seeded', ...seeded }));
-    for (const p of [{ stationCode: 'NANSHI', packageSize: 'SMALL', carrier: '中通' }, { stationCode: 'NANSHI', packageSize: 'LARGE', carrier: '顺丰' }, { stationCode: 'YIHAIYUAN', packageSize: 'SMALL', carrier: '韵达' }] as const)
+    // Five waiting parcels at both stations, big and small (北苑4号楼, the longest walk on campus): enough to try
+    // 多件下单 with mixed destinations and reach a 多件满减 tier.
+    for (const p of [{ stationCode: 'NANSHI', packageSize: 'SMALL', carrier: '中通' }, { stationCode: 'NANSHI', packageSize: 'LARGE', carrier: '顺丰' }, { stationCode: 'YIHAIYUAN', packageSize: 'SMALL', carrier: '韵达' },
+      { stationCode: 'YIHAIYUAN', packageSize: 'LARGE', carrier: '京东' }, { stationCode: 'NANSHI', packageSize: 'SMALL', carrier: '圆通' }] as const)
       await createParcel(env, studentId, { ...p, pickupCode: code(), note: '' });
     const headers = new Headers();
     headers.append('Set-Cookie', await createSession(request, env, 'student', studentId));
@@ -137,6 +140,13 @@ export async function demoRoutes(request: Request, env: Env): Promise<Response |
   if (path === '/demo/tick' && method === 'POST') {
     await rateLimit(env, `demo:tick:${s.id}`, 600);
     return json({ steps: s.auto ? await advance(env, s) : 0, auto: Boolean(s.auto) });
+  }
+  // v3.8: the shared test data for the reports. Its own request (the page calls it right after starting), so the
+  // first demo of the day spends its CPU budget on building the set and the start stays quick; later calls just
+  // return the ready set.
+  if (path === '/demo/prepare' && method === 'POST') {
+    await rateLimit(env, `demo:prepare:${s.id}`, 30);
+    return json({ ready: Boolean(await ensureDemoHistory(env)) });
   }
   if (path === '/demo/role' && method === 'PUT') {
     const data = await body(request, demoRoleSchema), target = data.role === 'courier' ? s.adminId : s.seniorId;

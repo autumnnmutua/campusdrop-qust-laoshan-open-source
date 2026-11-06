@@ -29,6 +29,8 @@ export function DemoStart(){
     e.preventDefault();if(busy)return;setBusy(true);setError('');
     try{
       await api<{status:DemoStatus}>('/demo/start','POST',{passcode:code});
+      // v3.8: the reports' shared test data is prepared in its own request (quick when today's set already exists).
+      void api('/demo/prepare','POST',{}).catch(()=>{});
       setItem(HINT,'1');setItem('campusdrop:onboarded-v2','1');
       // The guide starts open on wide screens; on a phone it would push the page down, so it starts folded.
       if(window.matchMedia('(min-width: 721px)').matches)setItem('campusdrop:demo-guide','1');else removeItem('campusdrop:demo-guide');
@@ -44,8 +46,8 @@ export function DemoStart(){
         <h2 id={`${id}-title`}>{t('一键体验')}</h2>
         <ul className="demo-points">
           <li>{t('自动创建“体验同学”“演示配送员”和“超级管理员”三个身份，可以随时切换。')}</li>
-          <li>{t('体验同学住北苑4号楼，已有 3 件待配送的包裹；下单后可以在校园地图上看配送员沿路线过来。')}</li>
-          <li>{t('配送员那边已有近三周的配送记录和当天的待接、待取、配送中订单，结算、月报、准时率和售后工单都有数据。')}</li>
+          <li>{t('体验同学住北苑4号楼，已有 5 件待配送的包裹（两个站点、大小件都有），可以试多件下单和多件满减；下单后可以在校园地图上看配送员沿路线过来。')}</li>
+          <li>{t('配送员那边有当天的待接、待取、配送中订单；超级管理员的结算、月报、准时率、数据看板和实测报告里是一批测试数据。')}</li>
           <li>{t('体验数据与真实订单隔离：不会进入真实接单市场、看板和群通知，支付均为模拟。')}</li>
           <li>{t('会退出这台设备上当前登录的账号。')}</li>
         </ul>
@@ -59,8 +61,8 @@ export function DemoStart(){
 }
 
 const STUDENT_STEPS:[string,string][]=[
-  ['/',t('首页：3 件包裹里有 2 件在南十对面，点“合并配送”一起送')],
-  ['/orders',t('付款时“新人五折券”已自动选好（也可以输入优惠码 qust 试试），付款后打开订单：地图上能看到配送员沿校园道路过来')],
+  ['/parcel/merge',t('多件下单：5 件包裹一起选，每件可以送楼下、寝室或约定地点；满 15 减 2、满 20 减 3 会自动算上')],
+  ['/orders',t('付款时先减满减，“新人五折券”也已自动选好（也可以输入优惠码 qust 试试）；付款后打开订单，地图上能看到配送员沿校园道路过来')],
   ['/map',t('配送地图：点任意楼栋（宿舍、图书馆、北1 等），看最近站点、路线和步行时间')],
   ['/',t('右下角“问问助手”：试试“把南十的两件合并，晚上送寝室”')],
   ['/parcel/new',t('添加快递：粘贴驿站短信，再写一句“晚上送寝室”，一句话下单')],
@@ -69,15 +71,16 @@ const COURIER_STEPS:[string,string][]=[
   ['/admin',t('配送任务：待接订单在上方，下方是你手上的单（待取件、已取件、配送中、待签收、异常）')],
   ['/admin',t('打开一单，依次点“已取件”“配送中”“已送达”；切回学生下单后也能接体验同学的单')],
   ['/admin/map',t('作战地图：看楼栋负载和你（演示配送员）在地图上的位置')],
-  ['/admin/settlement',t('结算和月报：近三周的送达单数、配送费和打赏')],
+  ['/admin/settlement',t('结算和月报：你最近的送达单数、配送费和打赏')],
   ['/admin/tickets',t('售后工单：回复同学，处理“没找到包裹”')],
 ];
 const SUPER_STEPS:[string,string][]=[
   ['/admin',t('配送任务：最高权限，能看到所有配送员的单，可以接单，也能处理别人的异常件')],
-  ['/admin/coupons',t('优惠券：新建优惠码（每个账号限用一次，或全站只能用一次）或专属券，切回学生付款时试用')],
+  ['/admin/pilot',t('实测报告（测试数据）：下单用户、复购、准时率、配送时长、评分和售后率，可以导出 CSV')],
+  ['/admin/coupons',t('优惠券与满减：查看满减档位；新建优惠码（每个账号限用一次，或全站只能用一次）或专属券，切回学生付款时试用')],
   ['/admin/tickets',t('售后工单：受理“收到的不是我的包裹”，回复处理方案后标记已解决')],
   ['/admin/batches',t('批次管理：把待接订单按路线打包，分配给演示配送员')],
-  ['/admin/report',t('月报与数据看板：两位配送员的排行、准时率、单量预测与排班建议')],
+  ['/admin/report',t('月报与数据看板（测试数据）：配送员排行、准时率、单量预测与排班建议')],
 ];
 
 export function DemoBar(){
@@ -108,6 +111,7 @@ export function DemoBar(){
       if(status?.auto)await api('/demo/auto','PUT',{auto:false});
       const switching=status?.adminRole!==role;
       if(switching)await api('/demo/role','PUT',{role});
+      if(role==='super')await api('/demo/prepare','POST',{}).catch(()=>{});
       toast(role==='super'?'已切换为超级管理员':'已切换为配送员','info',status?.auto?'自动配送已暂停，由你来接单和送达':undefined);
       // The admin cookie changed: load the workbench fresh so every panel reads as the new account.
       if(switching&&admin)window.location.assign('/admin');else{setStatus(s=>s&&{...s,auto:false,adminRole:role});navigate('/admin');}

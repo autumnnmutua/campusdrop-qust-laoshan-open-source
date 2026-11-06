@@ -29,6 +29,8 @@ export interface OrderGroup {
   totalFen: number; unpaidFen: number; unpaidCount: number;
   /** v3.7.1: coupon discount on the paid members. */
   discountFen?: number;
+  /** v3.8: 多件满减 on the paid members. */
+  bundleFen?: number;
 }
 
 // ---------------------------------------------------------------- standing delivery rules (常用配送规则)

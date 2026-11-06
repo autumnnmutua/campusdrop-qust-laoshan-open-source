@@ -106,7 +106,9 @@ export function LoadingState({ label = t('正在加载，请稍候…') }: { lab
 /** Number that rolls to its value; screen readers get only the final value. */
 export function CountUp({ value, from, format = String }: { value: number; from?: number; format?: (n: number) => string }) {
   const shown = useCountUp(value, { from });
-  return <><span aria-hidden="true">{format(Math.round(shown))}</span><span className="sr-only">{format(value)}</span></>;
+  // v3.8 fix: decimals (平均评分 4.57, 完成率 98.6 %) used to be rounded to whole numbers while counting.
+  const v = Number.isInteger(value) ? Math.round(shown) : Math.round(shown * 100) / 100;
+  return <><span aria-hidden="true">{format(v)}</span><span className="sr-only">{format(value)}</span></>;
 }
 /** Animated check mark for completed steps (stroke draw; static under reduced motion). */
 export function SuccessMark() { return <svg className="success-mark" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="24"/><path d="M15 27.5l7.5 7.5L38 19"/></svg>; }

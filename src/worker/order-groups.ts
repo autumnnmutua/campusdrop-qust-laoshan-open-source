@@ -1,15 +1,14 @@
 import type { Env } from './types';
-import { couponBatch, couponForPayment, settleCoupon } from './coupons';
+import { payOrders, payableOrders } from './payment';
 import { payWithCouponSchema } from '../shared/coupons';
 import { ApiError, optionalBody, body, json } from './http';
 import { requireStudent } from './session';
 import type { Student } from '../shared/contracts';
 import type { DeliveryMode, Order, Parcel } from '../shared/delivery';
 import { groupOrderSchema, type OrderGroup } from '../shared/v3';
-import { slotLabel, slotOpen, type SlotCode } from '../shared/slots';
-import { DROP_PLACE_LABELS, type DropPlace } from '../shared/campus-map';
+import type { SlotCode } from '../shared/slots';
+import type { DropPlace } from '../shared/campus-map';
 import { activeStation, newHandoffCode, orderColumns, orderInsert, orderPrerequisites, serializeOrder, windowLoad, type OrderRow } from './orders';
-import { capacityFor, notifyGroupLater, requireOrderingOpen, SLOT_HOLDING } from './settings';
 import { cancelStudentOrder } from './order-operations';
 
 /*
@@ -18,8 +17,6 @@ import { cancelStudentOrder } from './order-operations';
  * adds "pay together", "claimed together" and "signed for together". Groups are created by the student (this file)
  * or by a standing rule (rules.ts, through createOrderSet).
  */
-const now = () => Math.floor(Date.now() / 1000);
-
 /** Creates orders for the given parcels in one transaction; two or more become a group. Returns the new order ids. */
 export async function createOrderSet(env: Env, user: Student, parcels: Pick<Parcel, 'id' | 'stationCode' | 'packageSize' | 'note'>[], mode: DeliveryMode,
   slot: { date: string; code: SlotCode } | undefined, dropPlace: DropPlace | undefined, ruleId?: string): Promise<{ groupId: string | null; ids: string[] }> {
@@ -56,44 +53,14 @@ async function ownGroupRows(env: Env, userId: string, groupId: string): Promise<
 export async function groupDetail(env: Env, userId: string, groupId: string): Promise<OrderGroup> {
   const { origin, createdAt, rows } = await ownGroupRows(env, userId, groupId);
   const orders: Order[] = rows.map(serializeOrder), live = orders.filter(o => o.status !== 'CANCELLED'), unpaid = live.filter(o => o.status === 'WAITING_PAYMENT');
-  return { id: groupId, createdAt, origin, orders, totalFen: live.reduce((s, o) => s + o.amountFen, 0), unpaidFen: unpaid.reduce((s, o) => s + o.amountFen, 0), unpaidCount: unpaid.length, discountFen: live.reduce((s, o) => s + (o.discountFen ?? 0), 0) };
+  return { id: groupId, createdAt, origin, orders, totalFen: live.reduce((s, o) => s + o.amountFen, 0), unpaidFen: unpaid.reduce((s, o) => s + o.amountFen, 0), unpaidCount: unpaid.length, discountFen: live.reduce((s, o) => s + (o.discountFen ?? 0), 0), bundleFen: live.reduce((s, o) => s + (o.bundleDiscountFen ?? 0), 0) };
 }
 
-/**
- * Pays every unpaid member. The booked window is checked for room for all of them first; each payment is the same
- * conditional INSERT a single order uses, in one D1 transaction, so a window can never be overbooked.
- */
+/** Pays every unpaid member in one payment (v3.8: the shared path in payment.ts — coupon, 满减, all or nothing). */
 async function payGroup(env: Env, userId: string, groupId: string, choice: { couponId?: string; code?: string } = {}): Promise<{ group: OrderGroup; paid: number; missed: number }> {
-  const { rows } = await ownGroupRows(env, userId, groupId);
-  const unpaid = rows.filter(r => r.status === 'WAITING_PAYMENT');
-  if (!unpaid.length) return { group: await groupDetail(env, userId, groupId), paid: 0, missed: 0 };
-  if (!unpaid[0].demo) await requireOrderingOpen(env);
-  const t = now(), first = unpaid[0], slot = first.slotDate && first.slotCode ? { date: first.slotDate, code: first.slotCode } : null;
-  if (slot && !slotOpen(slot.date, slot.code, t)) throw new ApiError(409, 'SLOT_CLOSED', '预约的时段已停止预约，请取消后重新下单并选择其他时段');
-  const capacity = slot ? await capacityFor(env, slot.date, slot.code) : 0;
-  if (slot && await windowLoad(env, slot.date, slot.code) + unpaid.length > capacity) throw new ApiError(409, 'SLOT_FULL', `这个时段只剩不到 ${unpaid.length} 个名额了，请取消后换一个时段，或选择尽快送达`);
-  // v3.7.1: one coupon for the whole merged payment, its discount split over the parcels.
-  const coupon = await couponForPayment(env, { id: userId }, unpaid.map(r => ({ id: r.id, amountFen: r.amountFen })), choice);
-  const rid = coupon?.redemptionId ?? null;
-  await couponBatch(env, [...(coupon?.statements ?? []), ...unpaid.map(r => env.DB.prepare(`INSERT INTO payments(id,order_id,type,provider,amount_fen,status,idempotency_key)
-      SELECT ?,id,'DELIVERY','MOCK',amount_fen-discount_fen,'SUCCEEDED','delivery' FROM delivery_orders o
-      WHERE o.id=? AND o.user_id=? AND o.status='WAITING_PAYMENT'
-      AND NOT EXISTS(SELECT 1 FROM payments WHERE order_id=? AND type='DELIVERY')
-      AND (? IS NULL OR o.coupon_redemption_id=?)
-      AND (o.slot_date IS NULL OR (SELECT count(*) FROM delivery_orders x WHERE x.slot_date=o.slot_date AND x.slot_code=o.slot_code AND x.${SLOT_HOLDING})<?)`)
-    .bind(crypto.randomUUID(), r.id, userId, r.id, rid, rid, capacity))]);
-  if (coupon) {
-    await settleCoupon(env, coupon.redemptionId);
-    if (!await env.DB.prepare('SELECT 1 FROM coupon_redemptions WHERE id=?').bind(coupon.redemptionId).first()) throw new ApiError(409, 'COUPON_UNAVAILABLE', '这张优惠券刚刚被用掉了，请重新选择');
-  }
-  const group = await groupDetail(env, userId, groupId);
-  const missed = group.unpaidCount, paid = unpaid.length - missed;
-  if (paid && !unpaid[0].demo) {
-    const o = group.orders.find(x => x.status !== 'CANCELLED' && x.status !== 'WAITING_PAYMENT') ?? group.orders[0];
-    const where = o.dropPlace ? DROP_PLACE_LABELS[o.dropPlace] : `${o.dormSnapshot.buildingName}${o.deliveryMode === 'ROOM' ? ' · 到寝' : ' · 楼下'}`;
-    notifyGroupLater(env, 'NEW_ORDER', `新订单（合并 ${paid} 件）：${where} · ${slot ? slotLabel(slot.date, slot.code, t) : '尽快送达'}`, `group:${groupId}:${paid}`);
-  }
-  return { group, paid, missed };
+  await ownGroupRows(env, userId, groupId);
+  const { paid } = await payOrders(env, userId, await payableOrders(env, userId, { groupId }), choice);
+  return { group: await groupDetail(env, userId, groupId), paid, missed: 0 };
 }
 
 /** Cancels the members that are still unpaid (paid members are cancelled one by one from their own order page). */

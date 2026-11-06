@@ -9,6 +9,37 @@ import {money} from './format';
 import {couponCreateSchema,couponSummary,normalizeCode,type AdminCoupon,type CouponKind,type CouponUsage,type DiscountType} from '../shared/coupons';
 import type {Admin} from '../shared/contracts';
 import type {DemoStatus} from '../shared/demo';
+import {bundleSettingSchema,sortedTiers,tierLabel,type BundleSetting} from '../shared/bundle';
+
+/** v3.8 · 多件满减 tiers (super admin). The demo's super admin sees them read-only. */
+function BundleSettings({demo}:{demo:boolean}){
+  const res=useResource<{bundle:BundleSetting}>('/admin/settings/bundle');
+  const [enabled,setEnabled]=useState(true),[rows,setRows]=useState<{min:string;off:string}[]>([]),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
+  useEffect(()=>{if(res.data){setEnabled(res.data.bundle.enabled);setRows(sortedTiers(res.data.bundle).map(t=>({min:String(t.minFen/100),off:String(t.offFen/100)})));}},[res.data]);
+  const tiers=rows.map(r=>({minFen:yuanToFen(r.min),offFen:yuanToFen(r.off)}));
+  async function save(e:FormEvent){
+    e.preventDefault();setMessage('');
+    const parsed=bundleSettingSchema.safeParse({enabled,tiers});
+    if(!parsed.success){setMessage(parsed.error.issues[0]?.message??'请检查填写内容');return;}
+    setBusy(true);
+    try{await api('/admin/settings/bundle','PUT',parsed.data);toast('多件满减已保存','success',parsed.data.enabled?sortedTiers(parsed.data).map(tierLabel).join('、'):'已关闭');await res.refresh();}
+    catch(err){setMessage((err as Error).message);}finally{setBusy(false);}
+  }
+  return <section className="panel bundle-admin" aria-labelledby="bundle-admin-title"><h2 id="bundle-admin-title">多件满减</h2>
+    <p className="muted">一次支付 2 件及以上、合计达到门槛时自动减免（取最高一档），先减满减再用优惠券；减免由平台承担，配送员按原价结算。</p>
+    {demo&&<p className="demo-readonly-note">一键体验中只能查看：满减档位是全站设置，修改会影响真实订单。</p>}
+    {res.loading&&!res.data?<LoadingState/>:<form onSubmit={save}>
+      <label className="check"><input type="checkbox" checked={enabled} disabled={demo} onChange={e=>setEnabled(e.target.checked)}/>开启多件满减</label>
+      <div className="tier-rows">{rows.map((r,i)=><div className="tier-row" key={i}>
+        <label>满（元）<input type="number" min={1} max={1000} step={0.01} value={r.min} disabled={demo} onChange={e=>setRows(rows.map((x,j)=>j===i?{...x,min:e.target.value}:x))} required/></label>
+        <label>减（元）<input type="number" min={0.01} max={100} step={0.01} value={r.off} disabled={demo} onChange={e=>setRows(rows.map((x,j)=>j===i?{...x,off:e.target.value}:x))} required/></label>
+        {!demo&&<button type="button" className="text-button" onClick={()=>setRows(rows.filter((_,j)=>j!==i))}>删除这一档</button>}
+      </div>)}</div>
+      {!demo&&<div className="actions">{rows.length<5&&<button type="button" className="secondary" onClick={()=>setRows([...rows,{min:'',off:''}])}>添加一档</button>}<button disabled={busy}>{busy?'正在保存…':'保存满减设置'}</button></div>}
+      <p role="alert" className="field-error">{message}</p>
+    </form>}
+  </section>;
+}
 
 /*
  * v3.7.1 · 优惠券管理（超级管理员）. Choose how the coupon is handed out — a code people type, a personal coupon for
@@ -47,8 +78,9 @@ export function AdminCoupons(){
     try{await api(`/admin/coupons/${c.id}/status`,'PUT',{status:c.status==='ACTIVE'?'DISABLED':'ACTIVE'});toast(c.status==='ACTIVE'?'已停用':'已启用','info',c.name);await list.refresh();}
     catch(err){toast((err as Error).message,'warn');}
   }
-  return <AdminShell><h1>优惠券</h1>
+  return <AdminShell><h1>优惠券与满减</h1>
     <p className="muted">优惠券只抵扣配送费，付款时学生可以输入优惠码，或由系统自动选用最省钱的一张；每张券每个账号只能用一次，订单取消退款后退回。{demo&&'（一键体验：这里新建的券只对本次体验的账号有效。）'}</p>
+    <BundleSettings demo={demo}/>
     <section className="panel coupon-admin-form"><h2>新建优惠券</h2>
       <form onSubmit={create}>
         <label>名称<input value={name} onChange={e=>setName(e.target.value)} maxLength={40} required placeholder="例如：期末周配送券"/></label>

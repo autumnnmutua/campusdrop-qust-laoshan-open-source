@@ -74,4 +74,8 @@
 :root[data-theme=dark] .shot-progress { color: #c2e2ef; }
 :root[data-theme=dark] .shot-progress progress::-webkit-progress-value { background: linear-gradient(90deg,#3b5251,var(--blue-500)); }
 :root[data-theme=dark] .shot-check { background: #332b16; border: 1px solid #6b5528; color: #f6e0bd; }
+
+/* v38.css */
+@media screen { :root[data-theme=dark] :where(button:not(.secondary):not(.text-button):not(.chip)),
+:root[data-theme=dark] :where(.button:not(.secondary)) { background-image: linear-gradient(180deg, #101a2c17, #101a2c00 62%); box-shadow: inset 0 1px 0 #101a2c26, 0 1px 2px #0f28331f; } }
 }

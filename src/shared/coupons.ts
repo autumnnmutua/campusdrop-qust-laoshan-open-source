@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { BundleTier } from './bundle.ts';
 
 /*
  * v3.7.1 · 优惠券 / 优惠码 for the delivery fee. Shared by the worker (validation, pricing) and the client (checkout,
@@ -27,7 +28,11 @@ export interface CouponOption {
   /** Discount on the amount being paid, and what is left to pay; 0 / null when it does not apply (see reason). */
   discountFen: number; payFen: number | null; reason: string | null;
 }
-export interface CouponQuote { amountFen: number; orders: number; options: CouponOption[]; best: string | null; code?: { ok: boolean; message: string; id: string | null } }
+export interface CouponQuote {
+  amountFen: number; orders: number; options: CouponOption[]; best: string | null; code?: { ok: boolean; message: string; id: string | null };
+  /** v3.8 多件满减 on this payment (taken off before the coupon). */
+  bundle?: { discountFen: number; tier: BundleTier | null; next: { tier: BundleTier; needFen: number } | null; eligible: boolean };
+}
 export interface AdminCoupon {
   id: string; name: string; kind: CouponKind; usage: CouponUsage; code: string | null; summary: string;
   discountType: DiscountType; discountValue: number; minSpendFen: number; maxDiscountFen: number | null; totalLimit: number | null;
@@ -89,8 +94,8 @@ export function splitDiscount(discount: number, amounts: number[]): number[] {
 const couponIdField = z.uuid();
 /** Paying: an explicit coupon (with its code when it is a typed code), or none. */
 export const payWithCouponSchema = z.object({ couponId: couponIdField.optional(), code: z.string().trim().min(1).max(40).optional() }).strict();
-export const couponQuoteQuery = z.object({ orderId: z.uuid().optional(), groupId: z.uuid().optional(), code: z.string().trim().max(40).optional() }).strict()
-  .refine(v => Boolean(v.orderId) !== Boolean(v.groupId), { message: 'orderId 与 groupId 二选一' });
+export const couponQuoteQuery = z.object({ orderId: z.uuid().optional(), groupId: z.uuid().optional(), checkoutId: z.uuid().optional(), code: z.string().trim().max(40).optional() }).strict()
+  .refine(v => [v.orderId, v.groupId, v.checkoutId].filter(Boolean).length === 1, { message: 'orderId、groupId、checkoutId 三选一' });
 const usernames = z.array(z.string().trim().min(3).max(32).regex(/^[A-Za-z0-9_]+$/)).max(100);
 export const couponCreateSchema = z.object({
   name: z.string().trim().min(1).max(40),

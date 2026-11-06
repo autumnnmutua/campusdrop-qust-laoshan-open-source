@@ -2,14 +2,20 @@ import type { Env } from './types';
 import { ApiError } from './http';
 import { CAMPUS_ID,type Admin } from '../shared/contracts';
 import { orderColumns,type OrderRow } from './orders';
+/**
+ * v3.8: inside a one-click demo the super admin also sees the shared test data (the newest ready set, see
+ * demo-history.ts); couriers only ever see what is in their own batches, and real operators never see either.
+ */
+export const DEMO_HISTORY_GROUP="(SELECT h.group_id FROM demo_history_sets h WHERE h.status='READY' ORDER BY h.day DESC LIMIT 1)";
 export function orderScope(admin:Admin):{sql:string;params:string[]} {
   return {sql:`EXISTS(SELECT 1 FROM admin_users current_admin WHERE current_admin.id=? AND current_admin.status='ACTIVE' AND current_admin.role=?) AND o.campus_id=? AND (?='SUPER_ADMIN' OR
     (? IN ('ZONE_ADMIN','BUILDING_ADMIN') AND EXISTS(SELECT 1 FROM admin_scopes s WHERE s.admin_id=? AND s.campus_id=o.campus_id
       AND (s.zone IS NULL OR s.zone=o.zone) AND (s.building_code IS NULL OR s.building_code=o.dorm_building_code)
       AND (?='ZONE_ADMIN' OR s.building_code IS NOT NULL))) OR
     (?='DELIVERY_STAFF' AND EXISTS(SELECT 1 FROM batch_items bi JOIN delivery_batches b ON b.id=bi.batch_id WHERE bi.order_id=o.id AND b.assignee_admin_id=?)))
-    AND coalesce(o.demo_group,'')=coalesce((SELECT demo_group FROM admin_users WHERE id=?),'')`,
-    params:[admin.id,admin.role,CAMPUS_ID,admin.role,admin.role,admin.id,admin.role,admin.role,admin.id,admin.id]};
+    AND (coalesce(o.demo_group,'')=coalesce((SELECT demo_group FROM admin_users WHERE id=?),'')
+      OR (o.demo_history=1 AND (SELECT demo_group FROM admin_users WHERE id=?) IS NOT NULL AND o.demo_group=${DEMO_HISTORY_GROUP}))`,
+    params:[admin.id,admin.role,CAMPUS_ID,admin.role,admin.role,admin.id,admin.role,admin.role,admin.id,admin.id,admin.id]};
 }
 export async function adminOrder(env:Env,admin:Admin,id:string):Promise<OrderRow> {
   const scope=orderScope(admin);

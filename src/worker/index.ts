@@ -27,6 +27,8 @@ import { punctualityRoutes } from './punctuality';
 import { aiRoutes } from './ai';
 import { demoRoutes } from './demo';
 import { couponRoutes, grantOnRegister } from './coupons';
+import { checkoutRoutes } from './checkouts';
+import { pilotRoutes } from './pilot';
 import { agentRoutes } from './agent';
 import { visionRoutes } from './vision';
 import { impactRoutes } from './impact';
@@ -116,7 +118,7 @@ async function route(request: Request, env: Env): Promise<Response> {
     if (method === 'DELETE') { await deleteAddress(env, user.id); return json({ ok: true }); }
   }
   const recoveryResponse=await recoveryRoutes(request,env);if(recoveryResponse)return recoveryResponse;
-  for(const routes of [demoRoutes,couponRoutes,accountRoutes,pushRoutes,liveDeliveryRoutes,orderExtraRoutes,sendRoutes,operationsRoutes,groupRoutes,ruleRoutes,weatherRoutes,punctualityRoutes,aiRoutes,agentRoutes,visionRoutes,impactRoutes,forecastRoutes]){const response=await routes(request,env);if(response)return response;}
+  for(const routes of [demoRoutes,couponRoutes,checkoutRoutes,pilotRoutes,accountRoutes,pushRoutes,liveDeliveryRoutes,orderExtraRoutes,sendRoutes,operationsRoutes,groupRoutes,ruleRoutes,weatherRoutes,punctualityRoutes,aiRoutes,agentRoutes,visionRoutes,impactRoutes,forecastRoutes]){const response=await routes(request,env);if(response)return response;}
   const engagementResponse=await engagementRoutes(request,env);if(engagementResponse)return engagementResponse;
   const serviceResponse=await serviceRoutes(request,env);if(serviceResponse)return serviceResponse;
   const deliveryResponse=await deliveryRoutes(request,env);

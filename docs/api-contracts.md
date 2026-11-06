@@ -113,6 +113,24 @@ Order 新增 groupId、groupSize（同组未取消的订单数）、ruleId；待
 
 发送给大模型的内容只有问题、最近 6 轮对话和服务端整理的订单状态摘要（状态、站点、楼栋、时段），不含姓名、电话、房间号、取件码、收货码和备注。大模型地址只接受 HTTPS（开发环境允许本机 http）。
 
+## v3.8：多件下单、多件满减、实测报告、一键体验测试数据
+
+| 方法/路径 | 请求 schema | 成功响应 | 语义 |
+|---|---|---|---|
+| POST /checkouts | checkoutCreate | 201 `{checkout}` | 仅学生；`items` 1–10 件，每件 `{parcelId,deliveryMode,dropPlace?}`（约定地点只能配楼下价），可带一个预约时段；同站同去向自动成组（每组最多 6 件），全部订单共用收货码；15 分钟 30 次 |
+| GET /checkouts/:id | 无 | `{checkout:{id,createdAt,orders,trips,totalFen,unpaidFen,unpaidCount,couponFen,bundleFen,paidFen,handoffCode}}` | 仅本人；`handoffCode` 在已支付且配送未结束时返回 |
+| POST /checkouts/:id/mock-pay | payWithCoupon（可空） | `{checkout,paid,message}` | 满减 → 优惠券 → 支付，单事务，全部成功或全部不付 |
+| POST /checkouts/:id/cancel-unpaid | `{}` | `{checkout}` | 取消其中未支付的订单 |
+| GET /coupons/quote?checkoutId= | 无 | 新增 `quote.bundle:{discountFen,tier,next,eligible}` | `orderId`、`groupId`、`checkoutId` 三选一；优惠券按满减后的金额计算 |
+| GET /pricing/bundle | 无 | `{bundle:{enabled,tiers:[{minFen,offFen}]}}` | 公开 |
+| GET/PUT /admin/settings/bundle | bundleSetting | `{bundle}` | 读取：管理员；修改：真实超级管理员（体验中 403 DEMO_READONLY）；最多 5 档，门槛越高减得越多，减免小于门槛 |
+| GET /admin/pilot-report?days=7\|14\|30\|0 | 无 | `{report:PilotReport}` | 管理员（配送员 403）；按授权范围；真实环境排除体验与测试账号；0 = 全部 |
+| POST /demo/prepare | `{}` | `{ready}` | 体验会话；当天的共用测试数据不存在时生成（约 1.6 万行写入，一天一次），已存在时直接返回 |
+
+**付款**：单件 `/orders/:id/mock-pay`、合并配送 `/order-groups/:id/mock-pay` 与多件下单共用同一流程；合并配送遇到时段名额不足时不再部分支付（`missed` 恒为 0）。订单新增字段 `bundleDiscountFen`、`checkoutId`；实付 = `amountFen − discountFen − bundleDiscountFen`，退款按这件的实付金额。
+
+**测试数据**：`delivery_orders.demo_history = 1` 的订单属于共用测试数据集，只在体验中的超级管理员的 `orderScope` 内可见，数据库触发器拒绝对它们的任何修改（返回 409 `DEMO_HISTORY_READONLY`）。
+
 ## v3.7.1：优惠券、一键体验的超级管理员
 
 | 方法/路径 | 请求 schema | 成功响应 | 语义 |
@@ -132,7 +150,7 @@ Order 新增 groupId、groupSize（同组未取消的订单数）、ruleId；待
 
 | 方法/路径 | 请求 schema | 成功响应 | 语义 |
 |---|---|---|---|
-| POST /demo/start | demoStart | 201 `{ok,status:{active,auto,courierName,seniorName,adminRole}}` | 在 v3.6 基础上：另建第三个体验身份（v3.7.0 为 ZONE_ADMIN“高级配送员”，v3.7.1 起为 SUPER_ADMIN“超级管理员”，仍只限本 demo_group）和 7 位邻居学生，写入约三周的已完成订单（评价、打赏）、当天的待接 / 已接单 / 已取件 / 配送中 / 已送达未确认 / 配送异常订单、5 张售后工单和排班；每天最多 DEMO_DAILY_LIMIT 次（默认 12，按北京时间日期），超过 429 DEMO_DAILY_LIMIT |
+| POST /demo/start | demoStart | 201 `{ok,status:{active,auto,courierName,seniorName,adminRole}}` | 在 v3.6 基础上：另建第三个体验身份（v3.7.0 为 ZONE_ADMIN“高级配送员”，v3.7.1 起为 SUPER_ADMIN“超级管理员”，仍只限本 demo_group）和 7 位邻居学生，写入约一段时间的已完成订单（评价、打赏）、当天的待接 / 已接单 / 已取件 / 配送中 / 已送达未确认 / 配送异常订单、5 张售后工单和排班；每天最多 DEMO_DAILY_LIMIT 次（默认 12，按北京时间日期），超过 429 DEMO_DAILY_LIMIT |
 | GET /demo/status | 无 | 新增 `seniorName`、`adminRole`（`courier` / `senior` / null） | `adminRole` 为当前管理员 Cookie 所登录的体验身份 |
 | PUT /demo/role | demoRole | `{role}` | 体验会话；把管理员 Cookie 换成本次体验的演示配送员（`courier`）或第三个身份（`super`，旧值 `senior`）；旧体验没有第三个身份时 409 DEMO_ROLE_MISSING |
 | POST /demo/end | `{}` | `{ok}` | 本次体验的全部账号退出登录并停用；手上还有未完成体验订单的配送员账号保持启用（数据库触发器不允许停用），但没有会话、无法登录 |

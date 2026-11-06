@@ -3,6 +3,105 @@
   "basePath": "/api/v1",
   "note": "JSON Schema captures structural validation. Shared Zod refinements and server authorization are authoritative; do not infer ownership or business permission from schema acceptance.",
   "schemas": {
+    "checkoutCreate": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "items": {
+          "minItems": 1,
+          "maxItems": 10,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "parcelId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "deliveryMode": {
+                "type": "string",
+                "enum": [
+                  "DOWNSTAIRS",
+                  "ROOM"
+                ]
+              },
+              "dropPlace": {
+                "type": "string",
+                "enum": [
+                  "LIBRARY",
+                  "SOUTH_CANTEEN",
+                  "NORTH_CANTEEN",
+                  "STADIUM",
+                  "SOUTH_GATE",
+                  "WEST_GATE",
+                  "EAST_GATE"
+                ]
+              }
+            },
+            "required": [
+              "parcelId",
+              "deliveryMode"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "slotDate": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "slotCode": {
+          "type": "string",
+          "enum": [
+            "NOON",
+            "EVENING",
+            "NIGHT"
+          ]
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "additionalProperties": false
+    },
+    "bundleSetting": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "tiers": {
+          "maxItems": 5,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "minFen": {
+                "type": "integer",
+                "minimum": 100,
+                "maximum": 100000
+              },
+              "offFen": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10000
+              }
+            },
+            "required": [
+              "minFen",
+              "offFen"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "enabled",
+        "tiers"
+      ],
+      "additionalProperties": false
+    },
     "payWithCoupon": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "type": "object",

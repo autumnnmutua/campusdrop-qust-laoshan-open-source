@@ -6,13 +6,14 @@ import {
   DEFAULT_SHIFT_QUOTA, SEND_SLOT_CAPACITY, WEBHOOK_HOSTS, windowCapacity,
   type OrderingPause, type ShiftCapacity, type WebhookEvent, type WebhookSetting,
 } from '../shared/operations-rules';
+import { DEFAULT_BUNDLE, bundleSettingSchema, type BundleSetting } from '../shared/bundle';
 
 /*
  * Operations settings (app_settings) and what depends on them: the ordering pause, booked-window capacity (fixed or
  * from courier shifts) and the group-chat webhook. Every reader tolerates a database that has not run migration 0011
  * yet, so the order flow keeps working during a staged upgrade.
  */
-type SettingKey = 'ordering_pause' | 'webhook' | 'shift_capacity';
+type SettingKey = 'ordering_pause' | 'webhook' | 'shift_capacity' | 'bundle_discount';
 const missing = (error: unknown) => /no such (table|column)/i.test(String(error));
 
 export async function readSetting<T>(env: Env, key: SettingKey): Promise<T | null> {
@@ -24,6 +25,14 @@ export async function readSetting<T>(env: Env, key: SettingKey): Promise<T | nul
 export function writeSetting(env: Env, key: SettingKey, value: unknown, adminId: string): D1PreparedStatement {
   return env.DB.prepare(`INSERT INTO app_settings(key,value_json,updated_by) VALUES(?,?,?)
     ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json,updated_by=excluded.updated_by,updated_at=unixepoch()`).bind(key, JSON.stringify(value), adminId);
+}
+
+// ---------------------------------------------------------------- 多件满减 tiers (v3.8)
+/** The current tiers; the default (满 15 减 2, 满 20 减 3) until a super admin changes them or before migration 0017. */
+export async function bundleSetting(env: Env): Promise<BundleSetting> {
+  const raw = await readSetting<unknown>(env, 'bundle_discount').catch(() => null);
+  const parsed = bundleSettingSchema.safeParse(raw);
+  return parsed.success ? parsed.data : DEFAULT_BUNDLE;
 }
 
 // ---------------------------------------------------------------- ordering pause

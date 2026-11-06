@@ -3,6 +3,7 @@ import type { Admin, Student } from '../shared/contracts';
 import { ApiError, body, json } from './http';
 import { requireAdmin, requireStudent, requireSuperView } from './session';
 import { rateLimit } from './rate-limit';
+import { bundleFor, payableOrders } from './payment';
 import {
   COUPON_CODE, couponCreateSchema, couponDiscount, couponQuoteQuery, couponStatusSchema, couponSummary, normalizeCode, splitDiscount,
   type AdminCoupon, type CouponOption, type CouponQuote, type CouponRule,
@@ -60,22 +61,21 @@ function evaluate(c: Candidate, amounts: number[]): CouponOption {
 }
 
 export interface Payable { id: string; amountFen: number }
-/** Unpaid orders a payment would cover: one order, or the unpaid members of a merged group. */
-async function payableFor(env: Env, userId: string, target: { orderId?: string; groupId?: string }): Promise<Payable[]> {
-  const rows = (await env.DB.prepare(`SELECT id,amount_fen AS amountFen FROM delivery_orders WHERE user_id=? AND status='WAITING_PAYMENT' AND student_deleted=0
-    AND ${target.orderId ? 'id=?' : 'group_id=?'} AND NOT EXISTS(SELECT 1 FROM payments p WHERE p.order_id=delivery_orders.id AND p.type='DELIVERY') ORDER BY created_at,id`)
-    .bind(userId, target.orderId ?? target.groupId).all<Payable>()).results;
-  return rows;
-}
 
-export async function quote(env: Env, user: Student, target: { orderId?: string; groupId?: string }, rawCode?: string): Promise<CouponQuote> {
-  const orders = await payableFor(env, user.id, target), amounts = orders.map(o => o.amountFen);
+/**
+ * Checkout options for one order, a merged group or a 多件下单 checkout (v3.8). 多件满减 comes off first; the coupons
+ * are then evaluated on what is left, exactly as the payment will do.
+ */
+export async function quote(env: Env, user: Student, target: { orderId?: string; groupId?: string; checkoutId?: string }, rawCode?: string): Promise<CouponQuote> {
+  const orders = await payableOrders(env, user.id, target), amounts = orders.map(o => o.amountFen);
+  const bundle = await bundleFor(env, amounts), left = amounts.map((a, i) => a - bundle.shares[i]);
   const code = rawCode ? normalizeCode(rawCode) : null;
   if (code) await rateLimit(env, `coupon-code:${user.id}`, 30);
   const list = await candidates(env, user, code && COUPON_CODE.test(code) ? code : null);
-  const options = list.map(c => evaluate(c, amounts)).sort((a, b) => b.discountFen - a.discountFen);
+  const options = list.map(c => evaluate(c, left)).sort((a, b) => b.discountFen - a.discountFen);
   const best = options.find(o => o.discountFen > 0 && o.source !== 'CODE') ?? null;
-  const result: CouponQuote = { amountFen: amounts.reduce((a, b) => a + b, 0), orders: orders.length, options, best: best?.id ?? null };
+  const result: CouponQuote = { amountFen: amounts.reduce((a, b) => a + b, 0), orders: orders.length, options, best: best?.id ?? null,
+    bundle: { discountFen: bundle.discountFen, tier: bundle.tier, next: bundle.next, eligible: bundle.eligible } };
   if (code) {
     const hit = list.find(c => c.code === code), option = hit && options.find(o => o.id === hit.id);
     result.code = !hit ? { ok: false, message: '优惠码不存在、已过期或已停用', id: null }

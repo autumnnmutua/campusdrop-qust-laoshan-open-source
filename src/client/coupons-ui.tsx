@@ -4,6 +4,8 @@ import {locale,t} from './i18n';
 import {money} from './format';
 import {SymbolIcon} from './campus-design';
 import {couponSummaryEn,type CouponOption,type CouponQuote,type CouponRule} from '../shared/coupons';
+import {tierLabel,tierLabelEn,type BundleTier} from '../shared/bundle';
+const tierText=(tier:BundleTier)=>locale()==='en-GB'?tierLabelEn(tier):tierLabel(tier);
 const summaryOf=(o:{summary:string;rule?:CouponRule})=>locale()==='en-GB'&&o.rule?couponSummaryEn(o.rule):o.summary;
 
 /*
@@ -12,10 +14,11 @@ const summaryOf=(o:{summary:string;rule?:CouponRule})=>locale()==='en-GB'&&o.rul
  * and chosen when it is the better deal. The server recomputes everything at payment.
  */
 export interface CouponChoice {couponId:string;code?:string;discountFen:number;name:string}
-export function CouponPicker({orderId,groupId,amountFen,onChange}:{orderId?:string;groupId?:string;amountFen:number;onChange:(c:CouponChoice|null)=>void}){
+export function CouponPicker({orderId,groupId,checkoutId,amountFen,onChange,onBundle}:{orderId?:string;groupId?:string;checkoutId?:string;amountFen:number;onChange:(c:CouponChoice|null)=>void;onBundle?:(fen:number)=>void}){
   const id=useId(),[quote,setQuote]=useState<CouponQuote|null>(null),[picked,setPicked]=useState<string|null>(null),[code,setCode]=useState(''),[typed,setTyped]=useState<string|undefined>(),[msg,setMsg]=useState<{ok:boolean;text:string}|null>(null),[busy,setBusy]=useState(false);
-  const target=orderId?`orderId=${orderId}`:`groupId=${groupId}`;
+  const target=orderId?`orderId=${orderId}`:groupId?`groupId=${groupId}`:`checkoutId=${checkoutId}`;
   useEffect(()=>{let on=true;api<{quote:CouponQuote}>(`/coupons/quote?${target}`).then(r=>{if(!on)return;setQuote(r.quote);setPicked(r.quote.best);}).catch(()=>{});return()=>{on=false;};},[target,amountFen]);
+  useEffect(()=>{if(quote)onBundle?.(quote.bundle?.discountFen??0);},[quote?.bundle?.discountFen]);
   const usable=(quote?.options??[]).filter(o=>o.discountFen>0&&(o.source!=='CODE'||o.code===typed));
   const chosen=usable.find(o=>o.id===picked)??null;
   useEffect(()=>{onChange(chosen?{couponId:chosen.id,code:chosen.source==='CODE'?typed:undefined,discountFen:chosen.discountFen,name:chosen.name}:null);},[chosen?.id,chosen?.discountFen,typed]);
@@ -33,8 +36,9 @@ export function CouponPicker({orderId,groupId,amountFen,onChange}:{orderId?:stri
   }
   const blocked=(quote?.options??[]).filter(o=>!o.discountFen&&o.source!=='CODE');
   return <section className="coupon-picker" aria-labelledby={`${id}-t`}>
-    <h2 id={`${id}-t`}><SymbolIcon name="coupon"/>{t('优惠券')}</h2>
+    <h2 id={`${id}-t`}><SymbolIcon name="coupon"/>{quote?.bundle?.discountFen?t('优惠'):t('优惠券')}</h2>
     {!quote?<p className="muted">{t('正在查找可用的优惠券…')}</p>:<>
+      <BundleLine bundle={quote.bundle}/>
       {usable.length?<div className="coupon-list" role="radiogroup" aria-label={t('选择优惠券')}>
         {usable.map(o=><div key={o.id}><label className={picked===o.id?'coupon-option is-on':'coupon-option'}><input type="radio" name={`${id}-c`} checked={picked===o.id} onChange={()=>setPicked(o.id)}/>
           <span><strong>{o.name}</strong><small>{summaryOf(o)}{o.expiresAt?t(' · {0} 到期',{0:new Date(o.expiresAt*1000).toLocaleDateString()}):''}</small></span><b>-{money(o.discountFen)}</b></label></div>)}
@@ -48,10 +52,21 @@ export function CouponPicker({orderId,groupId,amountFen,onChange}:{orderId?:stri
   </section>;
 }
 
-/** The price lines under the picker: full price, coupon, what is paid. */
-export function CouponTotal({amountFen,choice}:{amountFen:number;choice:CouponChoice|null}){
-  if(!choice)return null;
-  return <dl className="coupon-total"><div><dt>{t('配送费')}</dt><dd>{money(amountFen)}</dd></div><div><dt>{choice.name}</dt><dd>-{money(choice.discountFen)}</dd></div><div className="is-pay"><dt>{t('实付')}</dt><dd>{money(amountFen-choice.discountFen)}</dd></div></dl>;
+/** v3.8 多件满减 on this payment: the tier reached, or how much more reaches the next one. */
+function BundleLine({bundle}:{bundle:CouponQuote['bundle']}){
+  if(!bundle)return null;
+  if(bundle.discountFen>0&&bundle.tier)return <p className="bundle-line is-on"><SymbolIcon name="box"/><span>{t('多件满减')}<small>{tierText(bundle.tier)}{bundle.next?t(' · 再加 {0} 可享{1}',{0:money(bundle.next.needFen),1:tierText(bundle.next.tier)}):''}</small></span><b>-{money(bundle.discountFen)}</b></p>;
+  if(bundle.eligible&&bundle.next)return <p className="bundle-line"><SymbolIcon name="box"/><span>{t('多件满减')}<small>{t('再加 {0} 可享{1}',{0:money(bundle.next.needFen),1:tierText(bundle.next.tier)})}</small></span></p>;
+  return null;
+}
+
+/** The price lines under the picker: full price, 多件满减, coupon, what is paid. */
+export function CouponTotal({amountFen,choice,bundleFen=0}:{amountFen:number;choice:CouponChoice|null;bundleFen?:number}){
+  if(!choice&&!bundleFen)return null;
+  return <dl className="coupon-total"><div><dt>{t('配送费')}</dt><dd>{money(amountFen)}</dd></div>
+    {bundleFen>0&&<div><dt>{t('多件满减')}</dt><dd>-{money(bundleFen)}</dd></div>}
+    {choice&&<div><dt>{choice.name}</dt><dd>-{money(choice.discountFen)}</dd></div>}
+    <div className="is-pay"><dt>{t('实付')}</dt><dd>{money(amountFen-bundleFen-(choice?.discountFen??0))}</dd></div></dl>;
 }
 
 /** “我的优惠券” on the profile page. */

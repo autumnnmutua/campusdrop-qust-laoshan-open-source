@@ -1,0 +1,124 @@
+/* v3.8 · 多件下单, 多件满减, 测试数据报告, and a refinement pass on surfaces and type.
+   Uses the chart tokens only, so the dark theme follows (theme-dark-auto.css is regenerated from these rules). */
+
+/* ---------------------------------------------------------------- 多件下单 */
+.multi-order .multi-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-5); }
+.multi-order .multi-head h1 { margin: 2px 0 6px; }
+.multi-order .multi-head .muted { max-width: 60ch; margin: 0; }
+.multi-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 320px); gap: var(--space-6); align-items: start; }
+.multi-main { min-width: 0; }
+.multi-summary { position: sticky; top: calc(var(--header-height, 64px) + 16px); display: grid; gap: var(--space-3); padding: var(--space-5); }
+.multi-summary h2 { margin: 0; font-size: var(--text-lg); }
+.multi-summary .coupon-total { max-width: none; margin: 0; }
+.multi-summary button:not(.text-button) { width: 100%; }
+.multi-summary p { margin: 0; }
+.multi-bulk { display: grid; gap: 8px; margin: 0 0 var(--space-4); padding: 0; border: 0; }
+.multi-bulk legend { margin-bottom: 8px; font-weight: 650; }
+.multi-bulk .segmented { grid-auto-columns: minmax(0, 1fr); }
+.multi-list { margin-top: 0; }
+.multi-item { grid-template-columns: minmax(0, 1fr) minmax(150px, 220px) auto; cursor: default; }
+.multi-pick { display: flex; align-items: center; gap: 10px; min-width: 0; cursor: pointer; }
+.multi-pick small { min-width: 0; }
+.multi-dest select { width: 100%; min-height: 38px; padding: 6px 10px; font-size: var(--text-sm); }
+.multi-dest select:disabled { opacity: .55; }
+.merge-item .badge[data-size=LARGE] { background: color-mix(in srgb, var(--route) 10%, var(--paper)); color: var(--route-strong); }
+@media (max-width: 860px) {
+  .multi-layout { grid-template-columns: minmax(0, 1fr); }
+  .multi-summary { position: static; }
+}
+@media (max-width: 560px) {
+  .multi-item { grid-template-columns: minmax(0, 1fr) auto; }
+  .multi-item .multi-dest { grid-column: 1 / -1; grid-row: 2; }
+  .multi-bulk .segmented { grid-auto-flow: row; }
+}
+
+/* 多件满减: tier chips, the line in the coupon picker, progress to the next tier */
+.bundle-tiers { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.bundle-tiers li { padding: 5px 11px; border: 1px dashed color-mix(in srgb, var(--route) 45%, transparent); border-radius: 999px; color: var(--route-strong); font-size: var(--text-sm); font-weight: 650; letter-spacing: .02em; background: color-mix(in srgb, var(--route) 4%, var(--paper)); }
+.bundle-tiers li.is-on { border-style: solid; border-color: var(--route); background: var(--route); color: var(--paper); }
+.bundle-line { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; margin: 0 0 var(--space-3); padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--route) 5%, var(--paper)); color: var(--abyss); }
+.bundle-line span { display: grid; gap: 1px; font-weight: 650; }
+.bundle-line small { color: var(--sounding); font-weight: 500; }
+.bundle-line b { color: var(--route-strong); font-variant-numeric: tabular-nums; }
+.bundle-line .symbol-icon { color: var(--route); }
+.bundle-progress { display: grid; gap: 6px; }
+.bundle-progress span { position: relative; height: 6px; border-radius: 999px; background: var(--shoal-soft); overflow: hidden; }
+.bundle-progress span::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--p, 0%); border-radius: inherit; background: linear-gradient(90deg, var(--sea), var(--route)); transition: width var(--motion-base, .3s) ease; }
+.bundle-progress small { color: var(--sounding); }
+
+/* batch checkout */
+.trip-list { display: grid; gap: 6px; margin: 0 0 var(--space-4); padding: 0; list-style: none; }
+.trip-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--color-line); border-radius: 10px; background: var(--paper); font-size: var(--text-sm); }
+.trip-list .trip-from { color: var(--sounding); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trip-list .trip-to { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trip-list .trip-arrow { color: var(--route); }
+@media (max-width: 520px) { .trip-list li { grid-template-columns: minmax(0, 1fr) auto; } .trip-list .trip-arrow { display: none; } .trip-list .trip-to { grid-column: 1; } .trip-list .badge { grid-row: 1 / span 2; grid-column: 2; } }
+.coupon-total.is-paid { margin-left: 0; }
+.checkout-link { display: flex; align-items: center; gap: 8px; margin: 0 0 var(--space-3); padding: 10px 12px; border-radius: 10px; background: var(--shoal-soft); color: var(--abyss); font-weight: 600; text-decoration: none; }
+.checkout-link:hover { background: var(--shoal); }
+
+/* admin: 多件满减 settings on the coupons page */
+.bundle-admin .tier-rows { display: grid; gap: 8px; margin: var(--space-3) 0; }
+.bundle-admin .tier-row { display: grid; grid-template-columns: repeat(2, minmax(0, 160px)) auto; align-items: end; gap: 10px; }
+.bundle-admin .tier-row label { display: grid; gap: 4px; font-size: var(--text-sm); }
+@media (max-width: 520px) { .bundle-admin .tier-row { grid-template-columns: 1fr 1fr; } .bundle-admin .tier-row button { grid-column: 1 / -1; } }
+
+/* ---------------------------------------------------------------- 测试数据 badge (one-click demo) */
+.test-data-badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border: 1px solid color-mix(in srgb, var(--route) 35%, transparent); border-radius: 999px; background: color-mix(in srgb, var(--route) 6%, var(--paper)); color: var(--route-strong); font-size: var(--text-xs, 12px); font-weight: 700; letter-spacing: .04em; vertical-align: middle; }
+.test-data-badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--route); }
+.test-data-note { display: flex; align-items: center; gap: 10px; margin: 0 0 var(--space-4); padding: 10px 14px; border-radius: 10px; background: color-mix(in srgb, var(--route) 5%, var(--chart)); color: var(--abyss); font-size: var(--text-sm); }
+
+/* ---------------------------------------------------------------- 实测报告 */
+.pilot .pilot-group { margin: var(--space-6) 0 var(--space-3); font-size: var(--text-base); color: var(--sounding); letter-spacing: .04em; }
+.pilot .pilot-group:first-child { margin-top: var(--space-2); }
+.pilot-daily .pilot-chart-wrap { position: relative; }
+.pilot-daily svg { display: block; width: 100%; height: auto; overflow: visible; }
+.pilot-grid line { stroke: var(--contour); stroke-width: 1; stroke-dasharray: 2 4; }
+.pilot-grid text, .pilot-x { fill: var(--sounding); font-size: 11px; font-variant-numeric: tabular-nums; }
+.pilot-bar .bar { fill: var(--sea); transition: fill var(--motion-fast, .15s); }
+.pilot-bar.is-on .bar { fill: var(--abyss); }
+.pilot-bar .hit { fill: transparent; }
+.pilot-tip { position: absolute; top: 0; display: grid; gap: 2px; padding: 8px 10px; border: 1px solid var(--color-line); border-radius: 8px; background: var(--paper); box-shadow: var(--shadow-raised); color: var(--abyss); font-size: var(--text-sm); pointer-events: none; white-space: nowrap; }
+.pilot-tip span { color: var(--sounding); }
+.pilot-table-toggle { margin-top: var(--space-3); }
+.pilot-table-toggle summary, .pilot-defs summary { cursor: pointer; color: var(--sea); font-weight: 600; }
+.pilot-defs { margin: var(--space-6) 0 0; padding: var(--space-4) var(--space-5); border: 1px solid var(--color-line); border-radius: 12px; background: var(--chart); }
+.pilot-defs ul { margin: var(--space-3) 0 0; padding-left: 1.2em; color: var(--sounding); font-size: var(--text-sm); line-height: 1.75; }
+.pilot .kpi-grid { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+.pilot-row { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
+.pilot-row table th small { display: block; font-weight: 500; }
+@media (max-width: 860px) { .pilot-row { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------------------------------------------------------------- v3.8 refinement pass
+   Small, consistent touches rather than new decoration: a lit edge on primary buttons, KPI tiles on the same raised
+   glass as panels with a hairline of channel colour, quieter tables, a soft focus halo, thin scrollbars and selection
+   in the chart's own colours. Zero-specificity selectors (:where) so every existing variant still wins. */
+@media screen {
+  :where(button:not(.secondary):not(.text-button):not(.chip)), :where(.button:not(.secondary)) {
+    background-image: linear-gradient(180deg, #ffffff17, #ffffff00 62%);
+    box-shadow: inset 0 1px 0 #ffffff26, 0 1px 2px #0f28331f;
+  }
+  :where(.secondary) { box-shadow: 0 1px 2px #0f283314; }
+  .kpi { position: relative; overflow: hidden; border-color: var(--surface-glass-line); border-radius: 14px; background: var(--surface-glass); box-shadow: var(--shadow-soft); }
+  .kpi::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 2px; background: linear-gradient(90deg, var(--sea), color-mix(in srgb, var(--route) 65%, var(--sea))); opacity: .5; }
+  .kpi small { letter-spacing: .04em; }
+  .kpi strong { font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  .chart table thead th { font-size: var(--text-xs, 12px); letter-spacing: .06em; color: var(--sounding); font-weight: 700; border-bottom: 1px solid var(--color-line); }
+  .chart table tbody tr { transition: background-color var(--motion-fast, .15s); }
+  .chart table tbody tr:hover { background: color-mix(in srgb, var(--shoal-soft) 60%, transparent); }
+  .parcel-card, .panel { background-image: linear-gradient(160deg, color-mix(in srgb, var(--paper) 55%, transparent), transparent 42%); }
+  .badge { box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 16%, transparent); }
+  input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 1px var(--abyss), 0 0 0 4px color-mix(in srgb, var(--sea) 16%, transparent); }
+  .eyebrow { letter-spacing: .12em; }
+  ::selection { background: color-mix(in srgb, var(--route) 22%, transparent); }
+  html { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--contour-strong) 70%, transparent) transparent; }
+  .site-header { box-shadow: 0 1px 0 color-mix(in srgb, var(--paper) 60%, transparent) inset, 0 10px 24px -22px #0f283366; }
+  .admin-content h1, .student-home h1, section > h1 { text-wrap: balance; }
+}
+@media screen and (prefers-reduced-motion: no-preference) {
+  .kpi, .parcel-card { transition: box-shadow var(--motion-fast, .15s), border-color var(--motion-fast, .15s), transform var(--motion-fast, .15s); }
+  .kpi:hover { box-shadow: var(--shadow-lift); }
+}
+/* Contrast on the raised glass (light and dark): KPI notes use the muted ink token; the reached tier keeps 4.5:1. */
+.kpi>span { color: var(--sounding); }
+.bundle-tiers li.is-on { background: var(--route-strong); border-color: var(--route-strong); }

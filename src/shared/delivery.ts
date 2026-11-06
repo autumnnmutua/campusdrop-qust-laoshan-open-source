@@ -53,6 +53,10 @@ export interface Order {
   demo?:boolean;
   /** v3.7.1 coupon: what the coupon took off the delivery fee (amountFen stays the full price; paid = amountFen − discountFen). */
   discountFen?:number;
+  /** v3.8 多件满减: this parcel's share of the bundle discount; paid = amountFen − discountFen − bundleDiscountFen. */
+  bundleDiscountFen?:number;
+  /** v3.8 多件下单: the checkout (one payment for several parcels) this order was created in. */
+  checkoutId?:string|null;
   /** v3.0 merged delivery: the group this order belongs to and how many of its orders are not cancelled. */
   groupId?:string|null; groupSize?:number; ruleId?:string|null;
   /** Shown to the student while the order is in progress; the courier enters it at the door to sign for them. */

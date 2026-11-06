@@ -4,7 +4,8 @@ import { api } from './api';
 import { getLang, t } from './i18n';
 import { SymbolIcon } from './campus-design';
 import type { Order, Parcel } from '../shared/delivery';
-import { GROUP_MAX_PARCELS, type WeatherInfo } from '../shared/v3';
+import { CHECKOUT_MAX_PARCELS } from '../shared/bundle';
+import type { WeatherInfo } from '../shared/v3';
 
 /*
  * v3.0 pieces used on the main student pages (kept small; the full pages are in v3-pages.tsx, loaded on demand):
@@ -57,19 +58,17 @@ export function WeatherNotice() {
 /** Parcels that can go into one merged delivery: waiting, without an order, grouped by station (2 or more). */
 export function mergeable(parcels: Parcel[]): { station: string; parcels: Parcel[] } | null {
   const waiting = parcels.filter(p => p.status === 'ACTIVE' && !p.hasOrder);
-  const by = new Map<string, Parcel[]>();
-  for (const p of waiting) by.set(p.stationCode, [...(by.get(p.stationCode) ?? []), p]);
-  const best = [...by.entries()].sort((a, b) => b[1].length - a[1].length)[0];
-  return best && best[1].length >= 2 ? { station: best[0], parcels: best[1] } : null;
+  // v3.8: any stations, sizes and destinations can go into one 多件下单; the station is kept for older links only.
+  return waiting.length >= 2 ? { station: waiting[0].stationCode, parcels: waiting } : null;
 }
 export function MergeBanner({ parcels }: { parcels: Parcel[] }) {
   const m = mergeable(parcels);
   if (!m) return null;
-  const n = Math.min(m.parcels.length, GROUP_MAX_PARCELS);
+  const n = Math.min(m.parcels.length, CHECKOUT_MAX_PARCELS);
   return <div className="merge-banner">
     <span className="merge-stack" aria-hidden="true"><i/><i/><i/></span>
-    <p><strong>{t('有 {0} 件包裹可以一起送', { 0: m.parcels.length })}</strong><small>{t('合并配送：一位配送员、一次上门、一个收货码，每件照常计价')}</small></p>
-    <Link className="button" to={`/parcel/merge?station=${encodeURIComponent(m.station)}`}>{t('合并配送 {0} 件', { 0: n })}<span aria-hidden="true"> ›</span></Link>
+    <p><strong>{t('有 {0} 件包裹可以一起下单', { 0: m.parcels.length })}</strong><small>{t('多件下单：大小件、送到哪里都能混搭，一次支付还能享多件满减')}</small></p>
+    <Link className="button" to="/parcel/merge">{t('多件下单 {0} 件', { 0: n })}<span aria-hidden="true"> ›</span></Link>
   </div>;
 }
 /** Small label on an order card. */

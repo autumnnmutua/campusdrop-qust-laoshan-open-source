@@ -1,14 +1,14 @@
 import type { Env } from './types';
-import { couponBatch, couponForPayment, settleCoupon } from './coupons';
+import { payOrders, payableOrders } from './payment';
 import { ApiError } from './http';
 import { CAMPUS_ID, type Student } from '../shared/contracts';
 import type { DeliveryMode, Order, OrderEvent, Payment, Station, DormSnapshot, PackageSize } from '../shared/delivery';
 import { priceFen } from '../domain/commerce';
 import { ownParcel } from './parcels';
 import { readAddress } from './addresses';
-import { slotLabel, slotOpen, type SlotCode } from '../shared/slots';
-import { DROP_PLACE_LABELS, type DropPlace } from '../shared/campus-map';
-import { SLOT_HOLDING, capacityFor, notifyGroupLater, requireOrderingOpen } from './settings';
+import { slotOpen, type SlotCode } from '../shared/slots';
+import type { DropPlace } from '../shared/campus-map';
+import { SLOT_HOLDING, capacityFor, requireOrderingOpen } from './settings';
 
 /** Four random digits from the CSPRNG; shown to the student, entered by the courier at the door. */
 const handoffCode = () => String(crypto.getRandomValues(new Uint32Array(1))[0] % 10000).padStart(4, '0');
@@ -16,7 +16,7 @@ export interface OrderRow extends Omit<Order,'dormSnapshot'|'stationSnapshot'> {
   returnsJson:string;userId:string; dormJson:string; stationJson:string;
 }
 export const orderColumns=`o.group_id AS groupId,(SELECT count(*) FROM delivery_orders g WHERE o.group_id IS NOT NULL AND g.group_id=o.group_id AND g.status<>'CANCELLED') AS groupSize,o.rule_id AS ruleId,o.drop_place AS dropPlace,o.proxy_name AS proxyName,o.near_notified_at AS nearNotifiedAt,EXISTS(SELECT 1 FROM delivery_photos ph WHERE ph.order_id=o.id) AS hasPhoto,o.slot_date AS slotDate,o.slot_code AS slotCode,o.handoff_verified_at AS handoffVerifiedAt,(SELECT count(*) FROM order_messages m WHERE m.order_id=o.id AND m.sender_kind='ADMIN' AND m.read_at IS NULL) AS chatUnreadStudent,(SELECT count(*) FROM order_messages m WHERE m.order_id=o.id AND m.sender_kind='STUDENT' AND m.read_at IS NULL) AS chatUnreadCourier,EXISTS(SELECT 1 FROM batch_items WHERE order_id=o.id) AS hasAssignee,o.received_at AS receivedAt,(SELECT count(*) FROM order_releases WHERE order_id=o.id) AS returnCount,(SELECT json_group_array(json_object('version',r.order_version,'reason',r.reason,'createdAt',r.created_at,'adminName',COALESCE(a.username,'已移除管理员'))) FROM (SELECT * FROM order_releases WHERE order_id=o.id ORDER BY order_version) r LEFT JOIN admin_users a ON a.id=r.admin_id) AS returnsJson,o.custody_state AS custodyState,CASE WHEN o.package_size='LARGE' THEN 200 ELSE 100 END AS upgradeQuoteFen,(SELECT id FROM parcel_handoffs WHERE order_id=o.id AND status='PENDING' AND rejected=0) AS pendingHandoff,o.id,o.parcel_id AS parcelId,o.user_id AS userId,o.package_size AS packageSize,CASE WHEN o.delivery_upgrade_fen=100 THEN 'ROOM' ELSE o.delivery_mode END AS deliveryMode,
-  o.amount_fen+o.delivery_upgrade_fen+o.upgrade_surcharge_fen AS amountFen,o.discount_fen AS discountFen,o.delivery_upgrade_fen+o.upgrade_surcharge_fen AS upgradeFen,o.order_note AS note,CASE WHEN o.status IN ('DELIVERED_DOWNSTAIRS','DELIVERED_TO_ROOM','COMPLETED') THEN 0 ELSE COALESCE((SELECT amount_fen FROM payments WHERE order_id=o.id AND type='DELIVERY'),0)+o.delivery_upgrade_fen+o.upgrade_surcharge_fen-COALESCE((SELECT amount_fen FROM order_adjustments WHERE order_id=o.id AND kind='REFUND'),0) END AS refundableFen,o.status,o.version,o.created_at AS createdAt,o.dorm_snapshot_json AS dormJson,o.station_snapshot_json AS stationJson,o.exception_code AS exceptionCode,o.exception_note AS exceptionNote,o.service_notice AS serviceNotice,
+  o.amount_fen+o.delivery_upgrade_fen+o.upgrade_surcharge_fen AS amountFen,o.discount_fen AS discountFen,o.bundle_discount_fen AS bundleDiscountFen,o.checkout_id AS checkoutId,o.delivery_upgrade_fen+o.upgrade_surcharge_fen AS upgradeFen,o.order_note AS note,CASE WHEN o.status IN ('DELIVERED_DOWNSTAIRS','DELIVERED_TO_ROOM','COMPLETED') THEN 0 ELSE COALESCE((SELECT amount_fen FROM payments WHERE order_id=o.id AND type='DELIVERY'),0)+o.delivery_upgrade_fen+o.upgrade_surcharge_fen-COALESCE((SELECT amount_fen FROM order_adjustments WHERE order_id=o.id AND kind='REFUND'),0) END AS refundableFen,o.status,o.version,o.created_at AS createdAt,o.dorm_snapshot_json AS dormJson,o.station_snapshot_json AS stationJson,o.exception_code AS exceptionCode,o.exception_note AS exceptionNote,o.service_notice AS serviceNotice,
   (SELECT a.phone FROM batch_items bi JOIN delivery_batches b ON b.id=bi.batch_id JOIN admin_users a ON a.id=b.assignee_admin_id WHERE bi.order_id=o.id AND a.status='ACTIVE' AND a.demo_group IS NULL) AS assigneePhone,o.demo_group IS NOT NULL AS demo`;
 export function serializeOrder(row:OrderRow):Order {
   const {returnsJson,userId:_userId,dormJson,stationJson,...order}=row;
@@ -39,18 +39,18 @@ export async function orderDetails(env:Env,row:OrderRow) {
 export async function windowLoad(env:Env,date:string,code:SlotCode):Promise<number>{
   return await env.DB.prepare(`SELECT count(*) AS n FROM delivery_orders WHERE slot_date=? AND slot_code=? AND ${SLOT_HOLDING}`).bind(date,code).first<number>('n')??0;
 }
-export interface OrderPlan { user: Student; parcel: { id: string; stationCode: string; packageSize: PackageSize; note: string }; address: NonNullable<Awaited<ReturnType<typeof readAddress>>>; station: Station; mode: DeliveryMode; slot?: { date: string; code: SlotCode }; dropPlace?: DropPlace; capacity: number; code: string; groupId?: string; ruleId?: string }
+export interface OrderPlan { user: Student; parcel: { id: string; stationCode: string; packageSize: PackageSize; note: string }; address: NonNullable<Awaited<ReturnType<typeof readAddress>>>; station: Station; mode: DeliveryMode; slot?: { date: string; code: SlotCode }; dropPlace?: DropPlace; capacity: number; code: string; groupId?: string; ruleId?: string; checkoutId?: string }
 /** The conditional INSERT shared by single, merged and rule-created orders (the parcel must still be active; a booked window must still have room). */
 export function orderInsert(env: Env, id: string, p: OrderPlan): D1PreparedStatement {
   const amount = priceFen(p.parcel.packageSize, p.mode);
   return env.DB.prepare(`INSERT INTO delivery_orders(id,parcel_id,user_id,campus_id,zone,dorm_building_code,station_code,package_size,delivery_mode,amount_fen,
-      price_snapshot_json,dorm_snapshot_json,station_snapshot_json,last_actor_type,last_actor_id,order_note,handoff_code,slot_date,slot_code,drop_place,group_id,rule_id,demo_group)
-      SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,(SELECT demo_group FROM users WHERE id=?) WHERE EXISTS(SELECT 1 FROM parcels WHERE id=? AND user_id=? AND status='ACTIVE')
+      price_snapshot_json,dorm_snapshot_json,station_snapshot_json,last_actor_type,last_actor_id,order_note,handoff_code,slot_date,slot_code,drop_place,group_id,rule_id,checkout_id,demo_group)
+      SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,(SELECT demo_group FROM users WHERE id=?) WHERE EXISTS(SELECT 1 FROM parcels WHERE id=? AND user_id=? AND status='ACTIVE')
       AND (? IS NULL OR (SELECT count(*) FROM delivery_orders WHERE slot_date=? AND slot_code=? AND ${SLOT_HOLDING})<?)`)
     .bind(id, p.parcel.id, p.user.id, CAMPUS_ID, p.address.zone, p.address.buildingCode, p.parcel.stationCode, p.parcel.packageSize, p.mode, amount,
       JSON.stringify({ version: 1, packageSize: p.parcel.packageSize, deliveryMode: p.mode, amountFen: amount }),
       JSON.stringify({ ...p.address, name: p.user.name, phone: p.user.phone }), JSON.stringify(p.station), p.ruleId ? 'SYSTEM' : 'STUDENT', p.ruleId ? 'system' : p.user.id,
-      p.parcel.note, p.code, p.slot?.date ?? null, p.slot?.code ?? null, p.dropPlace ?? null, p.groupId ?? null, p.ruleId ?? null, p.user.id, p.parcel.id, p.user.id,
+      p.parcel.note, p.code, p.slot?.date ?? null, p.slot?.code ?? null, p.dropPlace ?? null, p.groupId ?? null, p.ruleId ?? null, p.checkoutId ?? null, p.user.id, p.parcel.id, p.user.id,
       p.slot?.date ?? null, p.slot?.date ?? null, p.slot?.code ?? null, p.capacity);
 }
 /** Checks shared by every way of creating an order; returns what the INSERT needs (except the parcel). */
@@ -100,33 +100,9 @@ export class MockPaymentProvider {
     const existing=await env.DB.prepare("SELECT id FROM payments WHERE order_id=? AND type='DELIVERY'").bind(orderId).first();
     if(existing) return serializeOrder(row);
     if(row.status!=='WAITING_PAYMENT') throw new ApiError(409,'PAYMENT_NOT_ALLOWED','当前订单不能支付');
-    if(!row.demo)await requireOrderingOpen(env);
-    // A booked window is checked again at payment: it may have closed, or filled up, since the order was created.
-    const t=Math.floor(Date.now()/1000),slot=row.slotDate&&row.slotCode?{date:row.slotDate,code:row.slotCode}:null;
-    if(slot&&!slotOpen(slot.date,slot.code,t)) throw new ApiError(409,'SLOT_CLOSED','预约的时段已停止预约，请取消这单后重新下单并选择其他时段');
-    const capacity=slot?await capacityFor(env,slot.date,slot.code):0;
-    // v3.7.1 coupon: the redemption and the discount go first in the same transaction; the payment then requires them.
-    const coupon=await couponForPayment(env,{id:userId},[{id:orderId,amountFen:row.amountFen}],choice);
-    // Conditional INSERT + trigger keep payment record and order transition atomic in D1; the window count sits in
-    // the same statement, so two students cannot both pay for the last place.
-    await couponBatch(env,[...(coupon?.statements??[]),env.DB.prepare(`INSERT INTO payments(id,order_id,type,provider,amount_fen,status,idempotency_key)
-      SELECT ?,id,'DELIVERY','MOCK',amount_fen-discount_fen,'SUCCEEDED','delivery' FROM delivery_orders o
-      WHERE o.id=? AND o.user_id=? AND o.status='WAITING_PAYMENT'
-      AND NOT EXISTS(SELECT 1 FROM payments WHERE order_id=? AND type='DELIVERY')
-      AND (? IS NULL OR o.coupon_redemption_id=?)
-      AND (o.slot_date IS NULL OR (SELECT count(*) FROM delivery_orders x WHERE x.slot_date=o.slot_date AND x.slot_code=o.slot_code AND x.${SLOT_HOLDING})<?)`)
-      .bind(crypto.randomUUID(),orderId,userId,orderId,coupon?.redemptionId??null,coupon?.redemptionId??null,capacity)]);
-    const paid=await env.DB.prepare("SELECT id FROM payments WHERE order_id=? AND type='DELIVERY'").bind(orderId).first();
-    if(coupon)await settleCoupon(env,coupon.redemptionId);
-    if(!paid){
-      if(coupon&&!await env.DB.prepare("SELECT 1 FROM coupon_redemptions WHERE id=?").bind(coupon.redemptionId).first())throw new ApiError(409,'COUPON_UNAVAILABLE','这张优惠券刚刚被用掉了，请重新选择');
-      if(slot&&await windowLoad(env,slot.date,slot.code)>=capacity) throw new ApiError(409,'SLOT_FULL','这个时段刚刚约满了，请取消这单后重新下单，换一个时段或选择尽快送达');
-      throw new ApiError(409,'PAYMENT_NOT_ALLOWED','订单已变化，请刷新');
-    }
-    const order=serializeOrder(await ownOrder(env,userId,orderId));
-    const where=order.dropPlace?DROP_PLACE_LABELS[order.dropPlace]:`${order.dormSnapshot.buildingName}${order.deliveryMode==='ROOM'?' · 到寝':' · 楼下'}`;
-    if(!order.demo)notifyGroupLater(env,'NEW_ORDER',`新订单：${where} · ${order.packageSize==='SMALL'?'小件':'大件'} · ${slot?slotLabel(slot.date,slot.code,t):'尽快送达'}`,`order:${orderId}`);
-    return order;
+    // v3.8: the same payment path as merged deliveries and 多件下单 (coupon, 满减, window check, one transaction).
+    await payOrders(env,userId,await payableOrders(env,userId,{orderId}),choice);
+    return serializeOrder(await ownOrder(env,userId,orderId));
   }
   async tip(env:Env,userId:string,orderId:string,amountFen:number,key:string):Promise<Payment> {
     const row=await ownOrder(env,userId,orderId);

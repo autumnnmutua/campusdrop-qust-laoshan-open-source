@@ -49,11 +49,11 @@ export function cleanupStatements(env: Env): D1PreparedStatement[] {
   return [
     env.DB.prepare("UPDATE parcels SET pickup_code='已清理' WHERE status<>'ACTIVE' AND pickup_code<>'已清理' AND created_at<unixepoch()-2592000"),
     env.DB.prepare('DELETE FROM order_messages WHERE created_at<unixepoch()-7776000'),
-    env.DB.prepare("UPDATE delivery_orders SET handoff_code=NULL WHERE handoff_code IS NOT NULL AND status IN ('COMPLETED','CANCELLED') AND updated_at<unixepoch()-604800"),
+    env.DB.prepare("UPDATE delivery_orders SET handoff_code=NULL WHERE handoff_code IS NOT NULL AND status IN ('COMPLETED','CANCELLED') AND updated_at<unixepoch()-604800 AND demo_history=0"),
     env.DB.prepare('DELETE FROM courier_locations WHERE updated_at<unixepoch()-86400'),
     // v2.7: delivery photos after 30 days, tracking links a day after the order closed, old shifts and webhook keys.
     env.DB.prepare('DELETE FROM delivery_photos WHERE created_at<unixepoch()-2592000'),
-    env.DB.prepare("UPDATE delivery_orders SET share_token=NULL WHERE share_token IS NOT NULL AND status IN ('COMPLETED','CANCELLED') AND updated_at<unixepoch()-86400"),
+    env.DB.prepare("UPDATE delivery_orders SET share_token=NULL WHERE share_token IS NOT NULL AND status IN ('COMPLETED','CANCELLED') AND updated_at<unixepoch()-86400 AND demo_history=0"),
     env.DB.prepare("DELETE FROM courier_shifts WHERE slot_date<date(unixepoch()+28800-604800,'unixepoch')"),
     env.DB.prepare('DELETE FROM webhook_log WHERE sent_at<unixepoch()-2592000'),
   ];

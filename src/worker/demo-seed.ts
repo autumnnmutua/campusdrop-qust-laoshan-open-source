@@ -3,7 +3,7 @@ import { CAMPUS_ID } from '../shared/contracts';
 import { DEMO_PEOPLE, DEMO_TICKETS, planDemoOrders, seededRandom, type DemoOrderPlan } from '../shared/demo-plan';
 
 /*
- * v3.7 · writes the demo's starting data (shared/demo-plan.ts) under its demo_group: neighbour students, three weeks of
+ * v3.7 · writes the demo's starting data (shared/demo-plan.ts) under its demo_group: neighbour students, recent
  * finished deliveries with ratings and a few tips, the couriers' current workload and after-sales tickets. Orders go
  * through the same table triggers as real ones (payment → market → batch → each status step), so every guard still
  * holds; afterwards the event, message and ticket times are moved back to when the plan says they happened.

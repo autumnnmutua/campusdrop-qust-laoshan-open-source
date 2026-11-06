@@ -6,7 +6,7 @@ const known=new Set(['health','auth','admin','me','orders','parcels','quotes','s
  // v3.6
  'demo','start','tick','auto','end','agent','vision','impact','forecast',
  // v3.7
- 'role','coupons','quote']);
+ 'role','coupons','quote','checkouts','pricing','bundle','pilot-report','prepare']);
 export function safeRoute(request:Request){const parts=new URL(request.url).pathname.split('/').slice(3,10);return '/api/v1/'+parts.map(p=>known.has(p)?p:':id').join('/');}
 export function classifyError(error:unknown){
  const message=error instanceof Error?error.message:String(error);
@@ -22,7 +22,7 @@ export async function recordError(env:Env,request:Request,id:string,category:str
 }
 export function expectedConstraint(error:unknown):ApiError|null{
  const message=error instanceof Error?error.message:'';
- const mapping:Record<string,string>={STUDENT_RECEIPT_REQUIRED:'请等待学生确认收货',HANDOFF_REQUIRED:'包裹已取出，请先完成归还交接',HANDOFF_PENDING:'交接待核验，暂不能推进配送或取消',HANDOFF_INVALID:'交接状态已变化，请刷新后重试',RELEASE_NOT_ALLOWED:'当前订单不能退回市场，请检查交接及订单状态',ADMIN_HAS_TASKS:'管理员仍有未完成任务，请先处理交接',INVALID_TRANSITION:'订单状态已变化，请刷新',RECOVERY_INVALID:'恢复码无效或已过期'};
+ const mapping:Record<string,string>={STUDENT_RECEIPT_REQUIRED:'请等待学生确认收货',HANDOFF_REQUIRED:'包裹已取出，请先完成归还交接',HANDOFF_PENDING:'交接待核验，暂不能推进配送或取消',HANDOFF_INVALID:'交接状态已变化，请刷新后重试',RELEASE_NOT_ALLOWED:'当前订单不能退回市场，请检查交接及订单状态',ADMIN_HAS_TASKS:'管理员仍有未完成任务，请先处理交接',INVALID_TRANSITION:'订单状态已变化，请刷新',RECOVERY_INVALID:'恢复码无效或已过期',DEMO_HISTORY_READONLY:'这是一键体验的测试数据，只能查看，不能修改',DISCOUNT_FIXED:'订单已支付，优惠金额不能再改',ORDER_CHECKOUT_INVALID:'下单信息不一致，请刷新后重试'};
  for(const [code,text] of Object.entries(mapping))if(message.includes(code))return new ApiError(409,code,text);
  if(message.includes('UNIQUE constraint failed: parcel_handoffs.order_id'))return new ApiError(409,'HANDOFF_PENDING','已有交接申请，请刷新查看');
  return null;
