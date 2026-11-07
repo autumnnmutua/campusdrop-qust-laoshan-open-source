@@ -35,6 +35,7 @@ public class MainActivity extends Activity {
     private static final int FILE_REQUEST = 41;
     private static final int LOCATION_REQUEST = 42;
     private static final String OFFLINE_PAGE = "file:///android_asset/offline.html";
+    private static final String LAST_URL_STATE = "campusdrop.lastUrl";
 
     private WebView web;
     private Uri home;
@@ -69,8 +70,14 @@ public class MainActivity extends Activity {
         web.setWebViewClient(new ShellClient());
         web.setWebChromeClient(new ShellChrome());
 
-        if (savedInstanceState != null) web.restoreState(savedInstanceState);
-        else web.loadUrl(startUrl(getIntent()));
+        if (savedInstanceState != null) {
+            lastUrl = savedInstanceState.getString(LAST_URL_STATE);
+            if (!online()) web.loadUrl(OFFLINE_PAGE);
+            else if (web.restoreState(savedInstanceState) == null) web.loadUrl(lastUrl != null ? lastUrl : startUrl(getIntent()));
+        } else {
+            lastUrl = startUrl(getIntent());
+            web.loadUrl(online() ? lastUrl : OFFLINE_PAGE);
+        }
     }
 
     /** A link to the site (for example from a notification or a shared tracking link) opens on that page. */
@@ -88,13 +95,17 @@ public class MainActivity extends Activity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         Uri data = intent.getData();
-        if (data != null && isSite(data)) web.loadUrl(data.toString());
+        if (data != null && isSite(data)) {
+            lastUrl = data.toString();
+            web.loadUrl(online() ? lastUrl : OFFLINE_PAGE);
+        }
     }
 
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         web.saveState(outState);
+        outState.putString(LAST_URL_STATE, lastUrl);
     }
 
     @Override
@@ -138,10 +149,17 @@ public class MainActivity extends Activity {
         public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
             Uri uri = request.getUrl();
             if (RETRY_URL.equals(uri.toString())) {
-                view.loadUrl(lastUrl != null ? lastUrl : home.toString());
+                if (online()) view.loadUrl(lastUrl != null ? lastUrl : home.toString());
                 return true;
             }
-            if (isSite(uri)) return false;
+            if (isSite(uri)) {
+                if (!online()) {
+                    lastUrl = uri.toString();
+                    view.loadUrl(OFFLINE_PAGE);
+                    return true;
+                }
+                return false;
+            }
             // Phone numbers, mail, map apps, WeChat / Alipay and every other website open outside the app.
             try {
                 Intent intent = "intent".equals(uri.getScheme())
@@ -159,12 +177,13 @@ public class MainActivity extends Activity {
 
         @Override
         public void onPageStarted(WebView view, String url, Bitmap favicon) {
-            if (url != null && url.startsWith("https://")) lastUrl = url;
+            if (url != null && isSite(Uri.parse(url))) lastUrl = url;
         }
 
         @Override
         public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
-            if (request.isForMainFrame() && !online()) view.loadUrl(OFFLINE_PAGE);
+            // Main-page network failures include DNS errors and service-worker failures as well as a disconnected device.
+            if (request.isForMainFrame() && isSite(request.getUrl())) view.loadUrl(OFFLINE_PAGE);
         }
     }
 
