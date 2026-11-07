@@ -50,6 +50,9 @@ export function DemoStart(){
       <form onSubmit={start}>
         <h2 id={`${id}-title`} tabIndex={-1}>{t('一键体验')}</h2>
         <p>{t('体验密钥请联系我获取。')}</p>
+        <label htmlFor={`${id}-code`}>{t('体验口令')}</label>
+        <input id={`${id}-code`} value={code} onChange={e=>setCode(e.target.value)} autoComplete="off" required maxLength={64}/>
+        {error&&<p role="alert" className="field-error">{error}</p>}
         <ul className="demo-points">
           <li>{t('自动创建“体验同学”“演示配送员”和“超级管理员”三个身份，可以随时切换。')}</li>
           <li>{t('体验同学住北苑4号楼，已有 5 件待配送的包裹（两个站点、大小件都有），可以试多件下单和多件满减；下单后可以在校园地图上看配送员沿路线过来。')}</li>
@@ -57,9 +60,6 @@ export function DemoStart(){
           <li>{t('体验数据与真实订单隔离：不会进入真实接单市场、看板和群通知，支付均为模拟。')}</li>
           <li>{t('会退出这台设备上当前登录的账号。')}</li>
         </ul>
-        <label htmlFor={`${id}-code`}>{t('体验口令')}</label>
-        <input id={`${id}-code`} value={code} onChange={e=>setCode(e.target.value)} autoComplete="off" required maxLength={64}/>
-        {error&&<p role="alert" className="field-error">{error}</p>}
         <div className="actions"><button disabled={busy||!code.trim()}>{busy?t('正在准备…'):t('开始体验')}</button><button type="button" className="secondary" onClick={()=>dialog.current?.close()}>{t('取消')}</button></div>
       </form>
     </dialog>

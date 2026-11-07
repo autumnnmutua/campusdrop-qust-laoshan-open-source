@@ -189,7 +189,8 @@ html.in-wechat .mobile-tabs { padding-bottom: max(10px, env(safe-area-inset-bott
 .demo-dialog { max-width: min(520px, calc(100vw - 32px)); border: var(--hairline); border-radius: 12px; padding: 20px 22px; background: var(--paper); color: var(--color-heading); }
 .demo-dialog::backdrop { background: rgb(10 28 36 / 45%); }
 .demo-dialog h2 { margin-top: 0; }
-.demo-points { margin: 0 0 14px; padding-left: 20px; line-height: 1.6; color: var(--sounding); }
+.auth-page .demo-dialog form { margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.demo-points { margin: var(--space-4) 0 14px; padding-left: 20px; line-height: 1.6; color: var(--sounding); }
 .demo-dialog input { width: 100%; }
 .demo-bar { position: relative; z-index: 30; margin: 0; padding: 8px 16px; background: var(--route-soft); border-bottom: 1px solid var(--color-line); color: var(--color-heading); font-size: .92rem; }
 .demo-bar-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; max-width: 1180px; margin: 0 auto; }
