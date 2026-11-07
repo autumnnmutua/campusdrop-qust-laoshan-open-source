@@ -1,3 +1,5 @@
+import java.net.URI
+
 plugins {
     id("com.android.application")
 }
@@ -6,7 +8,7 @@ plugins {
 //   ./gradlew assembleRelease -PsiteUrl=https://your-domain.example
 val siteUrl: String = (project.findProperty("siteUrl") as String?)
     ?: "https://campusdrop-qust-laoshan-production.esthertreu3724.workers.dev"
-val siteHost: String = java.net.URI(siteUrl).host
+val siteHost: String = URI(siteUrl).host
     ?: throw GradleException("siteUrl must be a full https:// address")
 require(siteUrl.startsWith("https://")) { "siteUrl must start with https://" }
 
