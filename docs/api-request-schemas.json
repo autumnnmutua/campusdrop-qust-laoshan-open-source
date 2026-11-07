@@ -3,6 +3,111 @@
   "basePath": "/api/v1",
   "note": "JSON Schema captures structural validation. Shared Zod refinements and server authorization are authoritative; do not infer ownership or business permission from schema acceptance.",
   "schemas": {
+    "payoutAccount": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string",
+          "enum": [
+            "WECHAT",
+            "ALIPAY",
+            "BANK"
+          ]
+        },
+        "accountName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20
+        },
+        "account": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 40
+        },
+        "bankName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 20
+        }
+      },
+      "required": [
+        "method",
+        "accountName",
+        "account"
+      ],
+      "additionalProperties": false
+    },
+    "withdraw": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "accountId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "amountFen": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 500000
+        }
+      },
+      "required": [
+        "accountId",
+        "amountFen"
+      ],
+      "additionalProperties": false
+    },
+    "withdrawReview": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "PAY",
+            "REJECT"
+          ]
+        },
+        "note": {
+          "default": "",
+          "type": "string",
+          "maxLength": 120
+        }
+      },
+      "required": [
+        "action"
+      ],
+      "additionalProperties": false
+    },
+    "studentTestFlag": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "testAccount": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "testAccount"
+      ],
+      "additionalProperties": false
+    },
+    "studentAdminDelete": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "confirmed": {
+          "type": "boolean",
+          "const": true
+        }
+      },
+      "required": [
+        "confirmed"
+      ],
+      "additionalProperties": false
+    },
     "checkoutCreate": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "type": "object",

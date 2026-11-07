@@ -8,7 +8,7 @@ import {
   maskWebhook, notifyGroup, orderingPause, readSetting, shiftCapacity, testWebhook, webhookSetting, writeSetting,
 } from './settings';
 import {
-  COURIER_SHARE, DEFAULT_SHIFT_QUOTA, pauseSchema, shiftCapacitySchema, shiftsSchema, webhookSchema, webhookTestSchema,
+  PLATFORM_FEE_FEN, DEFAULT_SHIFT_QUOTA, pauseSchema, shiftCapacitySchema, shiftsSchema, webhookSchema, webhookTestSchema,
   type BuildingHeat, type Forecast, type InsightsExtra, type MileageRow, type MonthReport, type SettlementRow, type Shift,
   type ShiftCapacity, type WebhookSetting, type YearReport,
 } from '../shared/operations';
@@ -55,13 +55,14 @@ async function settlement(env: Env, admin: Admin, week: string | null) {
     WHERE s.status='DROPPED' AND s.dropped_at BETWEEN ? AND ?${admin.role === 'DELIVERY_STAFF' ? ' AND s.assignee_admin_id=?' : ''} GROUP BY s.assignee_admin_id`)
     .bind(from, to - 1, ...(admin.role === 'DELIVERY_STAFF' ? [admin.id] : [])).all<{ adminId: string; username: string; n: number; fen: number }>().catch(() => ({ results: [] }))).results;
   const rows = new Map<string, SettlementRow>();
-  const row = (id: string, username: string) => { if (!rows.has(id)) rows.set(id, { adminId: id, username, deliveries: 0, deliveryFen: 0, sends: 0, sendFen: 0, tipFen: 0, payoutFen: 0 }); return rows.get(id)!; };
+  const row = (id: string, username: string) => { if (!rows.has(id)) rows.set(id, { adminId: id, username, deliveries: 0, deliveryFen: 0, sends: 0, sendFen: 0, tipFen: 0, platformFeeFen: 0, payoutFen: 0 }); return rows.get(id)!; };
   for (const d of deliveries) Object.assign(row(d.adminId, d.username), { deliveries: d.n, deliveryFen: d.fen });
   // Sends are counted only for super admins and the couriers themselves (send requests are not scoped by building).
   if (isRealSuper(admin) || admin.role === 'DELIVERY_STAFF') for (const s of sends) Object.assign(row(s.adminId, s.username), { sends: s.n, sendFen: s.fen });
   for (const t of tips) if (rows.has(t.adminId)) rows.get(t.adminId)!.tipFen = t.fen;
-  for (const r of rows.values()) r.payoutFen = Math.round((r.deliveryFen + r.sendFen) * COURIER_SHARE) + r.tipFen;
-  return { week: monday, from, to, share: COURIER_SHARE, rows: [...rows.values()].sort((a, b) => b.payoutFen - a.payoutFen) };
+  // v3.9: the platform keeps 0.20 元 per delivered parcel or send; the rest of the full fee and every tip go to the courier.
+  for (const r of rows.values()) { r.platformFeeFen = (r.deliveries + r.sends) * PLATFORM_FEE_FEN; r.payoutFen = r.deliveryFen + r.sendFen - r.platformFeeFen + r.tipFen; }
+  return { week: monday, from, to, feePerParcelFen: PLATFORM_FEE_FEN, rows: [...rows.values()].sort((a, b) => b.payoutFen - a.payoutFen) };
 }
 
 // ---------------------------------------------------------------- courier mileage (route estimate, round trip)

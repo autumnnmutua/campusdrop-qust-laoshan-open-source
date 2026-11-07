@@ -47,11 +47,12 @@ export function DemoStart(){
         <ul className="demo-points">
           <li>{t('自动创建“体验同学”“演示配送员”和“超级管理员”三个身份，可以随时切换。')}</li>
           <li>{t('体验同学住北苑4号楼，已有 5 件待配送的包裹（两个站点、大小件都有），可以试多件下单和多件满减；下单后可以在校园地图上看配送员沿路线过来。')}</li>
-          <li>{t('配送员那边有当天的待接、待取、配送中订单；超级管理员的结算、月报、准时率、数据看板和实测报告里是一批测试数据。')}</li>
+          <li>{t('配送员那边有当天的待接、待取、配送中订单，钱包里有已完成订单的收入可以试提现；超级管理员的结算、月报、准时率、数据看板和实测报告里是一批测试数据。')}</li>
           <li>{t('体验数据与真实订单隔离：不会进入真实接单市场、看板和群通知，支付均为模拟。')}</li>
           <li>{t('会退出这台设备上当前登录的账号。')}</li>
         </ul>
         <label htmlFor={`${id}-code`}>{t('体验口令')}</label>
+        <p>{t('体验密钥请联系我获取。')}</p>
         <input id={`${id}-code`} value={code} onChange={e=>setCode(e.target.value)} autoComplete="off" required maxLength={64}/>
         {error&&<p role="alert" className="field-error">{error}</p>}
         <div className="actions"><button disabled={busy||!code.trim()}>{busy?t('正在准备…'):t('开始体验')}</button><button type="button" className="secondary" onClick={()=>dialog.current?.close()}>{t('取消')}</button></div>
@@ -71,12 +72,14 @@ const COURIER_STEPS:[string,string][]=[
   ['/admin',t('配送任务：待接订单在上方，下方是你手上的单（待取件、已取件、配送中、待签收、异常）')],
   ['/admin',t('打开一单，依次点“已取件”“配送中”“已送达”；切回学生下单后也能接体验同学的单')],
   ['/admin/map',t('作战地图：看楼栋负载和你（演示配送员）在地图上的位置')],
+  ['/admin/wallet',t('我的钱包：每单送达后扣除平台 0.2 元入账，绑定微信、支付宝或银行卡申请提现（模拟）')],
   ['/admin/settlement',t('结算和月报：你最近的送达单数、配送费和打赏')],
   ['/admin/tickets',t('售后工单：回复同学，处理“没找到包裹”')],
 ];
 const SUPER_STEPS:[string,string][]=[
   ['/admin',t('配送任务：最高权限，能看到所有配送员的单，可以接单，也能处理别人的异常件')],
   ['/admin/pilot',t('实测报告（测试数据）：下单用户、复购、准时率、配送时长、评分和售后率，可以导出 CSV')],
+  ['/admin/withdrawals',t('提现审核：演示配送员提交提现后在这里确认打款或退回（模拟交易）')],
   ['/admin/coupons',t('优惠券与满减：查看满减档位；新建优惠码（每个账号限用一次，或全站只能用一次）或专属券，切回学生付款时试用')],
   ['/admin/tickets',t('售后工单：受理“收到的不是我的包裹”，回复处理方案后标记已解决')],
   ['/admin/batches',t('批次管理：把待接订单按路线打包，分配给演示配送员')],

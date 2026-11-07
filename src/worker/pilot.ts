@@ -31,7 +31,7 @@ export async function pilotReport(env: Env, admin: Parameters<typeof orderScope>
       (SELECT a.amount_fen FROM order_adjustments a WHERE a.order_id=o.id AND a.kind='REFUND') AS refundFen,
       (SELECT sum(x.amount_fen) FROM payments x WHERE x.order_id=o.id AND x.type='TIP') AS tipFen
     FROM delivery_orders o JOIN payments p ON p.order_id=o.id AND p.type='DELIVERY'
-    WHERE ${scope.sql} AND (o.demo_group IS NOT NULL OR NOT EXISTS(SELECT 1 FROM users u WHERE u.id=o.user_id AND u.test_account=1))
+    WHERE ${scope.sql} AND o.seed_data=0 AND (o.demo_group IS NOT NULL OR NOT EXISTS(SELECT 1 FROM users u WHERE u.id=o.user_id AND u.test_account=1))
     ORDER BY p.created_at LIMIT 20000`).bind(...scope.params).all<Row>()).results;
   const firstOrderAt = rows.length ? rows[0].paidAt : null;
   const today = slotTime(beijingDate(t), '00:00');
@@ -60,7 +60,7 @@ export async function pilotReport(env: Env, admin: Parameters<typeof orderScope>
   // Tickets on orders the admin may see, opened in the period.
   const scope2 = orderScope(admin);
   const tickets = (await env.DB.prepare(`SELECT t.status,t.created_at AS createdAt,t.updated_at AS updatedAt FROM support_tickets t JOIN delivery_orders o ON o.id=t.order_id
-    WHERE ${scope2.sql} AND t.created_at BETWEEN ? AND ?`).bind(...scope2.params, from, t).all<{ status: string; createdAt: number; updatedAt: number }>()).results;
+    WHERE ${scope2.sql} AND o.seed_data=0 AND (o.demo_group IS NOT NULL OR NOT EXISTS(SELECT 1 FROM users u WHERE u.id=o.user_id AND u.test_account=1)) AND t.created_at BETWEEN ? AND ?`).bind(...scope2.params, from, t).all<{ status: string; createdAt: number; updatedAt: number }>()).results;
   const resolved = tickets.filter(x => x.status === 'RESOLVED' || x.status === 'CLOSED');
   // Couriers: deliveries per courier per day they delivered anything.
   const courierDays = new Set(delivered.filter(r => r.courier).map(r => `${r.courier}|${beijingDate(r.deliveredAt!)}`));

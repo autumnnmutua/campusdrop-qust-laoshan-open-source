@@ -113,6 +113,24 @@ Order 新增 groupId、groupSize（同组未取消的订单数）、ruleId；待
 
 发送给大模型的内容只有问题、最近 6 轮对话和服务端整理的订单状态摘要（状态、站点、楼栋、时段），不含姓名、电话、房间号、取件码、收货码和备注。大模型地址只接受 HTTPS（开发环境允许本机 http）。
 
+## v3.9：平台抽成、配送员钱包与提现、账号管理
+
+| 方法/路径 | 请求 schema | 成功响应 | 语义 |
+|---|---|---|---|
+| GET /admin/wallet | 无 | `{wallet:Wallet}` | 当前管理员本人：`balanceFen,pendingFen,earnedFen,feeFen,withdrawnFen,parcels,tipsFen,accounts,withdrawals,entries` |
+| POST /admin/wallet/accounts | payoutAccount | 201 `{wallet}` | 微信（微信号或手机号）/ 支付宝（手机号或邮箱）/ 银行卡（Luhn + 开户行）；只保存脱敏账号与后四位；最多 5 个 |
+| DELETE /admin/wallet/accounts/:id | 无 | `{wallet}` | 有审核中的提现时 409 |
+| POST /admin/wallet/withdrawals | withdraw | 201 `{wallet,message}` | 1–5000 元，最多 3 笔审核中；提交即扣余额；余额不足 409 `WITHDRAW_EXCEEDS_BALANCE`（触发器校验，并发安全） |
+| GET /admin/withdrawals?status=ALL | 无 | `{withdrawals,summary}` | 超级管理员（体验中只看本次体验）；默认只列待审核 |
+| POST /admin/withdrawals/:id/review | withdrawReview | `{ok,paidRef}` | `PAY` 生成模拟流水号；`REJECT` 需原因，金额退回余额；已处理 409 `WITHDRAW_ALREADY_REVIEWED` |
+| GET /admin/accounts/students?q=&page= | 无 | `{students,page,hasMore,total}` | 超级管理员；手机号脱敏；体验中只列体验账号 |
+| POST /admin/accounts/students/:id/test-flag | studentTestFlag | `{ok}` | 真实超级管理员；测试账号不计入实测报告 |
+| POST /admin/accounts/students/:id/delete | studentAdminDelete | `{ok}` | 真实超级管理员；与学生自行注销相同的匿名化；有未完成订单或代寄件时 409 `ACCOUNT_HAS_ORDERS` |
+
+**入账**：`courier_ledger` 只能追加（更新时 `LEDGER_IMMUTABLE`）。订单变为 `COMPLETED` 时给批次配送员记 `配送费原价 − 20 分`，代寄件 `DROPPED` 时记 `代寄费 − 20 分`，打赏全额；`UNIQUE(kind, ref_id)` 防止重复。`GET /admin/settlement` 每行新增 `platformFeeFen`，`payoutFen = deliveryFen + sendFen − platformFeeFen + tipFen`，并返回 `feePerParcelFen`。
+
+**起步数据**：`delivery_orders.seed_data = 1` 的订单由实测账号脚本写入，实测报告不计入。
+
 ## v3.8：多件下单、多件满减、实测报告、一键体验测试数据
 
 | 方法/路径 | 请求 schema | 成功响应 | 语义 |

@@ -37,3 +37,6 @@ export interface Student { id: string; username: string; name: string; phone: st
 export const adminContactSchema = z.object({phone:profileSchema.shape.phone}).strict();
 export interface Admin { phone?:string|null; id: string; username: string; role: AdminRole; scopes: Scope[]; /** v3.6 one-click demo courier */ demo?: boolean }
 export interface Building { code: string; displayName: string; zone: 'SOUTH' | 'NORTH' }
+/** v3.9 · 账号管理 (super admins): mark a student account as test-only, or clear it. */
+export const studentTestFlagSchema = z.object({ testAccount: z.boolean() }).strict();
+export const studentAdminDeleteSchema = z.object({ confirmed: z.literal(true) }).strict();

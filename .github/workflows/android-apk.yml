@@ -1,0 +1,43 @@
+name: Android APK
+# Builds the Android app in android/ (a WebView shell that opens the deployed site). Run it by hand from the Actions
+# tab ("Run workflow"); optionally enter the site address if it differs from the production default.
+# The debug APK installs on supported phones for testing; signing materials remain local.
+on:
+  workflow_dispatch:
+    inputs:
+      site_url:
+        description: '网站地址（https://…，留空用默认生产地址）'
+        required: false
+        default: ''
+permissions:
+  contents: read
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Build APK
+        working-directory: android
+        env:
+          SITE_URL: ${{ inputs.site_url }}
+        run: |
+          set -euo pipefail
+          export JAVA_HOME="${JAVA_HOME_17_X64:-$JAVA_HOME}"
+          ARGS=()
+          if [ -n "$SITE_URL" ]; then ARGS+=("-PsiteUrl=$SITE_URL"); fi
+          chmod +x gradlew
+          ./gradlew --no-daemon "${ARGS[@]}" assembleDebug
+          BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs app/build/outputs/apk/debug/app-debug.apk
+          "$BUILD_TOOLS/aapt" dump badging app/build/outputs/apk/debug/app-debug.apk > ../apk-badging.txt
+          head -n 8 ../apk-badging.txt
+          mkdir -p ../apk-out
+          cp app/build/outputs/apk/debug/app-debug.apk ../apk-out/campusdrop-debug.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: campusdrop-apk
+          path: apk-out/*.apk
+          retention-days: 30

@@ -32,3 +32,14 @@ tests-cloudbase/
 vitest.config.ts
 
 .netlify/
+trial-accounts.sql
+trial-accounts.json
+
+# Private account lists, signing files and locally built installers
+*.xlsx
+*.xls
+*.jks
+*.keystore
+*.apk
+trial-accounts.sql
+trial-accounts.json

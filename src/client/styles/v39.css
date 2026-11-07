@@ -1,0 +1,62 @@
+/* v3.9 · courier earnings on the market, 我的钱包, 提现审核 and 账号管理.
+   Uses the chart tokens only, so the dark theme follows (theme-dark-auto.css is regenerated from these rules). */
+
+/* ---------------------------------------------------------------- what the courier gets for each order */
+.earn-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin: 10px 0 4px; padding: 8px 12px; border: 1px solid color-mix(in srgb, var(--green-500) 30%, transparent); border-radius: 10px; background: color-mix(in srgb, var(--green-500) 7%, var(--paper)); }
+.earn-line span { color: var(--sounding); font-size: var(--text-sm); }
+.earn-line b { color: var(--green-700); font-size: 1.35rem; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.earn-line small { flex-basis: 100%; color: var(--sounding); font-size: var(--text-xs); }
+.earn-inline { color: var(--green-700); font-variant-numeric: tabular-nums; }
+
+/* ---------------------------------------------------------------- 我的钱包 */
+.wallet-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: var(--space-5); }
+.wallet-kpis .kpi strong { font-variant-numeric: tabular-nums; }
+.wallet-balance { border-color: color-mix(in srgb, var(--green-500) 40%, transparent); background: linear-gradient(160deg, color-mix(in srgb, var(--green-500) 9%, var(--paper)), var(--paper)); }
+.wallet-balance strong { color: var(--green-700); }
+.wallet-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; margin-bottom: var(--space-5); }
+.wallet-row > .panel > h2:first-child, .wallet-row > .panel > h2 { margin-top: 0; }
+.wallet-withdraw form { display: grid; gap: var(--space-3); }
+.wallet-accounts { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; }
+.wallet-accounts legend { margin-bottom: 6px; font-weight: 650; }
+.wallet-account { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--contour); border-radius: 10px; background: var(--paper); cursor: pointer; }
+.wallet-account.is-on { border-color: var(--action); box-shadow: 0 0 0 3px var(--action-glow); }
+.wallet-account span { display: grid; min-width: 0; }
+.wallet-account small { overflow: hidden; color: var(--sounding); text-overflow: ellipsis; white-space: nowrap; }
+.wallet-amount { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+.wallet-amount input { flex: 1; min-width: 0; font-variant-numeric: tabular-nums; }
+.wallet-account-form { display: grid; gap: var(--space-3); }
+.wallet-account-form .segmented { grid-auto-columns: minmax(0, 1fr); }
+.wallet-list { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.wallet-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--contour); }
+.wallet-list li:last-child { border-bottom: 0; }
+.wallet-list li > span { display: grid; gap: 2px; min-width: 0; }
+.wallet-list strong { font-variant-numeric: tabular-nums; }
+.wallet-list small { color: var(--sounding); }
+.wd-status { flex: none; padding: 2px 10px; border-radius: 999px; font-size: var(--text-xs); font-style: normal; font-weight: 700; }
+.wd-status.is-pending { background: var(--amber-50); color: var(--amber-700); }
+.wd-status.is-paid { background: var(--green-50); color: var(--green-700); }
+.wd-status.is-rejected { background: var(--red-50); color: var(--red-700); }
+td.is-credit { color: var(--green-700); font-variant-numeric: tabular-nums; font-weight: 650; }
+td.is-debit { color: var(--red-700); font-variant-numeric: tabular-nums; font-weight: 650; }
+
+/* ---------------------------------------------------------------- 提现审核 */
+.wallet-review { margin: 0; padding: 0; list-style: none; }
+.wallet-review .actions { flex-wrap: wrap; align-items: center; }
+.wallet-review .actions input { flex: 1 1 200px; min-width: 0; }
+
+/* ---------------------------------------------------------------- 账号管理 */
+.account-search { display: flex; gap: 10px; max-width: 520px; margin: var(--space-4) 0; }
+.account-search input { flex: 1 1 auto; width: auto; min-width: 0; }
+.account-search button { flex: none; width: auto; }
+.account-table td { white-space: nowrap; }
+.account-table td .actions { flex-wrap: nowrap; gap: 6px; margin: 0; }
+.account-table .test-data-badge { margin-left: 6px; }
+.pager { justify-content: center; align-items: center; margin-top: var(--space-4); }
+
+@media (max-width: 860px) {
+  .wallet-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .wallet-row { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 480px) {
+  .wallet-kpis { grid-template-columns: minmax(0, 1fr); }
+}

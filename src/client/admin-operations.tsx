@@ -10,7 +10,7 @@ import {downloadText,toCsv} from './csv';
 import {SymbolIcon} from './campus-design';
 import type {Admin} from '../shared/contracts';
 import {
-  COURIER_SHARE,DEFAULT_SHIFT_QUOTA,SEND_STATUS_LABELS,WEBHOOK_EVENTS,WEBHOOK_EVENT_LABELS,WEBHOOK_KINDS,WEBHOOK_KIND_LABELS,
+  PLATFORM_FEE_FEN,DEFAULT_SHIFT_QUOTA,SEND_STATUS_LABELS,WEBHOOK_EVENTS,WEBHOOK_EVENT_LABELS,WEBHOOK_KINDS,WEBHOOK_KIND_LABELS,
   type MonthReport,type OrderingPause,type SendRequest,type SettlementRow,type ShiftCapacity,type WebhookEvent,type WebhookKind,
 } from '../shared/operations-rules';
 import {DELIVERY_SLOTS,slotLabel} from '../shared/slots';
@@ -62,16 +62,16 @@ export function AdminSends(){
 // ---------------------------------------------------------------- 配送员模拟结算
 export function AdminSettlement(){
   const [week,setWeek]=useState(beijingDate(now()));
-  const r=useResource<{week:string;from:number;to:number;share:number;rows:SettlementRow[]}>(`/admin/settlement?week=${week}`);
+  const r=useResource<{week:string;from:number;to:number;feePerParcelFen:number;rows:SettlementRow[]}>(`/admin/settlement?week=${week}`);
   const d=r.data,total=(d?.rows??[]).reduce((s,x)=>s+x.payoutFen,0);
   const shift=(days:number)=>setWeek(beijingDate(Date.parse(`${d?.week??week}T12:00:00+08:00`)/1000+days*86400));
-  function exportCsv(){if(!d)return;downloadText(`campusdrop-settlement-${d.week}.csv`,toCsv([['CampusDrop 配送员模拟结算',`${d.week} 起一周`,'模拟数据，未发生真实资金流转'],[],['配送员','送达单数','配送费（元）','代寄件','寄件费（元）','打赏（元）',`应结（元，配送与寄件按 ${Math.round(d.share*100)}%）`],...d.rows.map(x=>[x.username,x.deliveries,(x.deliveryFen/100).toFixed(2),x.sends,(x.sendFen/100).toFixed(2),(x.tipFen/100).toFixed(2),(x.payoutFen/100).toFixed(2)])]));toast('已导出结算表','success');}
+  function exportCsv(){if(!d)return;downloadText(`campusdrop-settlement-${d.week}.csv`,toCsv([['CampusDrop 配送员模拟结算',`${d.week} 起一周`,'模拟数据，未发生真实资金流转'],[],['配送员','送达单数','配送费（元）','代寄件','寄件费（元）','打赏（元）',`平台抽成（元，每件 ${(d.feePerParcelFen/100).toFixed(2)}）`,'应结（元）'],...d.rows.map(x=>[x.username,x.deliveries,(x.deliveryFen/100).toFixed(2),x.sends,(x.sendFen/100).toFixed(2),(x.tipFen/100).toFixed(2),(x.platformFeeFen/100).toFixed(2),(x.payoutFen/100).toFixed(2)])]));toast('已导出结算表','success');}
   return <AdminShell><div className="row"><div><h1>配送员结算</h1></div><div className="actions"><button type="button" className="secondary" onClick={()=>shift(-7)}>‹ 上一周</button><button type="button" className="secondary" disabled={!!d&&d.to>now()} onClick={()=>shift(7)}>下一周 ›</button><button type="button" className="text-button" disabled={!d?.rows.length} onClick={exportCsv}>导出 CSV</button></div></div>
-    <p className="muted">按北京时间周一至周日统计。配送费和寄件费按 {Math.round(COURIER_SHARE*100)}% 计入配送员，打赏全额计入。<strong>全部为模拟数据，不产生真实收入或转账；学生用优惠券少付的部分由平台承担，配送员按原价结算。</strong></p>
+    <p className="muted">按北京时间周一至周日统计。平台每件抽成 {money(PLATFORM_FEE_FEN)}（配送和代寄件都按件计），其余配送费、寄件费和全部打赏计入配送员；配送员可以在“我的钱包”提现。<strong>全部为模拟数据，不产生真实收入或转账；学生用优惠券少付的部分由平台承担，配送员按原价结算。</strong></p>
     <p role="alert">{r.error}</p>{r.loading&&!d&&<LoadingState/>}
     {d&&<><p className="settle-week">{d.week} — {beijingDate(d.to-1)} · 合计应结 <strong>{money(total)}</strong></p>
-      {d.rows.length?<div className="table-scroll" tabIndex={0}><table className="staff-table"><thead><tr><th scope="col">配送员</th><th scope="col">送达</th><th scope="col">配送费</th><th scope="col">代寄件</th><th scope="col">打赏</th><th scope="col">应结（模拟）</th></tr></thead>
-        <tbody>{d.rows.map(x=><tr key={x.adminId}><td>{x.username}</td><td>{x.deliveries}</td><td>{money(x.deliveryFen)}</td><td>{x.sends} · {money(x.sendFen)}</td><td>{money(x.tipFen)}</td><td><strong>{money(x.payoutFen)}</strong></td></tr>)}</tbody></table></div>
+      {d.rows.length?<div className="table-scroll" tabIndex={0}><table className="staff-table"><thead><tr><th scope="col">配送员</th><th scope="col">送达</th><th scope="col">配送费</th><th scope="col">代寄件</th><th scope="col">打赏</th><th scope="col">平台抽成</th><th scope="col">应结（模拟）</th></tr></thead>
+        <tbody>{d.rows.map(x=><tr key={x.adminId}><td>{x.username}</td><td>{x.deliveries}</td><td>{money(x.deliveryFen)}</td><td>{x.sends} · {money(x.sendFen)}</td><td>{money(x.tipFen)}</td><td>-{money(x.platformFeeFen)}</td><td><strong>{money(x.payoutFen)}</strong></td></tr>)}</tbody></table></div>
         :<EmptyState title="这一周还没有送达记录" icon="wallet"/>}</>}
   </AdminShell>;
 }

@@ -41,8 +41,9 @@ export interface Shift { adminId: string; username: string; date: string; code: 
 
 // ---------------------------------------------------------------- settlement (模拟结算)
 /** Courier share of the (mock) delivery fee; tips go to the courier in full. Illustrative only — no money moves. */
-export const COURIER_SHARE = 0.8;
-export interface SettlementRow { adminId: string; username: string; deliveries: number; deliveryFen: number; sends: number; sendFen: number; tipFen: number; payoutFen: number }
+/** v3.9: replaced by a fixed platform fee per parcel (shared/wallet.ts PLATFORM_FEE_FEN, 0.20 元). */
+export { PLATFORM_FEE_FEN } from './wallet.ts';
+export interface SettlementRow { adminId: string; username: string; deliveries: number; deliveryFen: number; sends: number; sendFen: number; tipFen: number; platformFeeFen: number; payoutFen: number }
 
 // ---------------------------------------------------------------- reports and boards
 export interface MileageRow { adminId: string; username: string; deliveries: number; meters: number; unplaced: number }

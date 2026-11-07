@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>网络未连接</title>
+<style>
+  :root { color-scheme: light dark; --bg: #eef3f2; --ink: #0f2833; --muted: #3e555c; --action: #1f6680; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0b1a21; --ink: #e6f0f2; --muted: #a9bcc1; --action: #7cc3dc; } }
+  html, body { height: 100%; margin: 0; }
+  body { display: grid; place-items: center; padding: 24px; box-sizing: border-box; background: var(--bg); color: var(--ink); font: 16px/1.6 system-ui, "PingFang SC", "Noto Sans CJK SC", sans-serif; text-align: center; }
+  h1 { margin: 0 0 8px; font-size: 22px; }
+  p { margin: 0 0 24px; color: var(--muted); }
+  a { display: inline-block; min-width: 160px; padding: 12px 24px; border-radius: 999px; background: var(--action); color: var(--bg); font-weight: 700; text-decoration: none; }
+</style>
+</head>
+<body>
+  <main>
+    <h1>网络未连接</h1>
+    <p>CampusDrop 需要联网才能查看包裹和订单。<br>连上 Wi-Fi 或移动数据后点下面的按钮。</p>
+    <a href="campusdrop://retry">重试</a>
+  </main>
+</body>
+</html>
