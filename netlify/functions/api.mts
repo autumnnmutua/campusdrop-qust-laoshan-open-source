@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import type {Context,Config} from '@netlify/functions';
 import {createHandler} from '../../cloudbase/functions/campusdrop-api/index.js';
 export default async (request:Request,context:Context)=>{

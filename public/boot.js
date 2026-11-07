@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 // Appearance and language are applied before the first paint, so a dark-mode or English visitor never sees a flash of
 // the wrong colours or language (the app keeps them in sync afterwards: src/client/theme.ts, src/client/i18n.ts).
 (function () {

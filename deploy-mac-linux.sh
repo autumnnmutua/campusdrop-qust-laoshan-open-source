@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# CampusDrop v3.9.0 production deploy (macOS / Linux). Same steps as deploy-windows.cmd.
+# © 2026 专业团队 · CampusDrop v4.0.0
+# CampusDrop v4.0.0 production deploy (macOS / Linux). Same steps as deploy-windows.cmd.
 set -euo pipefail
 cd "$(dirname "$0")"
 major=$(node -p 'process.versions.node.split(".")[0]')
@@ -7,7 +8,7 @@ if [ "$major" -lt 22 ] || [ "$major" -ge 25 ]; then echo "需要 Node.js 22 或 
 echo "[1/5] 安装依赖..."; npm ci --include=dev --no-audit --no-fund
 echo "[2/5] 检查 Cloudflare 登录..."; npx wrangler whoami | grep -q "You are logged in" || npx wrangler login
 echo "[3/5] 检查生产配置..."; npm run production:check
-echo "[4/5] 数据库升级（v3.9.0 需要执行 0018_v39_wallet_withdrawals.sql：平台抽成、配送员钱包与提现；线上还没执行 0017（多件下单）或 0016（优惠券）时会一并列出。不删除已有数据；若显示 No migrations to apply 可直接跳过）"
+echo "[4/5] 数据库升级（v4.0.0 没有新的迁移；线上还没执行 0018_v39_wallet_withdrawals.sql（平台抽成、配送员钱包与提现）、0017（多件下单）或 0016（优惠券）时会一并列出。不删除已有数据；若显示 No migrations to apply 可直接跳过）"
 echo "      线上数据库待执行的迁移："
 npx wrangler d1 migrations list DB --remote --env production --config wrangler.jsonc || true
 read -r -p "      现在执行数据库升级吗？[Y/n] " answer

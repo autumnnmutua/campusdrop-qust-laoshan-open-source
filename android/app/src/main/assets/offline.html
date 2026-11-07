@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- © 2026 专业团队 · CampusDrop v4.0.0 -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -15,10 +16,17 @@
 </style>
 </head>
 <body>
-  <main>
+  <main id="view-a35fb81c4efa473255b10360b95ff510">
     <h1>无法连接 CampusDrop</h1>
     <p>请检查网络连接；如果网络正常，请稍后重试。</p>
     <a href="campusdrop://retry">重试</a>
   </main>
+  <script>
+    if (location.hash === '#unreachable') {
+      document.title = '暂时打不开';
+      document.querySelector('h1').textContent = '网站暂时打不开';
+      document.querySelector('p').textContent = '手机已联网，但现在连不上 CampusDrop。可能是当前网络限制了访问，换一个网络（如移动数据）或稍后再试。';
+    }
+  </script>
 </body>
 </html>

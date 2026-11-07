@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 // node:crypto is supported by Cloudflare with nodejs_compat; production probe verified scrypt.
 import { scrypt } from 'node:crypto';
 export const SCRYPT_PARAMETERS = { N: 16384, r: 8, p: 5, maxmem: 32 * 1024 * 1024 } as const;

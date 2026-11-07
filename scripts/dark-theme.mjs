@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 

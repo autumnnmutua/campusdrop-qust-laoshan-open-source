@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import {z} from 'zod';
 import type {OrderStatus} from './delivery';
 export const supportText=z.string().trim().min(1).max(1000).refine(v=>!/[<>\p{Cc}]/u.test(v),'请使用普通文字描述');

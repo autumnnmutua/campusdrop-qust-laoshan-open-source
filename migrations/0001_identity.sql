@@ -1,3 +1,4 @@
+-- © 2026 专业团队 · CampusDrop v4.0.0
 CREATE TABLE campuses (
   id TEXT PRIMARY KEY CHECK (id = 'QUST_LAOSHAN'),
   name TEXT NOT NULL, address TEXT NOT NULL

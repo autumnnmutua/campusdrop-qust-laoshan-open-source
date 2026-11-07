@@ -1,3 +1,4 @@
+-- © 2026 专业团队 · CampusDrop v4.0.0
 -- v2.0 engagement: campus announcements and post-delivery ratings.
 -- Additive only: two new tables and their indexes; no existing table, trigger or row is changed.
 

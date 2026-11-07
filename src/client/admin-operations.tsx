@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import {useEffect,useState,type CSSProperties,type FormEvent} from 'react';
 import { WeatherPanel } from './v3-admin';
 import {Link,useSearchParams} from 'react-router-dom';
@@ -67,7 +68,7 @@ export function AdminSettlement(){
   const shift=(days:number)=>setWeek(beijingDate(Date.parse(`${d?.week??week}T12:00:00+08:00`)/1000+days*86400));
   function exportCsv(){if(!d)return;downloadText(`campusdrop-settlement-${d.week}.csv`,toCsv([['CampusDrop 配送员模拟结算',`${d.week} 起一周`,'模拟数据，未发生真实资金流转'],[],['配送员','送达单数','配送费（元）','代寄件','寄件费（元）','打赏（元）',`平台抽成（元，每件 ${(d.feePerParcelFen/100).toFixed(2)}）`,'应结（元）'],...d.rows.map(x=>[x.username,x.deliveries,(x.deliveryFen/100).toFixed(2),x.sends,(x.sendFen/100).toFixed(2),(x.tipFen/100).toFixed(2),(x.platformFeeFen/100).toFixed(2),(x.payoutFen/100).toFixed(2)])]));toast('已导出结算表','success');}
   return <AdminShell><div className="row"><div><h1>配送员结算</h1></div><div className="actions"><button type="button" className="secondary" onClick={()=>shift(-7)}>‹ 上一周</button><button type="button" className="secondary" disabled={!!d&&d.to>now()} onClick={()=>shift(7)}>下一周 ›</button><button type="button" className="text-button" disabled={!d?.rows.length} onClick={exportCsv}>导出 CSV</button></div></div>
-    <p className="muted">按北京时间周一至周日统计。平台每件抽成 {money(PLATFORM_FEE_FEN)}（配送和代寄件都按件计），其余配送费、寄件费和全部打赏计入配送员；配送员可以在“我的钱包”提现。<strong>全部为模拟数据，不产生真实收入或转账；学生用优惠券少付的部分由平台承担，配送员按原价结算。</strong></p>
+    <p className="muted">按北京时间周一至周日统计。平台每件抽成 {money(PLATFORM_FEE_FEN)}（配送和代寄件都按件计），其余配送费、寄件费和全部打赏计入配送员。本页按送达时间统计（含等待学生签收的单）；“我的钱包”在学生签收后才入账，所以两边可能暂时差几单。<strong>全部为模拟数据，不产生真实收入或转账；学生用优惠券少付的部分由平台承担，配送员按原价结算。</strong></p>
     <p role="alert">{r.error}</p>{r.loading&&!d&&<LoadingState/>}
     {d&&<><p className="settle-week">{d.week} — {beijingDate(d.to-1)} · 合计应结 <strong>{money(total)}</strong></p>
       {d.rows.length?<div className="table-scroll" tabIndex={0}><table className="staff-table"><thead><tr><th scope="col">配送员</th><th scope="col">送达</th><th scope="col">配送费</th><th scope="col">代寄件</th><th scope="col">打赏</th><th scope="col">平台抽成</th><th scope="col">应结（模拟）</th></tr></thead>

@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import { AsyncLocalStorage } from 'node:async_hooks';
 /**
  * Lets any route schedule work (live events, web push) after the response without threading ExecutionContext through

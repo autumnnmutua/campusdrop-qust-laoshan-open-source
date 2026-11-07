@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 /** Image files from a paste or drop event, if any. */
 export function imageFiles(list:DataTransferItemList|FileList|null|undefined):File[]{
   if(!list)return [];

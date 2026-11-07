@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import { pickupCodeRegex } from './constants.ts';
 
 /* v3.6 · reading the vision model's answer (截图识别大模型兜底). */

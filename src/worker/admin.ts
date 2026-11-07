@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import type { z } from 'zod';
 import { CAMPUS_ID, type Admin, type Building, createAdminSchema, type Scope, type AdminRole } from '../shared/contracts';
 import { hashPassword } from '../domain/password';

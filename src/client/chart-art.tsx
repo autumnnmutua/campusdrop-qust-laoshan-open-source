@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import {useEffect,useState,type CSSProperties} from 'react';
 import type {CHART as ChartData} from './chart-art-data';
 

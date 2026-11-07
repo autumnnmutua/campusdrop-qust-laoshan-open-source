@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import { z } from 'zod';
 import { modeSchema } from './delivery.ts';
 import { SLOT_CODES, type SlotCode } from './slots.ts';

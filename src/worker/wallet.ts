@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import type { Env } from './types';
 import type { Admin } from '../shared/contracts';
 import { ApiError, body, json } from './http';
@@ -109,13 +110,15 @@ export async function walletRoutes(request: Request, env: Env): Promise<Response
     const d = await body(request, withdrawReviewSchema);
     const target = await env.DB.prepare(`SELECT w.id,w.admin_id AS adminId FROM courier_withdrawals w JOIN admin_users a ON a.id=w.admin_id WHERE w.id=? AND ${SAME_WORLD}`).bind(rev[1], admin.id).first<{ id: string; adminId: string }>();
     if (!target) throw new ApiError(404, 'NOT_FOUND', '提现申请不存在，或不在你可以处理的范围');
+    if (target.adminId === admin.id) throw new ApiError(403, 'WITHDRAW_SELF_REVIEW', '不能审核自己的提现，请让另一位超级管理员处理');
     const paidRef = d.action === 'PAY' ? `MOCK-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0, 6).toUpperCase()}` : null;
     let changed = 0;
     try {
       const results = await env.DB.batch([
         env.DB.prepare("UPDATE courier_withdrawals SET status=?,note=?,reviewed_by=?,reviewed_at=unixepoch(),paid_ref=? WHERE id=? AND status='PENDING'")
           .bind(d.action === 'PAY' ? 'PAID' : 'REJECTED', d.note, admin.id, paidRef, target.id),
-        env.DB.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,resource_id,metadata_redacted) VALUES(?,'ADMIN',?,?,?,json_object('note',?))")
+        // Only when the review above actually changed the request (changes() is the previous statement's row count).
+        env.DB.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,resource_id,metadata_redacted) SELECT ?,'ADMIN',?,?,?,json_object('note',?) WHERE changes()>0")
           .bind(crypto.randomUUID(), admin.id, d.action === 'PAY' ? 'WITHDRAW_PAID' : 'WITHDRAW_REJECTED', target.id, d.note),
       ]);
       changed = results[0].meta.changes;

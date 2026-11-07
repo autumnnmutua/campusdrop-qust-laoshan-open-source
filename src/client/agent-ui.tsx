@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import {useState,type FormEvent} from 'react';
 import {Link,useNavigate} from 'react-router-dom';
 import {api} from './api';

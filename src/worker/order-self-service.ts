@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import {cursorPage,cursorResult} from './pagination';
 import {taskQuerySchema} from '../shared/delivery';
 import { upgradePriceFen } from '../domain/commerce';

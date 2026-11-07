@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import dialogPolyfill from 'dialog-polyfill';
 import { inWeChat } from './wechat';
 import {useEffect,useId,useRef,useState} from 'react';

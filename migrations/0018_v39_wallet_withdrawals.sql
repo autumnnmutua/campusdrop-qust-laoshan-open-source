@@ -1,3 +1,4 @@
+-- © 2026 专业团队 · CampusDrop v4.0.0
 -- v3.9: the platform takes 0.20 元 per delivered parcel (配送 and 代寄件); couriers get the rest of the fee plus all tips
 -- in a wallet they can withdraw to WeChat, Alipay or a bank card (simulated, like every payment on the site).
 -- Only adds tables, one column and triggers; nothing is deleted or rewritten.

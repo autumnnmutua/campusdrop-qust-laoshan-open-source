@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import type { LiveHub } from './live';
 /**
  * Bindings from wrangler.jsonc plus optional secrets. LIVE is optional so the worker keeps serving (with polling on the

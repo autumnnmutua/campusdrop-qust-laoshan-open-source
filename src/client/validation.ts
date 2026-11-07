@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import './zod-config';
 /**
  * Form schemas for the client. Loaded on demand (see loadValidation) so zod stays out of the first-load bundle;

@@ -1,3 +1,4 @@
+-- © 2026 专业团队 · CampusDrop v4.0.0
 ALTER TABLE parcel_handoffs ADD COLUMN rejected INTEGER NOT NULL DEFAULT 0 CHECK(rejected IN (0,1));
 ALTER TABLE parcel_handoffs ADD COLUMN rejection_reason TEXT NOT NULL DEFAULT '' CHECK(length(rejection_reason)<=240);
 ALTER TABLE parcel_handoffs ADD COLUMN reviewed_by TEXT;

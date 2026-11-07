@@ -1,3 +1,4 @@
+-- © 2026 专业团队 · CampusDrop v4.0.0
 ALTER TABLE admin_users ADD COLUMN phone TEXT CHECK(phone IS NULL OR (length(phone)=11 AND phone GLOB '1[3-9]*' AND phone NOT GLOB '*[^0-9]*'));
 ALTER TABLE delivery_orders ADD COLUMN exception_note TEXT NOT NULL DEFAULT '' CHECK(length(exception_note)<=240);
 ALTER TABLE delivery_orders ADD COLUMN service_notice TEXT NOT NULL DEFAULT '';

@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import {getLang,locale,t} from './i18n';
 import {CouponPicker,CouponTotal,type CouponChoice} from './coupons-ui';
 import {SeaChartView} from './sea-chart/SeaChartView';

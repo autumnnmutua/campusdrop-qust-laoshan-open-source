@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 package cn.campusdrop.app;
 
 import android.Manifest;
@@ -130,7 +131,8 @@ public class MainActivity extends Activity {
     @SuppressWarnings("deprecation")
     @Override
     public void onBackPressed() {
-        if (web.canGoBack() && !OFFLINE_PAGE.equals(web.getUrl())) web.goBack();
+        String current = web.getUrl();
+        if (web.canGoBack() && (current == null || !current.startsWith(OFFLINE_PAGE))) web.goBack();
         else super.onBackPressed();
     }
 
@@ -183,7 +185,7 @@ public class MainActivity extends Activity {
         @Override
         public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
             // Main-page network failures include DNS errors and service-worker failures as well as a disconnected device.
-            if (request.isForMainFrame() && isSite(request.getUrl())) view.loadUrl(OFFLINE_PAGE);
+            if (request.isForMainFrame() && isSite(request.getUrl())) view.loadUrl(online() ? OFFLINE_PAGE + "#unreachable" : OFFLINE_PAGE);
         }
     }
 

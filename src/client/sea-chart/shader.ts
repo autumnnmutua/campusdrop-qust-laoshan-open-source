@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 /*
  * The live sea chart, drawn entirely in a fragment shader: a height field for Laoshan and the coast, a depth field for
  * the sea (its noise drifts slowly, so the isobaths move like a tide), contour lines extracted per pixel with fwidth,

@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import './zod-config';
 import {useId,useState,type CSSProperties,type FormEvent} from 'react';
 import {downloadText,toCsv} from './csv';

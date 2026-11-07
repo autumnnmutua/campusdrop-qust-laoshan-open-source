@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import {dayLabel,slotByCode,type SlotCode} from '../shared/slots';
 import {DROP_PLACE_LABELS,type DropPlace} from '../shared/campus-map';
 import {getLang,t} from './i18n';

@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import { z } from 'zod';
 
 /** v3.6 one-click demo (一键体验). */

@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 /**
  * Service knowledge shared by the FAQ page (client) and the 智能助手 (worker): one list, so both say the same thing.
  * [topic, question, answer]. Plain strings, zod-free, safe to import anywhere.

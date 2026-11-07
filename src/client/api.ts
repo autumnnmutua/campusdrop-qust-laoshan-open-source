@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import {errorText,t} from './i18n';
 export class RequestError extends Error {constructor(message:string,public requestId?:string,public status?:number){super(message);}}
 export async function api<T>(path:string,method='GET',data?:unknown):Promise<T>{

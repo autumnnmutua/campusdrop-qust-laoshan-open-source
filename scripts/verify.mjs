@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import { spawnSync } from 'node:child_process';
 const npm=process.env.npm_execpath;
 if(!npm)throw new Error('Run this gate through npm run verify');

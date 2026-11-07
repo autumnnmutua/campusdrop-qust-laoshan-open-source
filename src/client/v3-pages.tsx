@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { CouponPicker, CouponTotal, type CouponChoice } from './coupons-ui';
 import { Link, useNavigate, useParams } from 'react-router-dom';

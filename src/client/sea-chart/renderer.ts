@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import {FRAG,MAX_ROUTE,VERT} from './shader';
 
 /** Chart sheet size and the fixed marks on it (chart pixels, y down). Kept in step with chart-art-data.ts. */

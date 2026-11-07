@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import { DurableObject } from 'cloudflare:workers';
 import type { Env } from './types';
 import type { LiveEvent } from '../shared/live';

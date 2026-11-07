@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 /*
  * Small responses to the pointer, installed once for the whole app through delegated listeners (no per-component wiring):
  *  - primary buttons lean a few pixels towards the pointer and carry a soft light where it rests (magnetic);

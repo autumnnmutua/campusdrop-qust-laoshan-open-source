@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import {useEffect,useRef,useState} from 'react';
 import {ChartArt} from '../chart-art';
 import {SeaChart,lookForTheme,type ChartViewport} from './renderer';

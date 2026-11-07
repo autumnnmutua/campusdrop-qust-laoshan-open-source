@@ -34,3 +34,4 @@ wrangler配置启用Workers日志及低比例追踪，并使用redact_query_stri
 - **地图校准**：`map_calibration` 只由超级管理员通过 `PUT /api/v1/admin/map-calibration` 写入，并记录审计日志。未校准时服务端不投影任何 GPS 坐标。
 - **代理部署**：CloudBase 云函数、Netlify Functions 只做 HTTP 转发，无法升级 WebSocket；功能完整，实时性退回为 20 秒轮询。
 
+<!-- © 2026 专业团队 · CampusDrop v4.0.0 -->

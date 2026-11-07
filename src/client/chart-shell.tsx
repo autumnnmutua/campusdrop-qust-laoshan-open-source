@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import {useEffect,useState} from 'react';
 import {Link,NavLink,useLocation,useNavigate} from 'react-router-dom';
 import {NavGlider} from './nav-glider';
@@ -68,7 +69,7 @@ export function MobileTabs({unread,hidden}:{unread:number;hidden:boolean}){
 export function SiteFooter(){
   const {pathname}=useLocation();const admin=pathname.startsWith('/admin');
   return <footer className="site-footer">
-    <div className="site-footer-mark"><Wordmark/><p>{t('独立校园服务项目 · 非学校或菜鸟官方产品')}</p></div>
+    <div className="site-footer-mark" id="footer-7959f4e19d841891f9db16af0805025f"><Wordmark/><p>{t('独立校园服务项目 · 非学校或菜鸟官方产品')}</p></div>
     {!admin&&<nav aria-label={t('校园服务')}><Link to="/guide">{t('配送说明')}</Link><Link to="/help">{t('常见问题')}</Link><Link to="/contact">{t('配送联系')}</Link><Link to="/privacy">{t('资料用途')}</Link><Link to="/admin/login">{t('管理员入口')}</Link></nav>}
   </footer>;
 }

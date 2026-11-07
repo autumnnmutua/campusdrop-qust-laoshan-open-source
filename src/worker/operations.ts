@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import type { Env } from './types';
 import { ApiError, body, json } from './http';
 import { requireAdmin, requireStudent, requireSuper, requireSuperView, isRealSuper } from './session';
@@ -48,9 +49,9 @@ async function settlement(env: Env, admin: Admin, week: string | null) {
     WHERE ${PAID} AND ${scope.sql} AND o.status IN ('DELIVERED_DOWNSTAIRS','DELIVERED_TO_ROOM','COMPLETED')
     AND (SELECT max(e.created_at) FROM order_events e WHERE e.order_id=o.id AND e.to_status IN ${DELIVERED}) BETWEEN ? AND ?${own} GROUP BY b.assignee_admin_id`)
     .bind(...scope.params, from, to - 1, ...(own ? [admin.id] : [])).all<{ adminId: string; username: string; n: number; fen: number }>()).results;
-  const tips = (await env.DB.prepare(`SELECT b.assignee_admin_id AS adminId,sum(p.amount_fen) AS fen FROM payments p JOIN delivery_orders o ON o.id=p.order_id
-    JOIN batch_items bi ON bi.order_id=o.id JOIN delivery_batches b ON b.id=bi.batch_id WHERE p.type='TIP' AND p.created_at BETWEEN ? AND ? AND ${scope.sql}${own} GROUP BY b.assignee_admin_id`)
-    .bind(from, to - 1, ...scope.params, ...(own ? [admin.id] : [])).all<{ adminId: string; fen: number }>()).results;
+  const tips = (await env.DB.prepare(`SELECT b.assignee_admin_id AS adminId,a.username,sum(p.amount_fen) AS fen FROM payments p JOIN delivery_orders o ON o.id=p.order_id
+    JOIN batch_items bi ON bi.order_id=o.id JOIN delivery_batches b ON b.id=bi.batch_id JOIN admin_users a ON a.id=b.assignee_admin_id WHERE p.type='TIP' AND p.created_at BETWEEN ? AND ? AND ${scope.sql}${own} GROUP BY b.assignee_admin_id`)
+    .bind(from, to - 1, ...scope.params, ...(own ? [admin.id] : [])).all<{ adminId: string; username: string; fen: number }>()).results;
   const sends = (await env.DB.prepare(`SELECT s.assignee_admin_id AS adminId,a.username,count(*) AS n,sum(s.amount_fen) AS fen FROM send_requests s JOIN admin_users a ON a.id=s.assignee_admin_id
     WHERE s.status='DROPPED' AND s.dropped_at BETWEEN ? AND ?${admin.role === 'DELIVERY_STAFF' ? ' AND s.assignee_admin_id=?' : ''} GROUP BY s.assignee_admin_id`)
     .bind(from, to - 1, ...(admin.role === 'DELIVERY_STAFF' ? [admin.id] : [])).all<{ adminId: string; username: string; n: number; fen: number }>().catch(() => ({ results: [] }))).results;
@@ -59,7 +60,8 @@ async function settlement(env: Env, admin: Admin, week: string | null) {
   for (const d of deliveries) Object.assign(row(d.adminId, d.username), { deliveries: d.n, deliveryFen: d.fen });
   // Sends are counted only for super admins and the couriers themselves (send requests are not scoped by building).
   if (isRealSuper(admin) || admin.role === 'DELIVERY_STAFF') for (const s of sends) Object.assign(row(s.adminId, s.username), { sends: s.n, sendFen: s.fen });
-  for (const t of tips) if (rows.has(t.adminId)) rows.get(t.adminId)!.tipFen = t.fen;
+  // A tip paid this week counts even when the parcel was delivered the week before.
+  for (const t of tips) row(t.adminId, t.username).tipFen = t.fen;
   // v3.9: the platform keeps 0.20 元 per delivered parcel or send; the rest of the full fee and every tip go to the courier.
   for (const r of rows.values()) { r.platformFeeFen = (r.deliveries + r.sends) * PLATFORM_FEE_FEN; r.payoutFen = r.deliveryFen + r.sendFen - r.platformFeeFen + r.tipFen; }
   return { week: monday, from, to, feePerParcelFen: PLATFORM_FEE_FEN, rows: [...rows.values()].sort((a, b) => b.payoutFen - a.payoutFen) };

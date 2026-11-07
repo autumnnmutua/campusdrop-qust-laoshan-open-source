@@ -1,3 +1,4 @@
+-- © 2026 专业团队 · CampusDrop v4.0.0
 -- v3.8: one payment for several parcels with any mix of sizes and destinations (多件下单), tiered 多件满减 on that
 -- payment, and a shared set of test data for the one-click demo. Only adds tables, columns and triggers, rebuilds the
 -- small app_settings table (to allow one more key) and replaces a few triggers with the same rules plus the new ones.

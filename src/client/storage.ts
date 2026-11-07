@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 /*
  * Safe browser storage. Every access can throw (Safari private mode, blocked site data, sandboxed frames), so all
  * reads and writes go through here and quietly fall back: reads return null/empty, writes report false. Storage is

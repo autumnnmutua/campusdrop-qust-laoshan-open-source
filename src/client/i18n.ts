@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import {useSyncExternalStore} from 'react';
 import {getItem,setItem} from './storage';
 import {EN,EN_ERRORS} from './i18n-en';

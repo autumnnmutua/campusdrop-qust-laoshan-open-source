@@ -1,3 +1,4 @@
+-- © 2026 专业团队 · CampusDrop v4.0.0
 -- v3.7: more delivery destinations and a third demo account. Only adds rows and one nullable column; nothing is deleted.
 -- Per the project owner every building on the campus plan takes deliveries except 人才公寓 (staff flats), the canteens
 -- and the teaching buildings. The new buildings use the two existing zones (北区 / 南区) so admin scopes keep working.

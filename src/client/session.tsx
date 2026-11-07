@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import {createContext,useContext,useEffect,useState,type ReactNode} from 'react';
 import {useLocation} from 'react-router-dom';
 import {api,RequestError} from './api';

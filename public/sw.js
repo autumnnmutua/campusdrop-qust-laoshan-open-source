@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 /*
  * CampusDrop service worker: offline app shell, asset caching and web push.
  * - Page navigations: network first, falling back to the last good copy of the app shell when offline.

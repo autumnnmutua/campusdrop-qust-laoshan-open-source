@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import { useEffect, useState, type FormEvent } from 'react';
 import { api } from './api';
 import { toast } from './effects';

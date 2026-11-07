@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 /** Engagement rules and labels without zod, so the client can use them from its first-load bundle. */
 import type { OrderStatus } from './delivery';
 

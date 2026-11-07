@@ -1,5 +1,6 @@
 @echo off
 chcp 65001 >nul
+rem © 2026 专业团队 · CampusDrop v4.0.0
 setlocal
 cd /d "%~dp0"
 title CampusDrop 生产部署

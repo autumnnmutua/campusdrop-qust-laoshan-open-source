@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import {useEffect,useRef} from 'react';
 import {isUnauthorized,useStudentSession} from './session';
 import type {OrderStatus} from '../shared/delivery';

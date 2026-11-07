@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import {ticketCreate,ticketReply,ticketState,bulkCodes} from '../src/shared/support.ts';
 import {z} from 'zod';
 import {announcementCreate,announcementArchive,ratingCreate} from '../src/shared/engagement.ts';

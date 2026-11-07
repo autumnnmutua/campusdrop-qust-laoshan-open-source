@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import {useMemo,useState} from 'react';
 import { OpenInBrowserHint,inWeChat } from './wechat';
 import {Link} from 'react-router-dom';

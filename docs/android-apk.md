@@ -58,3 +58,5 @@ cd android
   但要求手机装有 Chrome，并需要在网站上放置 `assetlinks.json`；国内很多手机没有 Chrome，所以这里默认用 WebView 方式。
 
 请在实测前用不同品牌的手机试装，并验证相机上传、定位和站外链接。
+
+<!-- © 2026 专业团队 · CampusDrop v4.0.0 -->

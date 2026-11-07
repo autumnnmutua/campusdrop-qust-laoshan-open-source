@@ -1,3 +1,4 @@
+/*! © 2026 专业团队 · CampusDrop v4.0.0 */
 import {serviceRoutes} from './service-workflows';
 import {engagementRoutes} from './engagement';
 import {recoveryRoutes} from './recovery';

@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import {dayText,slotText} from './i18n-labels';
 import {getLang,locale,t} from './i18n';
 import {SplitFlap} from './split-flap';

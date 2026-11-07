@@ -1,3 +1,4 @@
+-- © 2026 专业团队 · CampusDrop v4.0.0
 ALTER TABLE delivery_orders ADD COLUMN order_note TEXT NOT NULL DEFAULT '' CHECK(length(order_note)<=120);
 ALTER TABLE delivery_orders ADD COLUMN student_deleted INTEGER NOT NULL DEFAULT 0 CHECK(student_deleted IN (0,1));
 ALTER TABLE delivery_orders ADD COLUMN delivery_upgrade_fen INTEGER NOT NULL DEFAULT 0 CHECK(delivery_upgrade_fen IN (0,100));

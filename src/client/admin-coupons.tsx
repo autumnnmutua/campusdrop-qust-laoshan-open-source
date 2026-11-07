@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import './zod-config';
 import {useEffect,useState,type FormEvent} from 'react';
 import {AdminShell} from './admin-delivery';

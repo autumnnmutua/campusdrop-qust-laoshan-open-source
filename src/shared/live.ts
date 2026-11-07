@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import { z } from 'zod';
 import { CALIBRATION_LANDMARKS } from './campus-map.ts';
 import { SLOT_CODES } from './slots.ts';

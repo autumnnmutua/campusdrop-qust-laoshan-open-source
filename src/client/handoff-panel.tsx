@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import {useState} from 'react';
 import {Link} from 'react-router-dom';
 import type {Admin} from '../shared/contracts';

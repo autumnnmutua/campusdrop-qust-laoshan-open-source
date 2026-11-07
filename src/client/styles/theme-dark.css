@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 /* Dark appearance: the night chart. Applied as <html data-theme="dark"> by public/boot.js before the first paint and
    kept in sync by src/client/theme.ts ('auto' follows the system). Like a chart display in night mode the paper turns
    to deep water and the ink turns light; primary actions invert (light fill, dark text) and the route stays magenta.

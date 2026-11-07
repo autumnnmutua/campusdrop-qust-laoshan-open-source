@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 /* Page background (ambient.tsx). Fixed behind the content of .site; every moving part is transform / opacity only. */
 .site { position: relative; isolation: isolate; }
 .page-ambient {

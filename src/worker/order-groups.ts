@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import type { Env } from './types';
 import { payOrders, payableOrders } from './payment';
 import { payWithCouponSchema } from '../shared/coupons';

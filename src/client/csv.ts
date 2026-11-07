@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import {STATUS_LABELS} from '../shared/constants';
 import type {Order} from '../shared/delivery';
 

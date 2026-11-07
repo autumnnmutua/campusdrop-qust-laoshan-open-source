@@ -1,3 +1,4 @@
+-- © 2026 专业团队 · CampusDrop v4.0.0
 -- v3.7.1: coupons (优惠券 / 优惠码) for the delivery fee. Adds three tables, two nullable-safe columns on
 -- delivery_orders (existing orders keep discount 0), replaces the payment guard so a discounted order can be paid,
 -- and seeds the new-account 50%-off coupon plus a few public codes. Nothing is deleted.

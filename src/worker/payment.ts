@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import type { Env } from './types';
 import { ApiError } from './http';
 import { couponBatch, couponForPayment, settleCoupon } from './coupons';

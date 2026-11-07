@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import type { DeliveryMode, OrderStatus, PackageSize } from '../shared/delivery';
 export function priceFen(size: PackageSize, mode: DeliveryMode): number {
   return { SMALL: { DOWNSTAIRS: 200, ROOM: 300 }, LARGE: { DOWNSTAIRS: 500, ROOM: 700 } }[size][mode];

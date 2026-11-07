@@ -1,3 +1,4 @@
+-- © 2026 专业团队 · CampusDrop v4.0.0
 -- v3.0: merged delivery (order groups), standing delivery rules, weather linkage.
 -- Only adds tables, columns, indexes and triggers; no existing row is deleted or rewritten.
 

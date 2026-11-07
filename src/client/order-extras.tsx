@@ -1,3 +1,4 @@
+/* © 2026 专业团队 · CampusDrop v4.0.0 */
 import {RouteProgress} from './route-progress';
 import { copyText,inWeChat } from './wechat';
 import {Suspense,lazy,useCallback,useEffect,useId,useMemo,useState} from 'react';
