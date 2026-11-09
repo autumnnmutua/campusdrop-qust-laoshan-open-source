@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 /* Pages: home, sign-in, the admin workspace frame, information pages and shared page blocks. */
 
 /* ================================================================ home */
@@ -7,14 +7,14 @@
 /* The hero is the chart: full-bleed, the headline set on the quiet plain, Laoshan and the sea to the right.
    Light theme: a paper chart in ink; the dark theme turns it into the night chart (theme-dark.css). */
 .home-hero {
-  --hero-bg: #f1f6f5;
+  --hero-bg: #f4f2ee;
   --hero-ink: var(--abyss);
   --hero-muted: var(--sounding);
-  --hero-halo: #f3f7f5;
+  --hero-halo: #f8f6f2;
   --hero-glass: #ffffffb8;
-  --hero-glass-line: #0f283317;
+  --hero-glass-line: #1e1b1817;
   --hero-mark: var(--abyss);
-  --hero-route: #c0306c;
+  --hero-route: #b5731a;
   position: relative;
   min-height: min(86vh, 780px);
   width: 100vw;
@@ -72,8 +72,8 @@
 .home-dashboard { position: relative; z-index: 2; display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: var(--space-8); align-items: start; }
 /* The quick-order panel rises into the chart; the right column starts below it. */
 .home-dashboard>.home-quick { margin-top: calc(clamp(120px, 16vh, 180px) * -1); }
-.home-dashboard .home-quick { box-shadow: 0 30px 70px #0f283321, 0 2px 6px #0f283312; border-color: transparent; }
-.home-live>.current-order:first-child { box-shadow: 0 30px 70px #0f283321; border-color: transparent; }
+.home-dashboard .home-quick { box-shadow: 0 30px 70px #1e1b1821, 0 2px 6px #1e1b1812; border-color: transparent; }
+.home-live>.current-order:first-child { box-shadow: 0 30px 70px #1e1b1821; border-color: transparent; }
 .home-quick { padding: var(--space-8); }
 .home-quick>.muted { margin: 0 0 var(--space-2); }
 .home-live { display: grid; gap: var(--space-3); align-content: start; }
@@ -267,7 +267,7 @@
   .home-dashboard>.home-quick { margin-top: -110px; }
   .home-dashboard.has-active-order>.home-quick { margin-top: 0; }
   .home-dashboard.has-active-order>.home-live { margin-top: -110px; }
-  .home-dashboard.has-active-order>.home-live>.current-order:first-child { box-shadow: 0 30px 70px #0f283321; }
+  .home-dashboard.has-active-order>.home-live>.current-order:first-child { box-shadow: 0 30px 70px #1e1b1821; }
   .home-quick { padding: var(--space-5) var(--space-4); }
   .home-dashboard.has-active-order .home-live { order: -1; }
   .quick-choice-grid { grid-template-columns: 1fr; gap: 0; }
@@ -279,9 +279,9 @@
 }
 
 /* Sign-in panel: the live chart (paper in the light theme, night in the dark one); the SVG chart when there is no WebGL. */
-.auth-scenery { background: #f4f8f7; }
+.auth-scenery { background: #f8f6f2; }
 .auth-scenery > canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-.auth-scenery span { text-shadow: 0 0 22px #f4f8f7, 0 0 6px #f4f8f7; }
+.auth-scenery span { text-shadow: 0 0 22px #f8f6f2, 0 0 6px #f8f6f2; }
 
 /* As the page scrolls, the hero's copy lifts away and fades a little faster than the chart (scroll-driven, no script). */
 @supports (animation-timeline: scroll()) {

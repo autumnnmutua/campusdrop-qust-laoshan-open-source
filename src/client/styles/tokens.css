@@ -1,5 +1,7 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
-/* Design tokens: "崂山海图" (a sea chart of the Laoshan coast), v2.8.
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* Design tokens: "崂山海图" (a sea chart of the Laoshan coast), v2.8; v4.5 warms the light theme ("石与灯": Laoshan granite and
+   lamplight: a warm stone page, graphite ink and graphite primary buttons, one amber accent for the route and focus). Every text colour
+   keeps WCAG AA on the page and panels; the dark theme (theme-dark.css) is unchanged.
    The site is drawn like a nautical chart: fog-grey paper, deep-sea ink, hairline contours, and one chart magenta that
    only ever means "the delivery route" (progress, the live route, the current step, focus). Everything else stays quiet.
    Primitive names from earlier versions (blue-*, ink-* …) are kept and re-pointed at the chart palette so older feature
@@ -24,56 +26,56 @@
 
 :root {
   /* ---------- Chart palette ---------- */
-  --fog: #eef3f2;          /* page: sea fog (v2.9: lighter, the site reads as a paper chart) */
-  --chart: #f9fbfa;        /* chart paper: panels */
+  --fog: #f4f2ee;          /* page: sea fog (v2.9: lighter, the site reads as a paper chart) */
+  --chart: #fbfaf7;        /* chart paper: panels */
   --paper: #ffffff;        /* raised paper: inputs, dialogs */
-  --shoal: #d7e4e2;        /* shallow-water tint: selected, hover */
-  --shoal-soft: #e4ece9;
-  --abyss: #0f2833;        /* deep-sea ink: text, primary actions */
-  --abyss-deep: #0a1c24;
-  --abyss-hover: #1b3e4c;
-  --action: #1f6680;       /* primary actions: channel blue, lighter than the ink (white text 6.3:1) */
-  --action-hover: #18566d;
-  --action-deep: #124558;
-  --action-glow: #1f668033;
-  --sea: #1c5b73;          /* channel blue: links, secondary emphasis */
-  --sounding: #3e555c;     /* muted text (v3.7: darker, reads clearly on fog, chart and paper) */
-  --contour: #b9c9c8;      /* hairlines */
-  --contour-strong: #8ea6a8;
-  --isobath: #5e8f99;      /* sea contours in the art */
-  --route: #a3245a;        /* chart magenta: the route, progress, focus */
-  --route-strong: #7f1a45;
-  --route-soft: #f2e1e8;
+  --shoal: #eee9e2;        /* shallow-water tint: selected, hover */
+  --shoal-soft: #f4f0ea;
+  --abyss: #1e1b18;        /* deep-sea ink: text, primary actions */
+  --abyss-deep: #110f0d;
+  --abyss-hover: #3a342e;
+  --action: #24201c;       /* primary actions: channel blue, lighter than the ink (white text 6.3:1) */
+  --action-hover: #3a342e;
+  --action-deep: #110f0d;
+  --action-glow: #24201c26;
+  --sea: #8a5714;          /* channel blue: links, secondary emphasis */
+  --sounding: #625a53;     /* muted text (v3.7: darker, reads clearly on fog, chart and paper) */
+  --contour: #e4dfd8;      /* hairlines */
+  --contour-strong: #ccc4ba;
+  --isobath: #c9b9a3;      /* sea contours in the art */
+  --route: #8f5a16;        /* chart magenta: the route, progress, focus */
+  --route-strong: #6f450f;
+  --route-soft: #f6ecdc;
 
   /* ---------- Legacy primitives, re-pointed ---------- */
   --white: var(--chart);
-  --blue-25: #f3f6f5;
-  --blue-50: #eef3f2;
+  --blue-25: #f8f6f3;
+  --blue-50: #f4f2ee;
   --blue-75: var(--fog);
-  --blue-100: #dde7e5;
-  --blue-150: #ccdad8;
+  --blue-100: #ece8e2;
+  --blue-150: #e2ddd5;
   --blue-200: var(--contour);
-  --blue-300: #9db4b3;
-  --blue-400: #2f6f86;
+  --blue-300: #cbc2b6;
+  --blue-400: #7a6a58;
   --blue-500: var(--abyss);
   --blue-600: var(--sea);
-  --blue-700: #17485b;
+  --blue-700: #3d3530;
   --blue-800: var(--abyss);
   --navy-700: var(--abyss);
   --navy-800: var(--abyss-deep);
 
   --ink-900: var(--abyss);
-  --ink-800: #183642;
-  --ink-700: #223e49;
-  --ink-600: #314d57;
+  --ink-800: #2b2622;
+  --ink-700: #38322d;
+  --ink-600: #4a443e;
   --ink-500: var(--sounding);
-  --ink-400: #647a81;
-  --gray-100: #e4eae9;
+  --ink-400: #7b726a;
+  --gray-100: #ece8e3;
 
   /* Status: buoy green, light-vessel red, sand amber. Text tones pass AA on their tints. */
-  --green-50: #e6f1ec;
-  --green-500: #2e8b66;
-  --green-700: #1e6b4f;
+  --green-50: #e9f1e4;
+  --green-500: #3f8a56;
+  --green-700: #2b6a3d;
   --red-50: #f8e9e8;
   --red-100: #f1d5d3;
   --red-500: #c8433e;
@@ -120,10 +122,10 @@
   --muted: var(--color-text-muted);
 
   /* ---------- Typography ----------
-     Body: the system's own CJK sans (PingFang / YaHei / Noto). Display: Newsreader (bundled, Latin and figures only)
-     in front of the system Song serif; where no Song face exists the stack falls to the sans rather than to SimSun. */
+     Body and headings: the system's own CJK sans (PingFang / HarmonyOS / YaHei / Noto); v4.5 drops the Song serif from
+     headings. Newsreader (bundled, Latin and figures only) is kept for prices, counts and the wordmark. */
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Noto Sans CJK SC", sans-serif;
-  --font-display: "Newsreader", "Songti SC", "STSong", "Noto Serif SC", "Noto Serif CJK SC", "Source Han Serif SC", "PingFang SC", "Microsoft YaHei", serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "HarmonyOS Sans SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Noto Sans CJK SC", sans-serif;
   --font-figure: "Newsreader", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   --font-brush: var(--font-display);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -149,13 +151,13 @@
 
   /* ---------- Shape ----------
      Charts are drawn, not moulded: small radii, hairlines instead of shadows. Pills only for chips and dots. */
-  --radius-xs: 3px;
-  --radius-sm: 4px;
-  --radius-md: 5px;
-  --radius-lg: 6px;
-  --radius-xl: 8px;
-  --radius-2xl: 10px;
-  --radius-3xl: 12px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-2xl: 16px;
+  --radius-3xl: 20px;
   --radius-pill: 999px;
   --hairline: 1px solid var(--color-line);
 
@@ -177,9 +179,9 @@
   /* Elevation: almost none. Only dialogs and menus float. */
   --shadow: none;
   --shadow-card: none;
-  --shadow-raised: 0 1px 0 #0f283314;
-  --shadow-dialog: 0 24px 64px #0a1c2433, 0 2px 6px #0a1c241a;
-  --shadow-menu: 0 12px 32px #0a1c2424, 0 1px 3px #0a1c241a;
+  --shadow-raised: 0 1px 0 #1e1b1814;
+  --shadow-dialog: 0 24px 64px #1e1b1833, 0 2px 6px #1e1b181a;
+  --shadow-menu: 0 12px 32px #1e1b1824, 0 1px 3px #1e1b181a;
 
   /* ---------- Motion ----------
      One orchestrated moment (the intro); everything else answers what the person did. */
@@ -192,4 +194,4 @@
 }
 
 /* Text and icons placed on a filled colour (primary buttons, status fills). Stays light in both themes. */
-:root { --on-color: #f7f9f8; }
+:root { --on-color: #fffdf9; }

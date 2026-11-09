@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import { z } from 'zod';
 import { modeSchema, type Order } from './delivery.ts';
 import { SLOT_CODES } from './slots.ts';
@@ -76,6 +76,8 @@ export interface CheckoutDetail {
   id: string; createdAt: number; orders: Order[]; trips: CheckoutTrip[];
   /** Sums over the parcels not cancelled; coupon / bundle / paid cover the paid ones. */
   totalFen: number; unpaidFen: number; unpaidCount: number; couponFen: number; bundleFen: number; paidFen: number;
+  /** v4.5 雨天配送费 on the paid parcels. */
+  rainFen?: number;
   /** The door code shared by the checkout's parcels (student-only, once paid and while a parcel is on its way). */
   handoffCode: string | null;
 }

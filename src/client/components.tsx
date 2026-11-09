@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import {locale,t} from './i18n';
 import { copyText } from './wechat';
 import dialogPolyfill from 'dialog-polyfill';
@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom';
 import type { Building } from '../shared/contracts';
 import {MOCK_MESSAGE,STATUS_LABELS,pickupCodeRegex} from '../shared/constants';
 import type {DeliveryMode,Order,OrderEvent,Parcel} from '../shared/delivery';
+import { sizeLabel } from '../shared/delivery';
 import { api } from './api';
 import { useCountUp } from './motion';
 import { Odometer } from './odometer';
@@ -28,7 +29,7 @@ export function PickupCodeInput({ value, onChange }: { value: string; onChange: 
 }
 
 export function ParcelCard({ parcel: p, busy, onRemove }: { parcel: Parcel; busy: boolean; onRemove: () => void }) {
-  return <article className="parcel-card"><div className="row"><strong className="pickup-code">{p.pickupCode}</strong><button type="button" className="copy-code" aria-label={t('复制取件码 {0}',{0:p.pickupCode})} onClick={()=>void copyText(p.pickupCode).then(ok=>ok?toast('取件码已复制','success',p.pickupCode):toast('复制失败，请长按取件码手动复制','warn'))}>{t('复制')}</button><span className="badge">{p.packageSize === 'SMALL' ? t('小件') : t('大件')}</span></div><p>{p.carrier ? t(p.carrier) : t('未填写承运商')} · {p.status === 'ACTIVE' ? t('待安排') : p.status === 'CLOSED' ? t('配送完成') : t('已移除')}{p.status === 'ACTIVE' && !p.hasOrder && Date.now() / 1000 - p.createdAt >= 2 * 86400 && <span className="waiting-tag" title={t('登记已超过 2 天，记得取件或安排配送')}>{t('已等 {0} 天',{0:Math.floor((Date.now() / 1000 - p.createdAt) / 86400)})}</span>}</p>{p.note && <p className="muted">{p.note}</p>}{p.status === 'ACTIVE' && <div className="actions"><Link to={`/parcel/${p.id}`}>{t('选择配送 →')}</Link><button className="text-button" disabled={busy} onClick={onRemove}>{busy ? t('正在移除…') : t('移除')}</button></div>}</article>;
+  return <article className="parcel-card"><div className="row"><strong className="pickup-code">{p.pickupCode}</strong><button type="button" className="copy-code" aria-label={t('复制取件码 {0}',{0:p.pickupCode})} onClick={()=>void copyText(p.pickupCode).then(ok=>ok?toast('取件码已复制','success',p.pickupCode):toast('复制失败，请长按取件码手动复制','warn'))}>{t('复制')}</button><span className="badge">{t(sizeLabel(p.packageSize))}</span></div><p>{p.carrier ? t(p.carrier) : t('未填写承运商')} · {p.status === 'ACTIVE' ? t('待安排') : p.status === 'CLOSED' ? t('配送完成') : t('已移除')}{p.status === 'ACTIVE' && !p.hasOrder && Date.now() / 1000 - p.createdAt >= 2 * 86400 && <span className="waiting-tag" title={t('登记已超过 2 天，记得取件或安排配送')}>{t('已等 {0} 天',{0:Math.floor((Date.now() / 1000 - p.createdAt) / 86400)})}</span>}</p>{p.note && <p className="muted">{p.note}</p>}{p.status === 'ACTIVE' && <div className="actions"><Link to={`/parcel/${p.id}`}>{t('选择配送 →')}</Link><button className="text-button" disabled={busy} onClick={onRemove}>{busy ? t('正在移除…') : t('移除')}</button></div>}</article>;
 }
 
 export function DormSelector({ buildings, zone, building, room, onZone, onBuilding, onRoom }: { buildings: Building[]; zone: 'SOUTH' | 'NORTH'; building: string; room: string; onZone: (v: 'SOUTH' | 'NORTH') => void; onBuilding: (v: string) => void; onRoom: (v: string) => void }) {

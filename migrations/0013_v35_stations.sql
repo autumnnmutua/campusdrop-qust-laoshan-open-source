@@ -1,4 +1,4 @@
--- © 2026 专业团队 · CampusDrop v4.0.0
+-- © 2026 专业团队 · CampusDrop v4.5.0
 -- v3.5: a second station (南苑十号楼对面, receives and sends parcels), 北苑4号楼 (built since the 2012 plan), station
 -- ordering, and the AI assistant's per-day usage counter. Only adds a column, rows and a table; nothing is deleted.
 ALTER TABLE stations ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 9;

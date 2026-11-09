@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 /*
  * v3.6 · 单量预测与排班建议. Pure functions (unit-tested): the worker supplies paid orders per Beijing date and delivery
  * window; "as soon as possible" orders are put in the window nearest their payment time.

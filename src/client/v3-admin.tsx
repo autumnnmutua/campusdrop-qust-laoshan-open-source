@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import { useEffect, useState, type FormEvent } from 'react';
 import { api } from './api';
 import { toast } from './effects';
@@ -101,13 +101,13 @@ export function AdminPunctuality() {
 // ---------------------------------------------------------------- 运营设置：天气联动
 const LEVEL_TEXT = { CLEAR: '正常', WET: '雨雪（预计时间多留 10 分钟）', SEVERE: '恶劣天气（多留 20 分钟）' } as const;
 export function WeatherPanel() {
-  const r = useResource<{ weather: WeatherInfo; setting: { enabled: boolean; override: 'AUTO' | 'CLEAR' | 'WET' | 'SEVERE'; note: string } | null; fetchedAt: number | null; failedAt: number | null }>('/admin/weather');
-  const [enabled, setEnabled] = useState(true), [override, setOverride] = useState<'AUTO' | 'CLEAR' | 'WET' | 'SEVERE'>('AUTO'), [note, setNote] = useState(''), [busy, setBusy] = useState(false);
+  const r = useResource<{ weather: WeatherInfo; setting: { enabled: boolean; override: 'AUTO' | 'CLEAR' | 'WET' | 'SEVERE'; note: string; rainSurcharge?: 'AUTO' | 'ON' | 'OFF' } | null; fetchedAt: number | null; failedAt: number | null }>('/admin/weather');
+  const [enabled, setEnabled] = useState(true), [override, setOverride] = useState<'AUTO' | 'CLEAR' | 'WET' | 'SEVERE'>('AUTO'), [note, setNote] = useState(''), [rain, setRain] = useState<'AUTO' | 'ON' | 'OFF'>('AUTO'), [busy, setBusy] = useState(false);
   const s = r.data?.setting, w = r.data?.weather;
-  useEffect(() => { if (s) { setEnabled(s.enabled); setOverride(s.override); setNote(s.note); } }, [s]);
+  useEffect(() => { if (s) { setEnabled(s.enabled); setOverride(s.override); setNote(s.note); setRain(s.rainSurcharge ?? 'AUTO'); } }, [s]);
   async function save(e: FormEvent) {
     e.preventDefault(); setBusy(true);
-    try { await api('/admin/weather', 'PUT', { enabled, override, note: note.trim() }); toast('天气联动已保存', 'success'); await r.refresh(); }
+    try { await api('/admin/weather', 'PUT', { enabled, override, note: note.trim(), rainSurcharge: rain }); toast('天气联动已保存', 'success'); await r.refresh(); }
     catch (err) { toast((err as Error).message, 'warn'); } finally { setBusy(false); }
   }
   const time = (t: number | null) => t ? new Date(t * 1000).toLocaleString('zh-CN', { hour12: false, month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
@@ -116,10 +116,13 @@ export function WeatherPanel() {
     {!s && r.data && <p role="alert">需要先执行数据库迁移 0012 才能使用天气联动。</p>}
     {w && <p className="settings-current">当前生效：<strong>{LEVEL_TEXT[w.level]}</strong>{w.source === 'MANUAL' ? '（手动指定）' : w.source === 'OBSERVED' ? '（自动）' : '（暂无实时数据，按正常处理）'}
       {w.observed && <> · 观测：{weatherLabel(w.observed.code)}{w.observed.temperature != null ? ` ${Math.round(w.observed.temperature)}°C` : ''}{w.observed.precipitation != null ? ` · 降水 ${w.observed.precipitation} mm` : ''}{w.observed.windGust != null ? ` · 阵风 ${w.observed.windGust} m/s` : ''}</>}
+      <br/>雨天配送费：<strong>{w.rain?.active ? '正在加收（每次下单 2 元，配送员得 1.50 元）' : '未加收'}</strong>{w.rain?.mode === 'ON' ? '（手动开启）' : w.rain?.mode === 'OFF' ? '（手动关闭）' : '（自动：中雨及以上）'}
       <br/><small>上次读取成功：{time(r.data?.fetchedAt ?? null)}{r.data?.failedAt ? ` · 最近一次读取失败：${time(r.data.failedAt)}` : ''}</small>{w.observed && <><br/><WeatherCredit/></>}</p>}
     {s && <form onSubmit={save}>
       <label className="check"><input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)}/>开启天气联动</label>
       <fieldset disabled={!enabled}><legend>天气等级</legend><div className="segmented" role="radiogroup" aria-label="天气等级">{(['AUTO', 'CLEAR', 'WET', 'SEVERE'] as const).map(v => <button key={v} type="button" role="radio" aria-checked={override === v} onClick={() => setOverride(v)}>{v === 'AUTO' ? '自动' : v === 'CLEAR' ? '正常' : v === 'WET' ? '雨雪' : '恶劣'}</button>)}</div></fieldset>
+      <fieldset><legend>雨天配送费（中雨、大雨、暴雨时每次下单加 2 元，平台 0.50 元、配送员 1.50 元）</legend><div className="segmented" role="radiogroup" aria-label="雨天配送费">{(['AUTO', 'ON', 'OFF'] as const).map(v => <button key={v} type="button" role="radio" aria-checked={rain === v} onClick={() => setRain(v)}>{v === 'AUTO' ? '自动（按实时降水）' : v === 'ON' ? '开启' : '关闭'}</button>)}</div>
+        <p className="muted">自动：实时天气为中雨、大雨、暴雨、雷雨或降水 ≥ 2.5 mm/h 时加收；学生下单前会看到提示。关闭天气联动后，只有选“开启”才会加收。</p></fieldset>
       <label>补充说明（学生可见，可留空）<input maxLength={80} value={note} disabled={!enabled} onChange={e => setNote(e.target.value)} placeholder="例如：南苑门口积水，楼下配送改到楼内大厅"/></label>
       <button disabled={busy}>{busy ? '正在保存…' : '保存天气设置'}</button>
     </form>}

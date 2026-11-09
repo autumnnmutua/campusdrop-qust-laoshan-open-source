@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 /* v2.8 page compositions and feature restyles, layered over the older feature files.
    Rules here re-draw earlier components in the chart language: hairlines over boxes, ink over gradients,
    magenta only for the route and the current step. */
@@ -38,8 +38,8 @@ main>section:not(.student-home):not(.admin-section):not(.order-page):not(.auth-p
 .order-links .symbol-icon { width: 15px; height: 15px; }
 
 /* Handoff code: four figures to read out at the door, on a shallow-water card with paper flaps. */
-.handoff-code-card { margin: 0 0 var(--space-5); padding: var(--space-5) var(--space-6); border: 1px solid var(--color-line); border-radius: var(--radius-lg); background: linear-gradient(160deg, var(--chart), var(--shoal-soft)); color: var(--abyss); box-shadow: 0 12px 30px #0f283314; }
-.handoff-code-card.is-near { box-shadow: inset 4px 0 0 var(--route), 0 12px 30px #0f283314; }
+.handoff-code-card { margin: 0 0 var(--space-5); padding: var(--space-5) var(--space-6); border: 1px solid var(--color-line); border-radius: var(--radius-lg); background: linear-gradient(160deg, var(--chart), var(--shoal-soft)); color: var(--abyss); box-shadow: 0 12px 30px #1e1b1814; }
+.handoff-code-card.is-near { box-shadow: inset 4px 0 0 var(--route), 0 12px 30px #1e1b1814; }
 .handoff-code-head h2 { font-family: var(--font-sans); font-size: var(--text-base); font-weight: 650; }
 .handoff-code-head .text-button { color: var(--sea); }
 .handoff-code-head .text-button:not(:disabled):hover { color: var(--abyss); }
@@ -65,7 +65,7 @@ main>section:not(.student-home):not(.admin-section):not(.order-page):not(.auth-p
 .live-map-skeleton { border-radius: var(--radius-lg); background: var(--shoal-soft); animation: none; }
 
 /* The official campus plan is quieted into the chart palette; the route on it is the chart magenta. */
-.campus-map svg { border-radius: var(--radius-lg); border: var(--hairline); background: #eef1ef; box-shadow: none; }
+.campus-map svg { border-radius: var(--radius-lg); border: var(--hairline); background: #f1eee9; box-shadow: none; }
 .map-plan { filter: saturate(.28) contrast(.84) brightness(1.16); }
 .route-glow { stroke: color-mix(in srgb, var(--route) 22%, transparent); }
 .route-line { stroke: var(--route); }
@@ -180,7 +180,7 @@ main>section:not(.student-home):not(.admin-section):not(.order-page):not(.auth-p
 .flap-half.bottom { bottom: 0; border-radius: 0 0 5px 5px; }
 .flap-half.bottom i, .flap-half.back i { transform: translateY(-50%); }
 /* the seam */
-.flap { filter: drop-shadow(0 4px 6px #0f283317); }
+.flap { filter: drop-shadow(0 4px 6px #1e1b1817); }
 .flap::after { content: ""; position: absolute; left: 0; right: 0; top: calc(50% - .5px); height: 1px; background: var(--color-line-strong); opacity: .7; z-index: 3; }
 .flap-fold { position: absolute; left: 0; right: 0; top: 0; height: 50%; z-index: 2; transform-origin: 50% 100%; transform-style: preserve-3d; animation: flap-fold 92ms cubic-bezier(.4,0,.9,.6) forwards; }
 .flap-fold .flap-half { height: 100%; -webkit-backface-visibility: hidden; backface-visibility: hidden; background: color-mix(in srgb, var(--abyss) 5%, var(--paper)); }

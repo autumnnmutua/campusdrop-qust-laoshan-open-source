@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 /* The sea chart (chart-art.tsx) and the opening sequence that draws it.
    Strokes are non-scaling, so line weights stay in screen pixels however the chart is cropped. */
 
@@ -22,11 +22,11 @@ html.intro-open { overflow: hidden; }
 .intro {
   --ct: 0px; --cr: 0px; --cb: 0px; --cl: 0px;
   /* Paper chart (light theme); theme-dark.css swaps in the night chart. */
-  --intro-bg: #e9f2f3;
-  --intro-ink: #0f2833;
-  --intro-muted: #4d646b;
-  --intro-route: #c0306c;
-  --intro-skip-line: #0f283329;
+  --intro-bg: #f4f2ee;
+  --intro-ink: #1e1b18;
+  --intro-muted: #625a53;
+  --intro-route: #b5731a;
+  --intro-skip-line: #1e1b1829;
   --intro-skip-bg: #ffffffa8;
   position: fixed;
   inset: 0;

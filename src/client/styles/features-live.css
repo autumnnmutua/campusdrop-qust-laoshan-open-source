@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 /* v2.5–v2.6: receipt code, booked slots, order chat, campus map, ETA, operations map and the opening animation.
    Every animation here is decoration on top of a complete resting state, so the global reduced-motion rule (which
    switches animations off) always leaves a fully drawn, readable page. */
@@ -10,7 +10,7 @@
   border-radius: var(--radius-3xl);
   background: linear-gradient(150deg, var(--navy-700), var(--blue-600));
   color: var(--on-color);
-  box-shadow: 0 16px 36px #1f556a33;
+  box-shadow: 0 16px 36px #8a571433;
 }
 .handoff-code-card.is-near { background: linear-gradient(150deg, #0d6b4c, var(--green-500)); box-shadow: 0 16px 36px #0d6b4c40; }
 .handoff-code-head { display: flex; align-items: center; justify-content: space-between; }
@@ -134,7 +134,7 @@
   height: auto;
   border-radius: var(--radius-3xl);
   border: 1px solid var(--color-line);
-  background: #f1f3f2;
+  background: #f3f0eb;
   color: var(--blue-800);
   box-shadow: var(--shadow-card);
 }
@@ -156,7 +156,7 @@
 .map-building { animation: building-in .5s var(--ease-out) backwards; animation-delay: calc(var(--i, 0) * 25ms); }
 @keyframes building-in { from { opacity: 0; } }
 .map-building.is-clickable { cursor: pointer; }
-.map-building.is-clickable:hover rect, .map-building.is-clickable:focus-visible rect { fill: #21647c2e; stroke: var(--blue-500); stroke-width: calc(var(--k, 2) * 3px); }
+.map-building.is-clickable:hover rect, .map-building.is-clickable:focus-visible rect { fill: #8f5a162e; stroke: var(--blue-500); stroke-width: calc(var(--k, 2) * 3px); }
 .map-building:focus-visible { outline: none; }
 .map-building.is-target rect { fill: #f5b82e59; stroke: var(--gold-500); stroke-width: calc(var(--k, 2) * 4px); animation: target-glow 1.8s ease-in-out infinite alternate; }
 @keyframes target-glow { to { fill: #f5b82e1f; } }
@@ -164,7 +164,7 @@
 .load-badge text { fill: #fff; font-size: 11px; font-weight: 700; text-anchor: middle; }
 .exception-ring { fill: none; stroke: var(--red-500); stroke-width: calc(var(--k, 2) * 3px); transform-box: fill-box; transform-origin: center; animation: soft-pulse 1.8s ease-out infinite; }
 .map-route path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
-.route-glow { stroke: #21647c3d; stroke-width: calc(var(--k, 2) * 16px); }
+.route-glow { stroke: #b5731a3d; stroke-width: calc(var(--k, 2) * 16px); }
 .route-line { stroke: var(--blue-500); stroke-width: calc(var(--k, 2) * 6px); stroke-dasharray: var(--len); animation: route-draw 1.4s var(--ease-in-out) backwards; }
 @keyframes route-draw { from { stroke-dashoffset: var(--len); } to { stroke-dashoffset: 0; } }
 .route-ants { stroke: #ffffffcc; stroke-width: calc(var(--k, 2) * 2px); animation: ants 1.2s linear infinite; }

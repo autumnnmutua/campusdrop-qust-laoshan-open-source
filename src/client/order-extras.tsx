@@ -1,8 +1,8 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import {RouteProgress} from './route-progress';
 import { copyText,inWeChat } from './wechat';
 import {Suspense,lazy,useCallback,useEffect,useId,useMemo,useState} from 'react';
-import {Link,useParams} from 'react-router-dom';
+import {Link,useNavigate,useParams} from 'react-router-dom';
 import {api} from './api';
 import {toast} from './effects';
 import {SymbolIcon} from './campus-design';
@@ -68,6 +68,35 @@ export function DeliveryPhotoView({orderId,admin=false}:{orderId:string;admin?:b
   async function load(){setBusy(true);setError('');try{const r=await api<{photo:{dataUrl:string;createdAt:number}}>(`${admin?'/admin':''}/orders/${orderId}/photo`);setPhoto(r.photo);}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
   return <div className="delivery-photo">{photo?<figure><img src={photo.dataUrl} alt={t('配送员拍摄的送达照片')}/><figcaption>{t('送达照片')} · {new Date(photo.createdAt*1000).toLocaleString(locale(),{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})} · {t('保留 30 天')}</figcaption></figure>
     :<button type="button" className="secondary" disabled={busy} onClick={()=>void load()}><SymbolIcon name="camera"/>{busy?t('正在加载…'):t('查看送达照片')}</button>}{error&&<p role="alert">{error}</p>}</div>;
+}
+
+// ---------------------------------------------------------------- v4.5 · 没找到包裹 (lost-parcel help)
+/**
+ * Shown once an order is marked delivered without the door code (or completed that way in the last 7 days): the
+ * delivery photo, the courier's phone and a one-tap "未收到包裹" request, so a missing parcel is sorted out in one place.
+ */
+export const lostCardVisible=(order:Order)=>['DELIVERED_DOWNSTAIRS','DELIVERED_TO_ROOM'].includes(order.status)
+  ||(order.status==='COMPLETED'&&!order.handoffVerifiedAt&&(order.receivedAt??0)>Date.now()/1000-7*86400);
+export function LostParcelCard({order}:{order:Order}){
+  const navigate=useNavigate();const [busy,setBusy]=useState(false),[error,setError]=useState('');
+  if(!lostCardVisible(order))return null;
+  async function report(){
+    setBusy(true);setError('');
+    const where=order.dropPlace?t('约定地点'):order.status==='DELIVERED_TO_ROOM'||order.deliveryMode==='ROOM'?t('寝室门口'):t('楼下');
+    try{const r=await api<{ticket:{id:string}}>('/tickets','POST',{orderId:order.id,category:'NOT_RECEIVED',subject:t('显示已送达，但没找到包裹'),
+        body:t('订单显示已送到{0}，我去看了没有找到包裹。{1}请帮忙核实送达照片和交接记录。',{0:where,1:order.hasPhoto?t('已看过送达照片。'):t('订单里没有送达照片。')})});
+      toast(t('已提交“未收到包裹”工单'),'success',t('运营同学会在工单里回复'));navigate(`/tickets/${r.ticket.id}`);}
+    catch(e){const message=(e as Error).message;if(/已有|exists|已经/i.test(message)){toast(t('这单已经有售后工单了'),'info');navigate('/tickets');}else setError(message);}
+    finally{setBusy(false);}
+  }
+  return <section className="lost-parcel" aria-labelledby={`lost-${order.id}`}>
+    <h2 id={`lost-${order.id}`}><SymbolIcon name="box"/>{t('没找到包裹？')}</h2>
+    <ol>
+      <li><strong>{t('看送达照片')}</strong>{order.hasPhoto?<DeliveryPhotoView orderId={order.id}/>:<p className="muted">{t('这单没有送达照片（当面核验收货码的不拍照）。')}</p>}</li>
+      <li><strong>{t('联系配送员')}</strong>{order.assigneePhone?<a className="button secondary" href={`tel:${order.assigneePhone}`}><SymbolIcon name="phone"/>{t('拨打 {0}',{0:order.assigneePhone})}</a>:<p className="muted">{t('也可以用上方“和配送员沟通”发消息。')}</p>}</li>
+      <li><strong>{t('还是没有？一键报给运营')}</strong><button type="button" className="danger-soft" disabled={busy} onClick={()=>void report()}>{busy?t('正在提交…'):t('提交“未收到包裹”工单')}</button><small className="muted">{t('会核对照片、定位和交接记录，确认丢失会退款。')}</small></li>
+    </ol>{error&&<p role="alert">{error}</p>}
+  </section>;
 }
 
 // ---------------------------------------------------------------- /track/:token — read-only progress for a roommate

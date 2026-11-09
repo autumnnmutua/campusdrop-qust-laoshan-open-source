@@ -1,9 +1,9 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import type { Env } from './types';
 import type { Parcel, ParcelInput } from '../shared/delivery';
 import { ApiError } from './http';
 import { CAMPUS_ID } from '../shared/contracts';
-export const parcelColumns = "id, pickup_code AS pickupCode, station_code AS stationCode, size AS packageSize, carrier, note, status, created_at AS createdAt, EXISTS(SELECT 1 FROM delivery_orders o WHERE o.parcel_id=parcels.id AND o.status<>'CANCELLED') AS hasOrder";
+export const parcelColumns = "id, pickup_code AS pickupCode, station_code AS stationCode, CASE WHEN oversize=1 THEN 'EXTRA_LARGE' ELSE size END AS packageSize, carrier, note, status, created_at AS createdAt, EXISTS(SELECT 1 FROM delivery_orders o WHERE o.parcel_id=parcels.id AND o.status<>'CANCELLED') AS hasOrder";
 export async function ownParcel(env: Env, userId: string, id: string): Promise<Parcel> {
   const parcel = await env.DB.prepare(`SELECT ${parcelColumns} FROM parcels WHERE id=? AND user_id=?`).bind(id,userId).first<Parcel>();
   if (!parcel) throw new ApiError(404,'NOT_FOUND','包裹不存在');
@@ -14,8 +14,9 @@ export async function createParcel(env: Env, userId: string, data: ParcelInput):
   if (!station) throw new ApiError(400,'INVALID_STATION','请选择当前开放的站点');
   const id=crypto.randomUUID();
   try {
-    await env.DB.prepare('INSERT INTO parcels(id,user_id,pickup_code,station_code,size,carrier,note) VALUES(?,?,?,?,?,?,?)')
-      .bind(id,userId,data.pickupCode,data.stationCode,data.packageSize,data.carrier??null,data.note??'').run();
+    // v4.5: 超大件 is stored as a 大件 with oversize = 1.
+    await env.DB.prepare('INSERT INTO parcels(id,user_id,pickup_code,station_code,size,oversize,carrier,note) VALUES(?,?,?,?,?,?,?,?)')
+      .bind(id,userId,data.pickupCode,data.stationCode,data.packageSize==='SMALL'?'SMALL':'LARGE',data.packageSize==='EXTRA_LARGE'?1:0,data.carrier??null,data.note??'').run();
   } catch(error) {
     if(String(error).includes('UNIQUE constraint')) throw new ApiError(409,'PARCEL_EXISTS','这个站点的取件码已登记，请在我的包裹中查看');
     throw error;

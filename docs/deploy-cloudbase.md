@@ -48,4 +48,4 @@ npm run deploy:cloudbase
 
 不要继续使用旧的仅上传命令：它不读取配置中的buildCommand，也不会自动生成dist。修改仓库无法覆盖控制台保存的自定义命令，必须在平台改一次。若平台拆分安装/构建/部署三个步骤，则依次配置 npm ci --include=dev、npm run build 和原tcb上传命令。
 
-<!-- © 2026 专业团队 · CampusDrop v4.0.0 -->
+<!-- © 2026 专业团队 · CampusDrop v4.5.0 -->

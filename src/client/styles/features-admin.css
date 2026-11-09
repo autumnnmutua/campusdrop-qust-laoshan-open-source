@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 /* Feature layer · admin tools: analytics, announcement editor, stalled-order alerts, staff table and route sheet. */
 
 /* ---------------------------------------------------------------- admin analytics */
@@ -93,7 +93,7 @@
 }
 
 .trend-bar:hover rect {
-  fill: #b1cac9;
+  fill: #e2d9cc;
 }
 
 .trend-line {
@@ -215,7 +215,7 @@
 }
 
 .bar-fill {
-  fill: #7ea8a7;
+  fill: #c2ab8a;
 }
 
 .bar-fill.rating {
@@ -412,7 +412,7 @@
 }
 
 .heat-cell.l2 {
-  fill: #b3cbca;
+  fill: #e3d9ca;
 }
 
 .heat-cell.l3 {
@@ -420,7 +420,7 @@
 }
 
 .heat-cell.l4 {
-  fill: #1f5f76;
+  fill: #8f5a16;
 }
 
 .heat-cell:hover {
@@ -450,7 +450,7 @@
 }
 
 .heat-legend .l2 {
-  background: #b3cbca;
+  background: #e3d9ca;
 }
 
 .heat-legend .l3 {
@@ -458,7 +458,7 @@
 }
 
 .heat-legend .l4 {
-  background: #1f5f76;
+  background: #8f5a16;
 }
 
 /* ---------------------------------------------------------------- v2.2 admin: stalled orders, staff table, templates */
@@ -535,7 +535,7 @@
 
 .stalled li[data-status^=DELIVERED] .stalled-time {
   background: var(--blue-100);
-  color: #1c5469;
+  color: var(--sea);
 }
 
 .stalled li[data-status=FAILED_PICKUP] .stalled-time,
@@ -645,7 +645,7 @@
   border-radius: 50%;
   font-size: var(--text-xs);
   color: var(--on-color);
-  background: #9caaa9;
+  background: #b3a596;
 }
 
 .rank.r1 {

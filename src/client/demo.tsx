@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import {useCallback,useEffect,useId,useRef,useState,type FormEvent} from 'react';
 import {Link,useLocation,useNavigate} from 'react-router-dom';
 import dialogPolyfill from 'dialog-polyfill';

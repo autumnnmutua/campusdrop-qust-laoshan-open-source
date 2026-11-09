@@ -1,4 +1,4 @@
--- © 2026 专业团队 · CampusDrop v4.0.0
+-- © 2026 专业团队 · CampusDrop v4.5.0
 -- Existing paid upgrades retain their original amount; the extra large-parcel surcharge applies only to new upgrades.
 ALTER TABLE delivery_orders ADD COLUMN upgrade_surcharge_fen INTEGER NOT NULL DEFAULT 0 CHECK(upgrade_surcharge_fen IN (0,100));
 ALTER TABLE delivery_orders ADD COLUMN student_cancelled INTEGER NOT NULL DEFAULT 0 CHECK(student_cancelled IN (0,1));

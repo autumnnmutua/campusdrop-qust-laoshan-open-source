@@ -1,4 +1,4 @@
--- © 2026 专业团队 · CampusDrop v4.0.0
+-- © 2026 专业团队 · CampusDrop v4.5.0
 -- Reference data only. No accounts, real student data, or fabricated coordinates.
 INSERT INTO campuses (id, name, address) VALUES
 ('QUST_LAOSHAN', '青岛科技大学崂山校区', '山东省青岛市松岭路99号') ON CONFLICT(id) DO NOTHING;

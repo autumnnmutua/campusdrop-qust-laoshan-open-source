@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import {FRAG,MAX_ROUTE,VERT} from './shader';
 
 /** Chart sheet size and the fixed marks on it (chart pixels, y down). Kept in step with chart-art-data.ts. */
@@ -32,7 +32,8 @@ export function routePoint(f:number):[number,number]{
 const hex=(h:string)=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)/255) as [number,number,number];
 export type ChartLook='paper'|'night';
 const PALETTES={
-  paper:{ink:hex('#6f9194'),deep:hex('#e6f0f2'),shallow:hex('#fbfcf9'),sea:hex('#9fc2cc'),coast:hex('#1f5f75'),route:hex('#c0306c'),mark:hex('#0f2833'),paper:1},
+  // v4.5: the paper chart is drawn on warm stone with an amber route (石与灯); the night chart is unchanged.
+  paper:{ink:hex('#ad9f8c'),deep:hex('#ebe6de'),shallow:hex('#fbfaf7'),sea:hex('#d5cab9'),coast:hex('#5b4c3e'),route:hex('#b5731a'),mark:hex('#1e1b18'),paper:1},
   night:{ink:hex('#9fd4cc'),deep:hex('#05121a'),shallow:hex('#0c2630'),sea:hex('#4f9fb8'),coast:hex('#dff3ee'),route:hex('#ff5c9d'),mark:hex('#ffffff'),paper:0},
 };
 /** The look that goes with the page's theme. */

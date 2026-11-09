@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 /* Layout: the site frame. A chart-paper header with a hairline below it, a single content column, a quiet footer.
    Students navigate from the header (wide screens) or the tab bar (phones); admins from the workspace sidebar. */
 
@@ -27,7 +27,7 @@
 .brand-mark { flex-shrink: 0; color: var(--abyss); }
 .brand-mark-route { stroke: var(--route); }
 .wordmark-text { display: flex; align-items: baseline; gap: 10px; line-height: 1; }
-.wordmark-text b { font-family: var(--font-display); font-style: italic; font-weight: 600; font-size: 23px; letter-spacing: -.01em; }
+.wordmark-text b { font-family: var(--font-figure); font-style: italic; font-weight: 600; font-size: 23px; letter-spacing: -.01em; }
 .wordmark-text small { display: inline; font-size: var(--text-xs); color: var(--sounding); letter-spacing: .08em; white-space: nowrap; }
 .palette-button span, .palette-button kbd { white-space: nowrap; }
 @media (max-width: 1360px) { .site-tools .palette-button span { display: none; } }

@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import { z } from 'zod';
 import { modeSchema } from './delivery.ts';
 import { SLOT_CODES, type SlotCode } from './slots.ts';
@@ -27,7 +27,7 @@ export interface OrderGroup {
   id: string; createdAt: number; origin: 'STUDENT' | 'RULE';
   orders: Order[];
   /** Sum over the members that are not cancelled; unpaid = still waiting for the mock payment. */
-  totalFen: number; unpaidFen: number; unpaidCount: number;
+  totalFen: number; unpaidFen: number; unpaidCount: number; rainFen?: number;
   /** v3.7.1: coupon discount on the paid members. */
   discountFen?: number;
   /** v3.8: 多件满减 on the paid members. */
@@ -73,7 +73,24 @@ export const weatherSettingSchema = z.object({
   enabled: z.boolean(),
   override: z.enum(WEATHER_OVERRIDES),
   note: z.string().trim().max(80).refine(v => !/[<>\p{Cc}]/u.test(v), '请使用普通文字'),
+  /** v4.5: rain surcharge switch (AUTO follows the observed weather). Optional so older clients keep working. */
+  rainSurcharge: z.enum(['AUTO', 'ON', 'OFF']).optional(),
 }).strict();
+/*
+ * v4.5 · 雨天配送费: 2 元 per payment (每次下单, however many parcels) while it rains moderately or harder — WMO codes
+ * 63/65 (中雨/大雨), 81/82 (中/强阵雨), 95–99 (雷雨) or at least 2.5 mm of rain in the hour. 0.50 元 of it is the
+ * platform's, 1.50 元 the courier's (the split is shown to couriers and operators only). Students are told before they pay; an operator can switch it on or off by hand.
+ */
+export const RAIN_SURCHARGE_FEN = 200;
+export const RAIN_PLATFORM_FEN = 50;
+const RAIN_CODES = new Set([63, 65, 67, 81, 82, 95, 96, 97, 99]);
+export const RAIN_MM_PER_HOUR = 2.5;
+export const isSurchargeRain = (o: Pick<WeatherObservation, 'code' | 'precipitation'> | null | undefined) =>
+  !!o && ((o.code != null && RAIN_CODES.has(o.code)) || (o.precipitation ?? 0) >= RAIN_MM_PER_HOUR);
+export interface RainInfo { active: boolean; mode: 'AUTO' | 'ON' | 'OFF'; label: string; fen: number; courierFen: number; notice: string }
+export function rainNotice(active: boolean, label: string): string {
+  return active ? `${label ? `当前${label}` : '雨天'}，路面湿滑、配送更费时，每次下单加收雨天配送费 ¥2.00，一次下多件也只加收一次。` : '';
+}
 /** Campus point used for the forecast (Wikipedia infobox for QUST: 36°07′08″N 120°28′44″E; ample for a weather grid). */
 export const WEATHER_POINT = { latitude: 36.119, longitude: 120.479 } as const;
 /** Extra minutes added to "as soon as possible" arrival estimates. */
@@ -124,6 +141,8 @@ export interface WeatherInfo {
   source: 'OBSERVED' | 'MANUAL' | 'NONE';
   observed: (WeatherObservation & { label: string }) | null;
   notice: string; paddingMinutes: number;
+  /** v4.5: whether the rain surcharge applies to payments made now. */
+  rain?: RainInfo;
 }
 export function weatherNotice(level: WeatherLevel, label: string, note: string): string {
   const extra = note ? (/[。！？.!?]$/.test(note) ? note : `${note}。`) : '', what = label ? `（${label}）` : '';

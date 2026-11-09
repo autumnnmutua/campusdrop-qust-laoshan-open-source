@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import {t} from './i18n';
 import type {Worker as TesseractWorker,LoggerMessage} from 'tesseract.js';
 import {mergeOcrCodes,recognizeOcrCodes,recognizePickupCodes} from '../shared/engagement-rules';

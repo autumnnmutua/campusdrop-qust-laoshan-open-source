@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 /* v3.8 · 多件下单, 多件满减, 测试数据报告, and a refinement pass on surfaces and type.
    Uses the chart tokens only, so the dark theme follows (theme-dark-auto.css is regenerated from these rules). */
 
@@ -97,9 +97,9 @@
 @media screen {
   :where(button:not(.secondary):not(.text-button):not(.chip)), :where(.button:not(.secondary)) {
     background-image: linear-gradient(180deg, #ffffff17, #ffffff00 62%);
-    box-shadow: inset 0 1px 0 #ffffff26, 0 1px 2px #0f28331f;
+    box-shadow: inset 0 1px 0 #ffffff26, 0 1px 2px #1e1b181f;
   }
-  :where(.secondary) { box-shadow: 0 1px 2px #0f283314; }
+  :where(.secondary) { box-shadow: 0 1px 2px #1e1b1814; }
   .kpi { position: relative; overflow: hidden; border-color: var(--surface-glass-line); border-radius: 14px; background: var(--surface-glass); box-shadow: var(--shadow-soft); }
   .kpi::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 2px; background: linear-gradient(90deg, var(--sea), color-mix(in srgb, var(--route) 65%, var(--sea))); opacity: .5; }
   .kpi small { letter-spacing: .04em; }
@@ -113,7 +113,7 @@
   .eyebrow { letter-spacing: .12em; }
   ::selection { background: color-mix(in srgb, var(--route) 22%, transparent); }
   html { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--contour-strong) 70%, transparent) transparent; }
-  .site-header { box-shadow: 0 1px 0 color-mix(in srgb, var(--paper) 60%, transparent) inset, 0 10px 24px -22px #0f283366; }
+  .site-header { box-shadow: 0 1px 0 color-mix(in srgb, var(--paper) 60%, transparent) inset, 0 10px 24px -22px #1e1b1866; }
   .admin-content h1, .student-home h1, section > h1 { text-wrap: balance; }
 }
 @media screen and (prefers-reduced-motion: no-preference) {

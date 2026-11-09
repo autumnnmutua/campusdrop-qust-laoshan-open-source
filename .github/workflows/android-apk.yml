@@ -1,4 +1,4 @@
-# © 2026 专业团队 · CampusDrop v4.0.0
+# © 2026 专业团队 · CampusDrop v4.5.0
 name: Android APK
 # Builds the Android app in android/ (a WebView shell that opens the deployed site). Run it by hand from the Actions
 # tab ("Run workflow"); optionally enter the site address if it differs from the production default.

@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import {t} from './i18n';
 import dialogPolyfill from 'dialog-polyfill';
 import { inWeChat } from './wechat';
@@ -16,16 +16,16 @@ import {loadChart} from './chart-art';
  */
 const W=1080,H=1350;
 /** The accent follows the ambient scene the student picked; everything else is the chart sheet. */
-const ACCENT:Record<Scene|'none',string>={snow:'#1c5b73',sakura:'#a3245a',bokeh:'#8a5a00',leaves:'#8a5a00',none:'#a3245a'};
+const ACCENT:Record<Scene|'none',string>={snow:'#5b4c3e',sakura:'#8f5a16',bokeh:'#8a5a00',leaves:'#8a5a00',none:'#8f5a16'};
 const FONT='"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",system-ui,sans-serif';
 const SERIF='"Newsreader","Songti SC","STSong","Noto Serif SC","Noto Serif CJK SC","PingFang SC","Microsoft YaHei",serif';
-const INK='#0f2833',MUTED='#4d646b',LINE='#b9c9c8';
+const INK='#1e1b18',MUTED='#625a53',LINE='#e4dfd8';
 
 export async function drawShareCard(canvas:HTMLCanvasElement,stats:StudentStats,badges:Badge[],scene:Scene|null){
   canvas.width=W;canvas.height=H;const c=canvas.getContext('2d');if(!c)return;
   const accent=ACCENT[scene??'none'];
   try{await document.fonts?.load(`450 100px "Newsreader"`);}catch{/* system fonts then */}
-  c.fillStyle='#e8edeb';c.fillRect(0,0,W,H);
+  c.fillStyle='#f4f2ee';c.fillRect(0,0,W,H);
   try{const chart=await loadChart();const k=.62;c.save();c.translate(W-chart.w*k+160,H-chart.h*k+40);c.scale(k,k);c.lineWidth=1.2/k;c.lineJoin='round';
     c.strokeStyle=LINE;for(const l of chart.contours)c.stroke(new Path2D(l.d));c.strokeStyle=INK;c.lineWidth=2/k;c.stroke(new Path2D(chart.coast));
     c.strokeStyle=accent;c.lineWidth=4/k;c.lineCap='round';c.stroke(new Path2D(chart.route));c.restore();}catch{/* complete without it */}

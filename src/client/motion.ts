@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import {useEffect,useRef,useState,type RefObject} from 'react';
 
 const EASE_OUT='cubic-bezier(.22,1,.36,1)';

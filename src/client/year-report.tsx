@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import dialogPolyfill from 'dialog-polyfill';
 import { inWeChat } from './wechat';
 import {useEffect,useId,useRef,useState} from 'react';
@@ -33,15 +33,15 @@ function highlights(r:YearReport):string[]{
 }
 
 const SERIF='"Newsreader","Songti SC","STSong","Noto Serif SC","Noto Serif CJK SC","PingFang SC","Microsoft YaHei",serif';
-const INK='#0f2833',MUTED='#4d646b',LINE='#b9c9c8',ROUTE='#a3245a';
+const INK='#1e1b18',MUTED='#625a53',LINE='#e4dfd8',ROUTE='#8f5a16';
 /** The share image is drawn as a chart sheet: fog paper, a neatline, the Laoshan contours and the figures in ink. */
 async function draw(canvas:HTMLCanvasElement,r:YearReport){
   canvas.width=W;canvas.height=H;const c=canvas.getContext('2d');if(!c)return;
   try{await Promise.all([document.fonts?.load(`450 120px "Newsreader"`),document.fonts?.load(`italic 450 60px "Newsreader"`)]);}catch{/* system fonts then */}
-  c.fillStyle='#e8edeb';c.fillRect(0,0,W,H);
+  c.fillStyle='#f4f2ee';c.fillRect(0,0,W,H);
   try{const chart=await loadChart();const k=H*.42/chart.h*1.25;c.save();c.translate(W-chart.w*k+120,-60);c.scale(k,k);c.lineWidth=1.2/k;c.lineJoin='round';
     c.strokeStyle=LINE;for(const l of chart.contours)c.stroke(new Path2D(l.d));
-    c.setLineDash([5/k,5/k]);c.strokeStyle='#8fb0b6';for(const l of chart.isobaths)c.stroke(new Path2D(l.d));c.setLineDash([]);
+    c.setLineDash([5/k,5/k]);c.strokeStyle='#cbbda8';for(const l of chart.isobaths)c.stroke(new Path2D(l.d));c.setLineDash([]);
     c.strokeStyle=INK;c.lineWidth=2/k;c.stroke(new Path2D(chart.coast));c.strokeStyle=ROUTE;c.lineWidth=4/k;c.lineCap='round';c.stroke(new Path2D(chart.route));
     c.restore();}catch{/* the sheet is complete without the drawing */}
   c.strokeStyle=INK;c.lineWidth=2;c.strokeRect(36,36,W-72,H-72);c.lineWidth=1;c.strokeRect(48,48,W-96,H-96);

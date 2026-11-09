@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import {getLang,locale,t} from './i18n';
 import {FAQ_EN} from './faq-en';
 import dialogPolyfill from 'dialog-polyfill';
@@ -17,6 +17,7 @@ const ScreenshotReader=lazy(()=>import('./screenshot-reader').then(m=>({default:
 const ShareCardButton=lazy(()=>import('./share-card').then(m=>({default:m.ShareCardButton})));
 import {BounceText} from './bounce-text';
 import {priceFen,upgradePriceFen} from '../domain/commerce';
+import {RAIN_SURCHARGE_FEN} from '../shared/v3';
 import {CARRIERS} from '../shared/constants';
 import type {Parcel,Station} from '../shared/delivery';
 import {mergeOcrCodes,ANNOUNCEMENT_LEVEL_LABELS,RATING_TAGS_BAD,RATING_TAGS_GOOD,badgesFor,recognizePickupCodes} from '../shared/engagement-rules';
@@ -100,7 +101,9 @@ export function SmsRecognizer({stations,stationCode,packageSize,onFill,onStation
 }
 
 /* ================================================================== note chips */
-const NOTE_CHIPS=['放门口即可','到了请打电话','易碎请轻放','放楼下快递架','晚上 9 点后在寝'];
+const NOTE_CHIPS=['不要敲门','不要打电话','放门口即可','到了请打电话','易碎请轻放','放楼下快递架','晚上 9 点后在寝'];
+/** v4.5: picking one of a contradictory pair takes the other out of the note. */
+const NOTE_OPPOSITE:Record<string,string>={'不要打电话':'到了请打电话','到了请打电话':'不要打电话'};
 const CUSTOM_NOTES_KEY='campusdrop:custom-notes';
 /**
  * Built-in quick notes plus up to six of the student's own, saved in this browser only. A custom note is any short
@@ -112,7 +115,7 @@ export function NoteChips({value,onChange}:{value:string;onChange:(v:string)=>vo
   const candidate=value.trim();
   const canSave=candidate.length>0&&candidate.length<=20&&!/[<>]/.test(candidate)&&![...NOTE_CHIPS,...custom].includes(candidate);
   const chip=(text:string,own:boolean)=>{const on=value.includes(text);return <span key={(own?'c:':'b:')+text} className={own?'chip-wrap own':'chip-wrap'}>
-    <button type="button" aria-pressed={on} className="chip" onClick={()=>onChange(on?removeChip(value,text):appendChip(value,text))}>{on?'✓ ':'+ '}{t(text)}</button>
+    <button type="button" aria-pressed={on} className="chip" onClick={()=>onChange(on?removeChip(value,text):appendChip(NOTE_OPPOSITE[text]&&value.includes(NOTE_OPPOSITE[text])?removeChip(value,NOTE_OPPOSITE[text]):value,text))}>{on?'✓ ':'+ '}{t(text)}</button>
     {own&&<button type="button" className="chip-remove" aria-label={t('删除常用备注：{0}',{0:text})} onClick={()=>{save(custom.filter(c=>c!==text));toast('已删除常用备注','info',text);}}>×</button>}</span>;};
   return <div className="note-chips" role="group" aria-label={t('常用备注')}>{NOTE_CHIPS.map(c=>chip(c,false))}{custom.map(c=>chip(c,true))}
     {canSave&&<button type="button" className="chip chip-save" onClick={()=>{save([...custom,candidate].slice(-6));toast('已存为常用备注','success',t('下次一点即填，只保存在这台设备上'));}}>{t('☆ 存为常用')}</button>}</div>;
@@ -124,14 +127,14 @@ function Stepper({label,value,onChange}:{label:string;value:number;onChange:(v:n
 }
 /** Price preview built from the same pricing function the server uses; the order page still shows the server quote. */
 export function FeeCalculator(){
-  const [small,setSmall]=useState(1),[large,setLarge]=useState(0),[room,setRoom]=useState(false);
-  const mode=room?'ROOM':'DOWNSTAIRS';const total=small*priceFen('SMALL',mode)+large*priceFen('LARGE',mode);
-  return <div className="fee-calculator"><div className="fee-inputs"><Stepper label={t('小件')} value={small} onChange={setSmall}/><Stepper label={t('大件')} value={large} onChange={setLarge}/>
-    <label className="switch"><input type="checkbox" checked={room} onChange={e=>setRoom(e.target.checked)}/><span>{t('送到寝室门口')}</span></label></div>
+  const [small,setSmall]=useState(1),[large,setLarge]=useState(0),[xl,setXl]=useState(0),[room,setRoom]=useState(false),[rain,setRain]=useState(false);
+  const mode=room?'ROOM':'DOWNSTAIRS';const any=small+large+xl>0;const total=small*priceFen('SMALL',mode)+large*priceFen('LARGE',mode)+xl*priceFen('EXTRA_LARGE',mode)+(rain&&any?RAIN_SURCHARGE_FEN:0);
+  return <div className="fee-calculator"><div className="fee-inputs"><Stepper label={t('小件')} value={small} onChange={setSmall}/><Stepper label={t('大件')} value={large} onChange={setLarge}/><Stepper label={t('超大件')} value={xl} onChange={setXl}/>
+    <label className="switch"><input type="checkbox" checked={room} onChange={e=>setRoom(e.target.checked)}/><span>{t('送到寝室门口')}</span></label><label className="switch"><input type="checkbox" checked={rain} onChange={e=>setRain(e.target.checked)}/><span>{t('中雨及以上天气')}</span></label></div>
     <div className="fee-result"><small>{t('预计费用')}</small><strong><Odometer value={total} format={yuan}/></strong>
-      <ul>{small>0&&<li>{t('小件 × {0} · {1}/件',{0:small,1:yuan(priceFen('SMALL',mode))})}</li>}{large>0&&<li>{t('大件 × {0} · {1}/件',{0:large,1:yuan(priceFen('LARGE',mode))})}</li>}{!small&&!large&&<li>{t('加一件包裹试试')}</li>}</ul>
-      {!room&&(small||large)?<p className="muted">{t('下单后仍可升级到寝：小件补 {0}，大件补 {1}。',{0:yuan(upgradePriceFen('SMALL')),1:yuan(upgradePriceFen('LARGE'))})}</p>:null}
-      <p className="muted">{t('每件包裹单独下单计费，不设打包折扣；实际金额以下单时的服务端报价为准。')}</p></div></div>;
+      <ul>{small>0&&<li>{t('小件 × {0} · {1}/件',{0:small,1:yuan(priceFen('SMALL',mode))})}</li>}{large>0&&<li>{t('大件 × {0} · {1}/件',{0:large,1:yuan(priceFen('LARGE',mode))})}</li>}{xl>0&&<li>{t('超大件 × {0} · {1}/件',{0:xl,1:yuan(priceFen('EXTRA_LARGE',mode))})}</li>}{rain&&any&&<li>{t('雨天配送费 {0}（每次下单一次）',{0:yuan(RAIN_SURCHARGE_FEN)})}</li>}{!any&&<li>{t('加一件包裹试试')}</li>}</ul>
+      {!room&&any?<p className="muted">{t('下单后仍可升级到寝：小件补 {0}，大件补 {1}。',{0:yuan(upgradePriceFen('SMALL')),1:yuan(upgradePriceFen('LARGE'))})}</p>:null}
+      <p className="muted">{t('多件一起下单时如有满减活动会自动抵扣；雨天配送费每次下单只收一次。实际金额以下单时的服务端报价为准。')}</p></div></div>;
 }
 
 /* ================================================================== FAQ */

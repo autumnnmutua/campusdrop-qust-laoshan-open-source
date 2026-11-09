@@ -1,5 +1,6 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import {locale,t} from './i18n';
+import { sizeLabel } from '../shared/delivery';
 import {Link,useParams} from 'react-router-dom';
 import { OpenInBrowserHint,inWeChat } from './wechat';
 import {LoadingState} from './components';
@@ -27,8 +28,9 @@ export function OrderReceipt(){
         <div><dt>{t('收件人')}</dt><dd>{o.dormSnapshot.name}</dd></div>
         <div><dt>{t('取件站点')}</dt><dd>{o.stationSnapshot.canonicalName}</dd></div>
         {(o.bundleDiscountFen??0)>0&&<div><dt>{t('多件满减')}</dt><dd>{t('一次支付多件，本件分摊减免 {0}',{0:money(o.bundleDiscountFen??0)})}</dd></div>}
+        {(o.rainFen??0)>0&&<div><dt>{t('雨天配送费')}</dt><dd>{t('中雨及以上天气每次下单加收 2 元，本件分摊 {0}',{0:money(o.rainFen??0)})}</dd></div>}
         {(o.discountFen??0)>0&&<div><dt>{t('优惠券')}</dt><dd>{t('配送费 {0}，优惠券抵扣 {1}',{0:money(o.amountFen),1:money(o.discountFen??0)})}</dd></div>}
-        <div><dt>{t('包裹与方式')}</dt><dd>{o.packageSize==='SMALL'?t('小件'):t('大件')} · {o.deliveryMode==='ROOM'?t('送到寝室'):t('送到楼下')}</dd></div>
+        <div><dt>{t('包裹与方式')}</dt><dd>{t(sizeLabel(o.packageSize))} · {o.deliveryMode==='ROOM'?t('送到寝室'):t('送到楼下')}</dd></div>
         {o.note&&<div className="wide"><dt>{t('备注')}</dt><dd>{o.note}</dd></div>}
       </dl>
       <table className="receipt-table"><caption>{t('费用明细')}</caption><thead><tr><th scope="col">{t('项目')}</th><th scope="col">{t('时间')}</th><th scope="col">{t('金额')}</th></tr></thead>

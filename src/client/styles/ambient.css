@@ -1,12 +1,12 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 /* Page background (ambient.tsx). Fixed behind the content of .site; every moving part is transform / opacity only. */
 .site { position: relative; isolation: isolate; }
 .page-ambient {
-  --amb-ink: #0f2833;
+  --amb-ink: #1e1b18;
   --amb-ink-alpha: .075;
-  --amb-tint-a: #cfe5ea;
-  --amb-tint-b: #f3dbe5;
-  --amb-ping: #1f6680;
+  --amb-tint-a: #ece3d4;
+  --amb-tint-b: #efe9e1;
+  --amb-ping: #8f5a16;
   --amb-light: #ffffff;
   position: fixed;
   inset: 0;

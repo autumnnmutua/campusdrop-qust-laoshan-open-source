@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 /* Base: element defaults, type, form controls, accessibility helpers. */
 
 :root {
@@ -98,7 +98,7 @@ input, select, textarea {
   color: var(--color-text);
   transition: border-color var(--motion-fast), box-shadow var(--motion-fast);
 }
-input::placeholder, textarea::placeholder { color: #7f9398; }
+input::placeholder, textarea::placeholder { color: #9a8676; }
 input:hover, select:hover, textarea:hover { border-color: var(--ink-400); }
 input:focus, select:focus, textarea:focus { border-color: var(--abyss); box-shadow: 0 0 0 1px var(--abyss); outline: none; }
 input:focus-visible, select:focus-visible, textarea:focus-visible { outline: none; }

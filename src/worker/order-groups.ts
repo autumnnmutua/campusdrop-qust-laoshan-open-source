@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import type { Env } from './types';
 import { payOrders, payableOrders } from './payment';
 import { payWithCouponSchema } from '../shared/coupons';
@@ -54,7 +54,7 @@ async function ownGroupRows(env: Env, userId: string, groupId: string): Promise<
 export async function groupDetail(env: Env, userId: string, groupId: string): Promise<OrderGroup> {
   const { origin, createdAt, rows } = await ownGroupRows(env, userId, groupId);
   const orders: Order[] = rows.map(serializeOrder), live = orders.filter(o => o.status !== 'CANCELLED'), unpaid = live.filter(o => o.status === 'WAITING_PAYMENT');
-  return { id: groupId, createdAt, origin, orders, totalFen: live.reduce((s, o) => s + o.amountFen, 0), unpaidFen: unpaid.reduce((s, o) => s + o.amountFen, 0), unpaidCount: unpaid.length, discountFen: live.reduce((s, o) => s + (o.discountFen ?? 0), 0), bundleFen: live.reduce((s, o) => s + (o.bundleDiscountFen ?? 0), 0) };
+  return { id: groupId, createdAt, origin, orders, totalFen: live.reduce((s, o) => s + o.amountFen, 0), unpaidFen: unpaid.reduce((s, o) => s + o.amountFen, 0), unpaidCount: unpaid.length, discountFen: live.reduce((s, o) => s + (o.discountFen ?? 0), 0), bundleFen: live.reduce((s, o) => s + (o.bundleDiscountFen ?? 0), 0), rainFen: live.reduce((s, o) => s + (o.rainFen ?? 0), 0) };
 }
 
 /** Pays every unpaid member in one payment (v3.8: the shared path in payment.ts — coupon, 满减, all or nothing). */
@@ -75,7 +75,7 @@ export async function groupRoutes(request: Request, env: Env): Promise<Response 
   const url = new URL(request.url), method = request.method, path = url.pathname.replace(/^\/api\/v1/, '');
   if (path === '/order-groups' && method === 'POST') {
     const user = await requireStudent(request, env), data = await body(request, groupOrderSchema);
-    const found = (await env.DB.prepare(`SELECT id,station_code AS stationCode,size AS packageSize,note,status FROM parcels WHERE user_id=? AND id IN (${data.parcelIds.map(() => '?').join(',')})`)
+    const found = (await env.DB.prepare(`SELECT id,station_code AS stationCode,CASE WHEN oversize=1 THEN 'EXTRA_LARGE' ELSE size END AS packageSize,note,status FROM parcels WHERE user_id=? AND id IN (${data.parcelIds.map(() => '?').join(',')})`)
       .bind(user.id, ...data.parcelIds).all<Pick<Parcel, 'id' | 'stationCode' | 'packageSize' | 'note' | 'status'>>()).results;
     if (found.length !== data.parcelIds.length) throw new ApiError(404, 'NOT_FOUND', '有包裹不存在，请刷新后重新选择');
     if (found.some(p => p.status !== 'ACTIVE')) throw new ApiError(409, 'PARCEL_CLOSED', '有包裹已经结束，请刷新后重新选择');

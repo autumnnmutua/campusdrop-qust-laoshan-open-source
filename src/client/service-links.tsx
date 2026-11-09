@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 // Lightweight pieces shared by eagerly loaded pages, kept apart from the lazily loaded service pages.
 import {t} from './i18n';
 import {useEffect,useState} from 'react';

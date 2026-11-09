@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import {cursorPage,cursorResult} from './pagination';
 import { releaseOrder } from './order-operations';
 import { requireContact } from './admin-contact';
@@ -17,7 +17,7 @@ export async function adminTasks(env:Env,admin:Admin,request:Request) {
   if(!parsed.success) throw new ApiError(400,'INVALID_FILTER','筛选条件不正确');
   const filters=parsed.data,scope=orderScope(admin);
   const where=[scope.sql,"EXISTS(SELECT 1 FROM payments p WHERE p.order_id=o.id AND p.type='DELIVERY')"];const params:(string|number)[]=[...scope.params];
-  for(const [key,column] of [['status','o.status'],['building','o.dorm_building_code'],['packageSize','o.package_size'],['deliveryMode',"CASE WHEN o.delivery_upgrade_fen=100 THEN 'ROOM' ELSE o.delivery_mode END"]] as const){
+  for(const [key,column] of [['status','o.status'],['building','o.dorm_building_code'],['packageSize',"CASE WHEN o.oversize_fen>0 THEN 'EXTRA_LARGE' ELSE o.package_size END"],['deliveryMode',"CASE WHEN o.delivery_upgrade_fen=100 THEN 'ROOM' ELSE o.delivery_mode END"]] as const){
     if(filters[key]){where.push(`${column}=?`);params.push(filters[key]);}
   }
   if(filters.group&&filters.group!=='ALL'){
@@ -48,11 +48,17 @@ export function transitionStatement(env:Env,admin:Admin,row:OrderRow,data:z.infe
     WHERE id=? AND version=? AND ${scope.sql} RETURNING id`)
     .bind(data.status,admin.id,exception?data.exceptionCode!:null,exception?(data.exceptionNote??''):'',row.id,data.version,...scope.params);
 }
-export async function changeStatus(env:Env,admin:Admin,id:string,data:z.infer<typeof transitionSchema>) {
+export async function changeStatus(env:Env,admin:Admin,id:string,data:z.infer<typeof transitionSchema>,opts:{skipPhoto?:boolean}={}) {
   await requireContact(env,admin.id);
   const row=await adminOrder(env,admin,id);
   if(data.status==='COMPLETED')throw new ApiError(409,'STUDENT_RECEIPT_REQUIRED','请等待学生确认收货');
   if(data.status==='CANCELLED')return releaseOrder(env,admin,id,data.version,data.exceptionNote||'配送员取消接单');
+  // v4.5: marking "delivered" without the door code means nobody signed for it, so a photo of where it was left is
+  // required first (one photo covers a merged delivery). Handing over with the 4-digit code needs no photo. The one-click
+  // demo's simulated courier is exempt.
+  if(data.status.startsWith('DELIVERED')&&!opts.skipPhoto&&!await env.DB.prepare(`SELECT 1 FROM delivery_photos ph WHERE ph.order_id=?
+      OR ph.order_id IN (SELECT s.id FROM delivery_orders s WHERE s.group_id IS NOT NULL AND s.group_id=(SELECT group_id FROM delivery_orders WHERE id=?)) LIMIT 1`).bind(row.id,row.id).first())
+    throw new ApiError(409,'PHOTO_REQUIRED','无人当面签收的送达需要先拍照上传送达位置，再标记送达；当面交付请核验收货码');
   const result=await transitionStatement(env,admin,row,data).all();
   if(!result.results.length) throw new ApiError(409,'STALE_ORDER','订单已更新，请刷新后重试');
   if(row.groupId&&GROUP_STEPS.includes(data.status))await advanceGroup(env,admin,row,data.status);

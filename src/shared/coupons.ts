@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import { z } from 'zod';
 import type { BundleTier } from './bundle.ts';
 
@@ -33,6 +33,8 @@ export interface CouponQuote {
   amountFen: number; orders: number; options: CouponOption[]; best: string | null; code?: { ok: boolean; message: string; id: string | null };
   /** v3.8 多件满减 on this payment (taken off before the coupon). */
   bundle?: { discountFen: number; tier: BundleTier | null; next: { tier: BundleTier; needFen: number } | null; eligible: boolean };
+  /** v4.5 雨天配送费 added to this payment if paid now (0 when it does not apply); never discounted. */
+  rain?: { fen: number; label: string; notice: string };
 }
 export interface AdminCoupon {
   id: string; name: string; kind: CouponKind; usage: CouponUsage; code: string | null; summary: string;

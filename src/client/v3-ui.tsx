@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from './api';
@@ -48,10 +48,19 @@ function weatherNoticeEn(w: WeatherInfo): string {
   const note = w.notice.match(/。([^。]+。?)$/)?.[1]?.trim();
   return `${head}; "as soon as possible" estimates include an extra ${w.paddingMinutes} minutes.${note ? ` ${note}` : ''}`;
 }
-/** Notice on the ordering and order pages when the weather slows deliveries. */
+/** v4.5 · 雨天配送费: told before anyone pays (home page, ordering and payment pages). */
+export function RainNotice() {
+  const w = useWeather(), r = w?.rain;
+  if (!r?.active) return null;
+  const text = getLang() === 'en' ? `${r.label ? `${t(r.label)}: ` : 'Rain: '}roads are slippery and deliveries take longer, so a ¥2.00 rainy-day fee is added once per order, however many parcels you order together.` : r.notice;
+  return <div className="rain-notice" role="note"><span className="weather-glyph" aria-hidden="true">{'☂\uFE0E'}</span><p><strong>{t('雨天配送费')}</strong>{text}</p></div>;
+}
+/** Notice on the ordering and order pages when the weather slows deliveries (and the rain surcharge when it applies). */
 export function WeatherNotice() {
   const w = useWeather();
+  if (w?.rain?.active && (!w.enabled || w.level === 'CLEAR' || !w.notice)) return <RainNotice/>;
   if (!w?.enabled || w.level === 'CLEAR' || !w.notice) return null;
+  if (w.rain?.active) return <><RainNotice/><div className={`weather-notice level-${w.level.toLowerCase()}`} role="note"><span className="weather-glyph" aria-hidden="true">{w.level === 'SEVERE' ? '⛈\uFE0E' : '☂\uFE0E'}</span><p>{getLang() === 'en' ? weatherNoticeEn(w) : w.notice}{w.observed && <><br/><WeatherCredit/></>}</p></div></>;
   return <div className={`weather-notice level-${w.level.toLowerCase()}`} role="note"><span className="weather-glyph" aria-hidden="true">{w.level === 'SEVERE' ? '⛈\uFE0E' : '☂\uFE0E'}</span><p>{getLang() === 'en' ? weatherNoticeEn(w) : w.notice}{w.observed && <><br/><WeatherCredit/></>}</p></div>;
 }
 

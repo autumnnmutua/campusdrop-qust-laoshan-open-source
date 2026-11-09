@@ -1,4 +1,4 @@
--- © 2026 专业团队 · CampusDrop v4.0.0
+-- © 2026 专业团队 · CampusDrop v4.5.0
 -- v2.5 / v2.6: handoff codes, delivery slots, order chat, courier location, campus map calibration, web push and
 -- self-service account deletion. Additive only: existing rows keep working, new columns default to NULL.
 

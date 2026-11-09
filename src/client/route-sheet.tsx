@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import {useMemo,useState} from 'react';
 import { OpenInBrowserHint,inWeChat } from './wechat';
 import {Link} from 'react-router-dom';
@@ -8,6 +8,7 @@ import {useResource} from './student-delivery';
 import {STATUS_LABELS} from '../shared/constants';
 import {orderSlotText} from './live-ui';
 import type {Order,OrderStatus} from '../shared/delivery';
+import { sizeLabel } from '../shared/delivery';
 import type {Admin,Building} from '../shared/contracts';
 import {DROP_PLACE_LABELS,planRoute} from '../shared/campus-map';
 
@@ -46,7 +47,7 @@ export function RouteSheet(){
       <header><h2>CampusDrop 配送路线单</h2><p>{total} 单 · 送到寝室 {room} 单 · 楼下 {total-room} 单 · {groups.length} 站</p><p className="route-meta">打印时间 {printedAt}{me.data?` · ${me.data.admin.username}`:''}{plan&&plan.totalMeters>0?` · 按路线全程约 ${plan.totalMeters} 米 / ${plan.totalMinutes} 分钟（步行估算）`:''}</p></header>
       {groups.map((g,i)=><section key={g.code} className="route-building"><h3>{plan&&<b className="stop-no">{i+1}</b>}{g.name}<small>{g.orders.length} 单{g.leg?` · 距上一站约 ${g.leg.meters} 米`:''}</small></h3>
         <table><thead><tr><th scope="col" className="tick">✓</th><th scope="col">房间</th><th scope="col">方式</th><th scope="col">大小</th><th scope="col">状态</th><th scope="col">送达时间</th><th scope="col">备注</th><th scope="col">任务号</th></tr></thead>
-          <tbody>{g.orders.map(o=><tr key={o.id}><td className="tick"><span className="tick-box" aria-hidden="true"/></td><td className="room">{o.dormSnapshot.roomNo}</td><td>{o.deliveryMode==='ROOM'?'到寝':'楼下'}</td><td>{o.packageSize==='SMALL'?'小件':'大件'}</td><td>{STATUS_LABELS[o.status]}</td><td>{orderSlotText(o)??'尽快'}</td><td className="note">{[o.proxyName&&`代收：${o.proxyName}`,o.note].filter(Boolean).join(' · ')||'—'}</td><td className="identifier">{o.id.slice(0,8)}</td></tr>)}</tbody></table>
+          <tbody>{g.orders.map(o=><tr key={o.id}><td className="tick"><span className="tick-box" aria-hidden="true"/></td><td className="room">{o.dormSnapshot.roomNo}</td><td>{o.deliveryMode==='ROOM'?'到寝':'楼下'}</td><td>{sizeLabel(o.packageSize)}</td><td>{STATUS_LABELS[o.status]}</td><td>{orderSlotText(o)??'尽快'}</td><td className="note">{[o.proxyName&&`代收：${o.proxyName}`,o.note].filter(Boolean).join(' · ')||'—'}</td><td className="identifier">{o.id.slice(0,8)}</td></tr>)}</tbody></table>
       </section>)}
       <footer>独立校园服务项目 · 路线单仅供配送当班使用，用完请妥善处理</footer>
     </article>}

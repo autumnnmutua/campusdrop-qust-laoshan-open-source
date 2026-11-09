@@ -1,4 +1,4 @@
--- © 2026 专业团队 · CampusDrop v4.0.0
+-- © 2026 专业团队 · CampusDrop v4.5.0
 -- v3.6: one-click demo ("一键体验"). Each demo is a pair of throw-away accounts — a student and a courier — sharing a
 -- demo_group id. Orders made by a demo student carry the same id, so real operators, couriers, dashboards, slot
 -- capacity and group notifications never see them, and the demo courier sees only its own student's orders.

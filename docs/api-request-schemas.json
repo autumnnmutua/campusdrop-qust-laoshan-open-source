@@ -3,6 +3,170 @@
   "basePath": "/api/v1",
   "note": "JSON Schema captures structural validation. Shared Zod refinements and server authorization are authoritative; do not infer ownership or business permission from schema acceptance.",
   "schemas": {
+    "dispatchUpdate": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "assignments": {
+          "minItems": 1,
+          "maxItems": 80,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "buildingCode": {
+                "type": "string",
+                "pattern": "^[A-Z0-9_]{2,32}$"
+              },
+              "adminId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 64
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "buildingCode",
+              "adminId"
+            ]
+          }
+        },
+        "moveWaiting": {
+          "default": true,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "assignments"
+      ]
+    },
+    "courierApplication": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "realName": {
+          "type": "string",
+          "maxLength": 20
+        },
+        "phone": {
+          "type": "string",
+          "pattern": "^1[3-9]\\d{9}$"
+        },
+        "college": {
+          "default": "",
+          "type": "string",
+          "maxLength": 40
+        },
+        "grade": {
+          "default": "",
+          "type": "string",
+          "maxLength": 20
+        },
+        "slots": {
+          "minItems": 1,
+          "maxItems": 4,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "NOON",
+              "EVENING",
+              "NIGHT",
+              "WEEKEND"
+            ]
+          }
+        },
+        "zone": {
+          "default": null,
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "SOUTH",
+                "NORTH"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "buildingCode": {
+          "type": "string",
+          "pattern": "^[A-Z0-9_]{2,32}$"
+        },
+        "roomNo": {
+          "default": "",
+          "type": "string",
+          "maxLength": 32
+        },
+        "intro": {
+          "default": "",
+          "type": "string",
+          "maxLength": 200
+        },
+        "desiredUsername": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]{3,32}$"
+        },
+        "password": {
+          "type": "string",
+          "minLength": 12,
+          "maxLength": 128
+        },
+        "agree": {
+          "type": "boolean",
+          "const": true
+        }
+      },
+      "required": [
+        "realName",
+        "phone",
+        "slots",
+        "buildingCode",
+        "desiredUsername",
+        "password",
+        "agree"
+      ],
+      "additionalProperties": false
+    },
+    "courierApplicationReview": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "decision": {
+          "type": "string",
+          "enum": [
+            "APPROVE",
+            "REJECT"
+          ]
+        },
+        "note": {
+          "default": "",
+          "type": "string",
+          "maxLength": 120
+        },
+        "buildings": {
+          "default": [],
+          "maxItems": 40,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z0-9_]{2,32}$"
+          }
+        }
+      },
+      "required": [
+        "decision"
+      ],
+      "additionalProperties": false
+    },
     "payoutAccount": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "type": "object",
@@ -642,6 +806,14 @@
         "note": {
           "type": "string",
           "maxLength": 80
+        },
+        "rainSurcharge": {
+          "type": "string",
+          "enum": [
+            "AUTO",
+            "ON",
+            "OFF"
+          ]
         }
       },
       "required": [
@@ -1189,7 +1361,8 @@
           "type": "string",
           "enum": [
             "SMALL",
-            "LARGE"
+            "LARGE",
+            "EXTRA_LARGE"
           ]
         },
         "page": {
@@ -1525,7 +1698,8 @@
           "type": "string",
           "enum": [
             "SMALL",
-            "LARGE"
+            "LARGE",
+            "EXTRA_LARGE"
           ]
         },
         "carrier": {
@@ -1562,7 +1736,8 @@
           "type": "string",
           "enum": [
             "SMALL",
-            "LARGE"
+            "LARGE",
+            "EXTRA_LARGE"
           ]
         },
         "deliveryMode": {

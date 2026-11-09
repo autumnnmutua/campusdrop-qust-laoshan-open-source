@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import { readdirSync,readFileSync,existsSync } from 'node:fs';
 import assert from 'node:assert/strict';
 const cloudbase=JSON.parse(readFileSync('cloudbaserc.json','utf8'));

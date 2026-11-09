@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import {z} from 'zod';
 import {ApiError} from './http';
 const cursorSchema=z.object({time:z.number().int().nonnegative(),id:z.string().regex(/^[a-f0-9-]{36}$/),scope:z.string().max(500)}).strict();

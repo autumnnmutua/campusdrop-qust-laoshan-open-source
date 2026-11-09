@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import {useSyncExternalStore} from 'react';
 import {getItem,setItem} from './storage';
 
@@ -16,7 +16,7 @@ export const resolvedTheme=():'light'|'dark'=>mode==='auto'?(media?.matches?'dar
 function apply(){
   if(typeof document==='undefined')return;
   const theme=resolvedTheme();document.documentElement.dataset.theme=theme;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content',theme==='dark'?'#0c181d':'#eef3f2');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content',theme==='dark'?'#0c181d':'#f4f2ee');
 }
 apply();
 media?.addEventListener?.('change',()=>{if(mode==='auto'){apply();listeners.forEach(l=>l());}});

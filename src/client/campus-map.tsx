@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import {locale,t} from './i18n';
 import {useCallback,useEffect,useMemo,useState,type CSSProperties,type KeyboardEvent,type ReactNode} from 'react';
 import {Link} from 'react-router-dom';

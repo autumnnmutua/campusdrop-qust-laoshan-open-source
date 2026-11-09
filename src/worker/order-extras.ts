@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import type { Env } from './types';
 import { ApiError, body, json } from './http';
 import { requireAdmin, requireStudent } from './session';
@@ -149,6 +149,11 @@ export async function orderExtraRoutes(request: Request, env: Env): Promise<Resp
       await env.DB.batch([
         env.DB.prepare(`INSERT INTO delivery_photos(order_id,admin_id,mime,bytes) VALUES(?,?,?,?)
           ON CONFLICT(order_id) DO UPDATE SET admin_id=excluded.admin_id,mime=excluded.mime,bytes=excluded.bytes,created_at=unixepoch()`).bind(id, actor.id, mime, bytes),
+        // v4.5: a merged delivery is left in one place, so the photo also goes on the other parcels of the group in this courier's batch.
+        env.DB.prepare(`INSERT INTO delivery_photos(order_id,admin_id,mime,bytes) SELECT s.id,?,?,? FROM delivery_orders t JOIN delivery_orders s ON s.group_id=t.group_id AND s.id<>t.id
+          JOIN batch_items sb ON sb.order_id=s.id JOIN batch_items tb ON tb.order_id=t.id AND tb.batch_id=sb.batch_id
+          WHERE t.id=? AND t.group_id IS NOT NULL AND s.status IN ('OUT_FOR_DELIVERY','DELIVERED_DOWNSTAIRS','DELIVERED_TO_ROOM','COMPLETED')
+          ON CONFLICT(order_id) DO UPDATE SET admin_id=excluded.admin_id,mime=excluded.mime,bytes=excluded.bytes,created_at=unixepoch()`).bind(actor.id, mime, bytes, id),
         env.DB.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,resource_id,metadata_redacted) VALUES(?,'ADMIN',?,'DELIVERY_PHOTO_SAVED',?,json_object('bytes',?))").bind(crypto.randomUUID(), actor.id, id, bytes.length),
         env.DB.prepare("INSERT INTO inbox_messages(user_id,order_id,kind,title) SELECT user_id,id,'PHOTO',COALESCE(json_extract(dorm_snapshot_json,'$.buildingName'),'你的订单')||' · 配送员上传了送达照片' FROM delivery_orders WHERE id=?").bind(id),
       ]);

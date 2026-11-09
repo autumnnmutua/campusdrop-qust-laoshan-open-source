@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 /* Feature layer · app shell extras: ambient particles, confetti, toasts, chips, offline banner, command palette
    and print rules. */
 
@@ -113,7 +113,7 @@ button.chip[aria-pressed=true] {
 }
 
 .ambient-glyph.scene-snow {
-  color: #8eaead;
+  color: #b89a80;
 }
 
 .ambient-glyph.scene-bokeh {
@@ -447,7 +447,7 @@ dialog.command-palette {
   flex: none;
   width: 20px;
   height: 20px;
-  color: #246c86;
+  color: var(--sea);
 }
 
 .palette-search input {
@@ -478,7 +478,7 @@ dialog.command-palette {
   padding: 10px 12px;
   border-radius: var(--radius-lg);
   cursor: pointer;
-  color: #1d5065;
+  color: var(--sea);
 }
 
 .command-palette [role=option] .symbol-icon {
@@ -509,7 +509,7 @@ dialog.command-palette {
 }
 
 .command-palette [role=option] b {
-  color: #9caaa9;
+  color: #b3a596;
   opacity: 0;
 }
 

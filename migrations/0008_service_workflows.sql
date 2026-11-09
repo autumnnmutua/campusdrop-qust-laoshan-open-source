@@ -1,4 +1,4 @@
--- © 2026 专业团队 · CampusDrop v4.0.0
+-- © 2026 专业团队 · CampusDrop v4.5.0
 CREATE TABLE inbox_messages (
  id INTEGER PRIMARY KEY AUTOINCREMENT,user_id TEXT NOT NULL REFERENCES users(id),order_id TEXT REFERENCES delivery_orders(id) ON DELETE CASCADE,
  kind TEXT NOT NULL,title TEXT NOT NULL,read_at INTEGER,created_at INTEGER NOT NULL DEFAULT(unixepoch())

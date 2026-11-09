@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import type { Env } from './types';
 import { ApiError, body, json } from './http';
 import { requireAdmin, requireStudent } from './session';
@@ -65,6 +65,8 @@ const SERVICE_FACTS = () => [
   `费用：小件楼下 ${yuan(priceFen('SMALL', 'DOWNSTAIRS'))}、送到寝室 ${yuan(priceFen('SMALL', 'ROOM'))}；大件楼下 ${yuan(priceFen('LARGE', 'DOWNSTAIRS'))}、送到寝室 ${yuan(priceFen('LARGE', 'ROOM'))}；下单后升级到寝补小件 ${yuan(upgradePriceFen('SMALL'))}、大件 ${yuan(upgradePriceFen('LARGE'))}。支付均为模拟，不发生真实扣款。`,
   `预约时段：${DELIVERY_SLOTS.map(s => `${s.label} ${s.start}–${s.end}`).join('、')}，可约今天到后天，开始前 30 分钟截止；也可以选“尽快送达”。`,
   '代寄件：配送员上门取件后交到站点寄出，小件 3 元、大件 7 元（模拟支付），两个站点都可以寄。',
+  `超大件（超过 70 × 50 × 40 cm 或超过 10 kg）楼下 ${yuan(priceFen('EXTRA_LARGE', 'DOWNSTAIRS'))}、送到寝室 ${yuan(priceFen('EXTRA_LARGE', 'ROOM'))}；小件不超过 40 × 30 × 20 cm、3 kg，大件不超过 70 × 50 × 40 cm、10 kg。`,
+  '中雨、大雨、暴雨时每次下单加收雨天配送费 2 元（一次下多件也只加一次）；小件由负责所在楼栋的配送员直接配送，大件和超大件由配送员在接单市场接单。',
 ];
 const LINKS: [RegExp, AssistantLink][] = [
   [/到哪|进度|状态|订单|什么时候到|送到了|配送员|收货码/, { label: '我的订单', to: '/orders' }],

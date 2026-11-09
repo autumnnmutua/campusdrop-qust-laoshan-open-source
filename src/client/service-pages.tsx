@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import {locale,t} from './i18n';
 import {useEffect,useRef,useState,type FormEvent} from 'react';
 import {Link,useParams,useSearchParams} from 'react-router-dom';

@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 /*
  * v3.8 · 实测报告 (the trial report). What the project needs to show from a real trial: who used it and came back,
  * whether deliveries were on time and how long they took, what people thought, what went wrong, and what it cost.

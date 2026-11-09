@@ -1,5 +1,7 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import type { Env } from './types';
+import { rainSurchargeNow } from './weather';
+import { rainNotice } from '../shared/v3';
 import type { Admin, Student } from '../shared/contracts';
 import { ApiError, body, json } from './http';
 import { requireAdmin, requireStudent, requireSuperView } from './session';
@@ -77,6 +79,7 @@ export async function quote(env: Env, user: Student, target: { orderId?: string;
   const best = options.find(o => o.discountFen > 0 && o.source !== 'CODE') ?? null;
   const result: CouponQuote = { amountFen: amounts.reduce((a, b) => a + b, 0), orders: orders.length, options, best: best?.id ?? null,
     bundle: { discountFen: bundle.discountFen, tier: bundle.tier, next: bundle.next, eligible: bundle.eligible } };
+  if (orders.length) { const rain = await rainSurchargeNow(env); result.rain = { fen: rain.fen, label: rain.label, notice: rainNotice(rain.fen > 0, rain.label) }; }
   if (code) {
     const hit = list.find(c => c.code === code), option = hit && options.find(o => o.id === hit.id);
     result.code = !hit ? { ok: false, message: '优惠码不存在、已过期或已停用', id: null }

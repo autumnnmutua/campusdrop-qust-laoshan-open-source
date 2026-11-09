@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import { z } from 'zod';
 import { DELIVERY_SLOTS, bookableDates, slotOpen, type SlotCode } from './slots.ts';
 import { DROP_PLACES, DROP_PLACE_LABELS, type DropPlace } from './campus-map.ts';
@@ -61,7 +61,7 @@ export interface DeliveryIntent {
   merge: boolean;
   /** How many parcels the sentence names ("两件"), when it does. */
   count: number | null;
-  size: 'SMALL' | 'LARGE' | null;
+  size: 'SMALL' | 'LARGE' | 'EXTRA_LARGE' | null;
   carrier: typeof CARRIERS[number] | null;
 }
 const NUMBERS: Record<string, number> = { 一: 1, 两: 2, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, '1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6 };
@@ -82,7 +82,7 @@ export function parseDeliveryIntent(raw: string): DeliveryIntent {
   const station = /南十|南苑十|南10|nanshi/.test(text) ? 'NANSHI' : /颐海苑|怡海苑|颐海|yihaiyuan/.test(text) ? 'YIHAIYUAN' : null;
   const countMatch = /([一两二三四五六1-6])(件|个|单)/.exec(text);
   const count = countMatch ? NUMBERS[countMatch[1]] ?? null : null;
-  const size = /大件|大的|large/.test(text) ? 'LARGE' : /小件|小的|small/.test(text) ? 'SMALL' : null;
+  const size = /超大件|特大|超大|extra[- ]?large/.test(text) ? 'EXTRA_LARGE' : /大件|大的|large/.test(text) ? 'LARGE' : /小件|小的|small/.test(text) ? 'SMALL' : null;
   const carrier = CARRIERS.find(c => c !== '其他' && text.includes(c)) ?? null;
   const merge = !/分开|单独|各自|separate/.test(text);
   const verb = /送|配送|下单|安排|deliver|bring/.test(text);

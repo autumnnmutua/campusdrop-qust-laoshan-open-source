@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import {z} from 'zod';
 /**
  * Must be imported before any zod schema module is evaluated: main.tsx imports it first (validation.ts and admin-insights.tsx too, for safety). zod 4 otherwise probes `new Function` when the first object schema is

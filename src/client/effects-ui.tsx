@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import {useEffect,useRef,useState} from 'react';
 import {setPageAmbient,usePageAmbient} from './ambient';
 import {AMBIENT_LABELS,AmbientField,dismissToast,resolveScene,setAmbientMode,useAmbientMode,useToasts,type AmbientMode} from './effects';

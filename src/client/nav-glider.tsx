@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import {useLayoutEffect,useRef} from 'react';
 import {useLocation} from 'react-router-dom';
 

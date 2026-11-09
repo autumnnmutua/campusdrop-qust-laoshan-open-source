@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 /**
  * v2.7 operations: plain values and types shared by the worker and the client (zod-free, so pages that only show labels
  * do not pull in the validation library). Schemas live in operations.ts.

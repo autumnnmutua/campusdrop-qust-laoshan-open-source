@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 /* Components: buttons, panels, cards, badges, choices, prices, timelines, dialogs, feedback states.
    Pages sit directly on the fog; only things you act on or compare get a panel, and panels are drawn with a hairline. */
 
@@ -205,8 +205,8 @@ dialog {
   box-shadow: var(--shadow-dialog);
   z-index: 100;
 }
-dialog::backdrop { background: #0a1c2461; -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
-dialog+.backdrop { background: #0a1c2461; }
+dialog::backdrop { background: #1e1b1861; -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
+dialog+.backdrop { background: #1e1b1861; }
 dialog:not([open]) { display: none; }
 dialog[open] { scroll-margin-top: 20px; }
 dialog h2 { margin-top: 0; font-family: var(--font-display); font-weight: 600; font-size: var(--text-3xl); }

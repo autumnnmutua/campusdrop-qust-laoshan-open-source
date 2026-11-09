@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import type { Env } from './types';
 import type { Student } from '../shared/contracts';
 import { body, json } from './http';
@@ -26,11 +26,11 @@ import { aiConfigured, aiModel, cleanAnswer, completion, countFallback, takeQuot
  */
 const now = () => Math.floor(Date.now() / 1000);
 const yuan = (fen: number) => `${(fen / 100).toFixed(fen % 100 ? 2 : 0)} 元`;
-const SIZE = { SMALL: '小件', LARGE: '大件' } as const;
+const SIZE = { SMALL: '小件', LARGE: '大件', EXTRA_LARGE: '超大件' } as const;
 
 type Waiting = { id: string; stationCode: string; stationName: string; packageSize: 'SMALL' | 'LARGE'; carrier: string | null; createdAt: number };
 async function waitingParcels(env: Env, userId: string, only?: string[]): Promise<Waiting[]> {
-  const rows = (await env.DB.prepare(`SELECT p.id,p.station_code AS stationCode,coalesce(s.canonical_name,p.station_code) AS stationName,p.size AS packageSize,p.carrier,p.created_at AS createdAt
+  const rows = (await env.DB.prepare(`SELECT p.id,p.station_code AS stationCode,coalesce(s.canonical_name,p.station_code) AS stationName,CASE WHEN p.oversize=1 THEN 'EXTRA_LARGE' ELSE p.size END AS packageSize,p.carrier,p.created_at AS createdAt
     FROM parcels p LEFT JOIN stations s ON s.code=p.station_code WHERE p.user_id=? AND p.status='ACTIVE'
     AND NOT EXISTS(SELECT 1 FROM delivery_orders o WHERE o.parcel_id=p.id AND o.status<>'CANCELLED') ORDER BY p.created_at,p.id LIMIT 30`).bind(userId).all<Waiting>()).results;
   return only ? rows.filter(r => only.includes(r.id)) : rows;

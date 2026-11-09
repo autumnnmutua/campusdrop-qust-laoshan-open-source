@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import { digest, randomToken } from '../domain/password';
 import type { Admin, Student, Scope } from '../shared/contracts';
 import type { Env } from './types';

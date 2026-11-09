@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 /*
  * CampusDrop service worker: offline app shell, asset caching and web push.
  * - Page navigations: network first, falling back to the last good copy of the app shell when offline.
@@ -41,7 +41,7 @@ self.addEventListener('fetch', event => {
     })());
     return;
   }
-  if (url.pathname.startsWith('/images/') || /^\/(icon-\d+\.png|favicon\.(svg|ico)|apple-touch-icon\.png)$/.test(url.pathname)) {
+  if (url.pathname.startsWith('/images/') || /^\/(icon-(?:maskable-)?\d+\.png|favicon\.(svg|ico)|apple-touch-icon\.png)$/.test(url.pathname)) {
     event.respondWith((async () => {
       const cache = await caches.open(ASSETS), cached = await cache.match(request);
       const network = fetch(request).then(response => { if (response.ok) cache.put(request, response.clone()); return response; });

@@ -113,6 +113,30 @@ Order 新增 groupId、groupSize（同组未取消的订单数）、ruleId；待
 
 发送给大模型的内容只有问题、最近 6 轮对话和服务端整理的订单状态摘要（状态、站点、楼栋、时段），不含姓名、电话、房间号、取件码、收货码和备注。大模型地址只接受 HTTPS（开发环境允许本机 http）。
 
+## v4.5：超大件、雨天配送费、小件按楼分配、配送员申请、送达照片必传
+
+| 方法/路径 | 请求 schema | 成功响应 | 语义 |
+|---|---|---|---|
+| POST /parcels | parcel | 同前 | `packageSize` 新增 `EXTRA_LARGE`（超大件：超过 70 × 50 × 40 cm 或 10 kg）；库内存为 `size='LARGE'` + `oversize=1`，接口统一返回 `EXTRA_LARGE` |
+| POST /orders/quote、POST /orders | quote / order | 同前 | 超大件 800 / 1000 分（楼下 / 到寝）；订单 `amount_fen` 存大件价，`oversize_fen = 300`（触发器 `OVERSIZE_INVALID` 校验与包裹一致、不可修改）；返回的 `amountFen` 已含 300 分 |
+| GET /weather | 无 | `{weather}` | `weather.rain = {active,mode,label,fen,courierFen,notice}`：中雨、大雨、暴雨、雷雨或降水 ≥ 2.5 mm/h（自动）或运营手动开启时 `active=true`，`fen=200` |
+| GET /coupons/quote、checkout / group 详情 | 无 | 同前 + `rain` / `rainFen` | 付款前展示的雨天配送费；以付款那一刻为准 |
+| 支付（单件、合并、多件） | 同前 | 同前 + `rainFen` | 每次付款一次 200 分，按金额（最大余数法）分摊到本次各订单的 `rain_fen`，其中平台部分 `rain_fee_fen` 合计 50 分；优惠券与满减不抵扣；退款含分摊额；付款后 `DISCOUNT_FIXED` 不可改 |
+| PUT /admin/weather | weatherSetting | `{weather}` | 新增可选 `rainSurcharge: AUTO \| ON \| OFF` |
+| GET /admin/dispatch | 无 | `DispatchOverview` | 超级管理员（体验中为本次体验自己的分配）：楼栋（近 30 天小件、包分配待取件、负责人）、配送员（负责楼栋数、待取件、是否有电话）、自动方案 `plan{groups,assignments}` |
+| PUT /admin/dispatch | dispatchUpdate | `DispatchOverview & {moved}` | 设置楼栋负责人（`adminId=null` 回到接单市场）；负责人须为本站点在职、已填电话的配送员或超级管理员；`moveWaiting=true` 时把还没取件的包分配小件转给新负责人 |
+| GET /admin/dispatch/mine | 无 | `{buildings}` | 当前配送员负责的楼栋 |
+| GET /courier-applications/mine | 无 | `{application,applications,profile}` | 学生本人最近一份申请（进度：提交时间、审核时间、状态、原因）与最近 10 份记录；`profile` 带当前寝室，用于预填。短链接 `/apply` 打开申请页 |
+| POST /courier-applications/mine | courierApplication | 201 `{application}` | 必填住的楼栋（`buildingCode`，房间号选填）；提交后发一条站内消息；每人同时只能有一份审核中（409 `APPLICATION_PENDING`）；账号名不能与现有配送员或审核中申请重复（409 `USERNAME_TAKEN`）；密码只存哈希 |
+| POST /courier-applications/mine/withdraw | 无 | `{withdrawn}` | 撤回审核中的申请 |
+| GET /admin/courier-applications?status= | 无 | `{applications,pending}` | 超级管理员；体验中只看本次体验 |
+| POST /admin/courier-applications/:id/review | courierApplicationReview | `{status,adminId?,username?,buildings?}` | `APPROVE` 用申请里的账号名、密码哈希和手机号创建配送员账号，可同时分配楼栋；`REJECT` 需原因；结果发站内消息 |
+| PATCH /admin/orders/:id/status | transition | 同前 | 标记 `DELIVERED_DOWNSTAIRS` / `DELIVERED_TO_ROOM` 前必须已上传送达照片（合并配送同组任一件即可），否则 409 `PHOTO_REQUIRED`；用收货码当面交付不需要照片 |
+
+**小件按楼分配**：触发器 `small_order_dispatch` 在小件订单从 `WAITING_PAYMENT` 变为 `WAITING_PICKUP` 时，按 `building_couriers(world, building_code)` 找到在职、有电话的负责人，建立批次 `auto-<订单或合并组 id>`（与从市场接单相同的批次与通知）。大件、超大件、含大件的合并组、没有负责人的楼栋和一键体验的共享测试数据进入接单市场。订单返回 `dispatched: true` 表示包分配。
+
+**入账**：`courier_earn_delivery` 计入 `amount_fen + oversize_fen + 升级费 + rain_fen`，平台扣 `20 + rain_fee_fen` 分；结算页同步。
+
 ## v3.9：平台抽成、配送员钱包与提现、账号管理
 
 | 方法/路径 | 请求 schema | 成功响应 | 语义 |
@@ -196,4 +220,4 @@ Order 新增 groupId、groupSize（同组未取消的订单数）、ruleId；待
 
 **草稿校验**（与下单一致，但不写库）：包裹属于本人、尚未下单；合并配送须同一站点且不超过 6 件；约定地点只能配楼下；时段须开放且名额足够；暂停接单时（体验账号除外）不生成草稿。发给大模型的工具结果只有包裹编号 P1、P2…、站点、大小、承运商和时段，不含取件码、姓名、电话、房间号。
 
-<!-- © 2026 专业团队 · CampusDrop v4.0.0 -->
+<!-- © 2026 专业团队 · CampusDrop v4.5.0 -->

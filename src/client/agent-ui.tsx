@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import {useState,type FormEvent} from 'react';
 import {Link,useNavigate} from 'react-router-dom';
 import {api} from './api';
@@ -10,6 +10,7 @@ import {SymbolIcon} from './campus-design';
 import {DROP_PLACE_LABELS} from '../shared/campus-map';
 import {AGENT_MAX_CHARS,type AgentDraft,type AgentPlan,type AgentStep} from '../shared/agent';
 import type {Order} from '../shared/delivery';
+import { sizeLabel } from '../shared/delivery';
 import type {OrderGroup} from '../shared/v3';
 
 /*
@@ -46,7 +47,7 @@ export function AgentDraftCard({draft,onDone}:{draft:AgentDraft;onDone?:()=>void
       <div><dt>{t('取件站点')}</dt><dd>{t(draft.stationName)}</dd></div>
       <div><dt>{t('送到')}</dt><dd>{where(draft)}</dd></div>
       <div><dt>{t('时间')}</dt><dd>{when(draft)}</dd></div>
-      <div><dt>{t('包裹')}</dt><dd>{draft.parcels.map(p=>`${p.packageSize==='LARGE'?t('大件'):t('小件')}${p.carrier?` · ${t(p.carrier)}`:''}`).join('，')}</dd></div>
+      <div><dt>{t('包裹')}</dt><dd>{draft.parcels.map(p=>`${t(sizeLabel(p.packageSize))}${p.carrier?` · ${t(p.carrier)}`:''}`).join('，')}</dd></div>
     </dl>
     {error&&<p role="alert" className="field-error">{error}</p>}
     <div className="actions">{done?<span className="muted">{t('已创建')}</span>:<><button type="button" className={busy?'is-busy':undefined} disabled={busy} onClick={()=>void confirm()}>{busy?t('正在创建…'):t('确认下单')}</button>

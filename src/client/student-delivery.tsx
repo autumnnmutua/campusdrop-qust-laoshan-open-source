@@ -1,10 +1,11 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import {getLang,locale,t} from './i18n';
 import {CouponPicker,CouponTotal,type CouponChoice} from './coupons-ui';
 import {SeaChartView} from './sea-chart/SeaChartView';
 import {RouteProgress} from './route-progress';
 import {coverView,lightOrigin,type SeaChart} from './sea-chart/renderer';
 import {RoundHistory} from './service-links';
+import {SizeGuide} from './size-guide';
 function randomClientId(){if(crypto.randomUUID)return crypto.randomUUID();return '10000000-1000-4000-8000-100000000000'.replace(/[018]/g,c=>(Number(c)^crypto.getRandomValues(new Uint8Array(1))[0]&(15>>Number(c)/4)).toString(16));}
 import {SymbolIcon} from './campus-design';
 import { ChoiceSelector,ConfirmAction,PickupCodeInput,ParcelCard,DeliveryModeSelector,PriceSummary,OrderTimeline,MockPaymentDialog,TipSheet,EmptyState,LoadingState,LiveIndicator,SuccessMark } from './components';
@@ -15,13 +16,13 @@ import { shouldWatchOrder,useLiveOrder } from './live-order';
 import { isUnauthorized,useStudentSession } from './session';
 import { playThen } from './motion';
 import { viewTransitionsEnabled,vtName } from './view-transitions';
-import { GroupChip,GroupStrip,MergeBanner,WeatherChip,WeatherNotice } from './v3-ui';
+import { GroupChip,GroupStrip,MergeBanner,RainNotice,WeatherChip,WeatherNotice } from './v3-ui';
 import { flyToOrders } from './micro-motion';
 import { celebrate,celebrateFrom,toast } from './effects';
 import { NoteChips,RatingPanel,SmsRecognizer } from './engagement-ui';
 import { NotifyToggle } from './extras';
 import { HandoffCodeCard,OrderChat,SlotPicker,orderSlotText,type SlotChoice } from './live-ui';
-import { DeliveryPhotoView,DropPlacePicker,NearBanner,RoommatePanel } from './order-extras';
+import { DeliveryPhotoView,DropPlacePicker,LostParcelCard,NearBanner,lostCardVisible,RoommatePanel } from './order-extras';
 import { BuildingHeatBoard } from './heat-board';
 import { DROP_PLACE_LABELS,type DropPlace } from '../shared/campus-map';
 const OrderLiveMap=lazy(()=>import('./campus-map').then(m=>({default:m.OrderLiveMap})));
@@ -29,6 +30,7 @@ import { BounceText } from './bounce-text';
 import { systemNotify } from './notify';
 import {CARRIERS,MOCK_MESSAGE,STATUS_LABELS} from '../shared/constants';
 import type {DeliveryMode,Order,OrderEvent,Parcel,Payment,Station} from '../shared/delivery';
+import { SIZE_LABELS, SIZE_LIMITS, sizeLabel } from '../shared/delivery';
 import { getItem,getJson,removeItem,setItem,setJson } from './storage';
 import {OneSentenceOrder} from './agent-ui';
 import {ImpactBoard} from './impact';
@@ -103,16 +105,21 @@ function CurrentOrderPreview({enabled,onActive}:{enabled:boolean;onActive?:(acti
  if(!order)return null;
  const progress=orderProgress(order.status),startProgress=baseline?orderProgress(baseline.status):progress,statusChanged=!!baseline&&baseline.status!==order.status;
  const live=shouldWatchOrder(order.status)&&order.status!=='WAITING_PAYMENT',finished=order.status==='COMPLETED'||order.status.startsWith('DELIVERED');
- return <article className="current-order"><div className="row"><strong>{t('当前订单')}{live&&<LiveIndicator/>}</strong><span key={order.status} data-status={order.status} className={statusChanged?'badge just-advanced':'badge'}><BounceText text={t(STATUS_LABELS[order.status])} playOnMount={statusChanged}/></span></div><p>{order.dormSnapshot.buildingName} · {order.packageSize==='SMALL'?t('小件'):t('大件')} · {money(order.amountFen-(order.discountFen??0)-(order.bundleDiscountFen??0))}</p>{!['CANCELLED','FAILED_PICKUP','DELIVERY_EXCEPTION'].includes(order.status)&&<RouteProgress steps={[t('已下单'),t('已取件'),t('配送中'),t('已送达')]} current={progress} from={statusChanged?startProgress:0} done={finished} label={`${t('当前订单阶段')}：${[t('已下单'),t('已取件'),t('配送中'),t('已送达')][progress]}`}/>}{order.serviceNotice&&<p className="muted">{order.serviceNotice}</p>}<Link to={`/orders/${order.id}`}>{t('查看订单详情 ›')}</Link></article>;
+ return <article className="current-order"><div className="row"><strong>{t('当前订单')}{live&&<LiveIndicator/>}</strong><span key={order.status} data-status={order.status} className={statusChanged?'badge just-advanced':'badge'}><BounceText text={t(STATUS_LABELS[order.status])} playOnMount={statusChanged}/></span></div><p>{order.dormSnapshot.buildingName} · {t(sizeLabel(order.packageSize))} · {money(paidOf(order))}</p>{!['CANCELLED','FAILED_PICKUP','DELIVERY_EXCEPTION'].includes(order.status)&&<RouteProgress steps={[t('已下单'),t('已取件'),t('配送中'),t('已送达')]} current={progress} from={statusChanged?startProgress:0} done={finished} label={`${t('当前订单阶段')}：${[t('已下单'),t('已取件'),t('配送中'),t('已送达')][progress]}`}/>}{order.serviceNotice&&<p className="muted">{order.serviceNotice}</p>}<Link to={`/orders/${order.id}`}>{t('查看订单详情 ›')}</Link></article>;
 }
+/** What was (or will be) paid for an order: fee − coupon − 满减 + v4.5 雨天配送费. */
+export const paidOf=(o:Order)=>o.amountFen-(o.discountFen??0)-(o.bundleDiscountFen??0)+(o.rainFen??0);
+/** v4.5 · three sizes with their limits (长 × 宽 × 高, 重量), the same table as 配送说明. */
+const SIZE_OPTIONS=()=>(['SMALL','LARGE','EXTRA_LARGE'] as const).map(v=>({value:v,label:t(SIZE_LABELS[v]),icon:'box',hint:v==='EXTRA_LARGE'?t('超过大件上限'):t('≤ {0}',{0:SIZE_LIMITS[v].dims})}));
 function QuickEntry(){
  const navigate=useNavigate();const [code,setCode]=useState(''),[size,setSize]=useState('SMALL'),[mode,setMode]=useState<DeliveryMode>('DOWNSTAIRS');
  // Same price table the server quotes from (domain/commerce), so the preview can never drift from the real fee.
- const rates=([['SMALL','DOWNSTAIRS',t('小件 · 楼下')],['SMALL','ROOM',t('小件 · 到寝')],['LARGE','DOWNSTAIRS',t('大件 · 楼下')],['LARGE','ROOM',t('大件 · 到寝')]] as const).map(([s,m,label])=>[label,priceFen(s,m),s,m] as const);
+ // v4.5: three sizes × two ways would be six tiles; the grid shows the three sizes for the delivery way picked.
+ const rates=(['SMALL','LARGE','EXTRA_LARGE'] as const).map(s=>[t(SIZE_LABELS[s]),priceFen(s,mode),s,mode] as const);
  const launching=useRef(false);
  return <form className="quick-entry" onSubmit={e=>{e.preventDefault();if(launching.current)return;launching.current=true;
    const go=()=>navigate('/parcel/new',{state:{pickupCode:code,packageSize:size,deliveryMode:mode}});
-   playThen(e.currentTarget.querySelector('.launch-order .icon-plane'),[{transform:'none',opacity:1},{transform:'translate(-6px,4px) rotate(-8deg)',opacity:1,offset:.25},{transform:'translate(64px,-26px) rotate(12deg) scale(.7)',opacity:0}],380,go);}}><PickupCodeInput value={code} onChange={setCode}/><div className="quick-choice-grid"><ChoiceSelector label={t('包裹类型')} value={size} onChange={setSize} options={[{value:'SMALL',label:t('小件'),icon:'box'},{value:'LARGE',label:t('大件'),icon:'box'}]}/><DeliveryModeSelector value={mode} onChange={setMode}/></div><div className="rate-grid">{rates.map(([label,price,s,m])=>{const current=s===size&&m===mode;return <div key={label} className={current?'is-current':undefined}><small>{label}</small><strong>{yuan(price)}<em>{t('元')}</em></strong>{current&&<span className="sr-only">{t('（当前选择）')}</span>}</div>;})}</div><button className="launch-order" type="submit"><SymbolIcon name="plane"/>{t('立即下单')}<span aria-hidden="true">›</span></button><small className="quick-footnote">{t('下一步确认站点与包裹资料，费用以服务端报价为准 ·')} <Link to="/parcel/new">{t('收到多件？粘贴短信批量登记 ›')}</Link></small></form>;
+   playThen(e.currentTarget.querySelector('.launch-order .icon-plane'),[{transform:'none',opacity:1},{transform:'translate(-6px,4px) rotate(-8deg)',opacity:1,offset:.25},{transform:'translate(64px,-26px) rotate(12deg) scale(.7)',opacity:0}],380,go);}}><PickupCodeInput value={code} onChange={setCode}/><div className="quick-choice-grid"><ChoiceSelector label={t('包裹类型')} value={size} onChange={setSize} options={SIZE_OPTIONS().map(o=>({value:o.value,label:o.label,icon:'box'}))}/><DeliveryModeSelector value={mode} onChange={setMode}/></div><div className="rate-grid">{rates.map(([label,price,s,m])=>{const current=s===size&&m===mode;return <div key={label} className={current?'is-current':undefined}><small>{label}</small><strong>{yuan(price)}<em>{t('元')}</em></strong>{current&&<span className="sr-only">{t('（当前选择）')}</span>}</div>;})}</div><button className="launch-order" type="submit"><SymbolIcon name="plane"/>{t('立即下单')}<span aria-hidden="true">›</span></button><small className="quick-footnote">{t('下一步确认站点与包裹资料，费用以服务端报价为准 ·')} <Link to="/parcel/new">{t('收到多件？粘贴短信批量登记 ›')}</Link></small></form>;
 }
 function greeting(now=new Date()){
   const h=now.getHours(),word=h<5?t('夜深了'):h<11?t('早上好'):h<13?t('中午好'):h<18?t('下午好'):t('晚上好');
@@ -139,7 +146,7 @@ export function Home(){
       <dl className="chart-legend" aria-label={t('图例')}><div><dt><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><circle cx="10" cy="10" r="1.8" className="dot"/></svg></dt><dd>{t('宿舍楼')}</dd></div><div><dt><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="6" y="6" width="8" height="8"/></svg></dt><dd>{t('驿站')}</dd></div><div><dt><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M2 14c5-1 7-8 16-8" className="route"/></svg></dt><dd>{t('配送路线')}</dd></div></dl>
     </div>
     <div className={hasActiveOrder?'home-dashboard has-active-order':'home-dashboard'}>
-      <div className="home-quick panel"><div className="panel-heading"><h2>{t('快速下单')}</h2><Link className="address-shortcut" to="/profile"><SymbolIcon name="room"/><span>{t('我的收货寝室')}</span><b>{t('切换 ›')}</b></Link></div><p className="muted">{t('选择寝室、填写取件码，剩下的交给配送流程。')}</p><QuickEntry/></div>
+      <div className="home-quick panel"><div className="panel-heading"><h2>{t('快速下单')}</h2><Link className="address-shortcut" to="/profile"><SymbolIcon name="room"/><span>{t('我的收货寝室')}</span><b>{t('切换 ›')}</b></Link></div><RainNotice/><QuickEntry/></div>
       <div className="home-live"><CurrentOrderPreview enabled={session==='signed-in'} onActive={setHasActiveOrder}/>
         <div className="panel-heading"><h2>{t('我的包裹')}</h2><Link to="/orders">{t('全部订单 ›')}</Link></div>
         {signedOut?<SignInPrompt title={t('登录后，查看你的包裹')} text={t('登记包裹、查看配送进度，让期待更近一步。')}/>:<>
@@ -148,9 +155,9 @@ export function Home(){
       </div>
     </div>
     <div className="home-more">
-      <nav className="service-shortcuts" aria-label={t('校园服务')}><Link to="/send"><SymbolIcon name="send"/><strong>{t('代寄件')}</strong><small>{t('上门取件 · 帮你寄出')}</small></Link><Link to="/map"><SymbolIcon name="map"/><strong>{t('校园地图')}</strong><small>{t('路线 · 步行时间')}</small></Link><Link to="/report"><SymbolIcon name="star"/><strong>{t('年度报告')}</strong><small>{t('这一年的快递足迹')}</small></Link><Link to="/guide"><SymbolIcon name="order"/><strong>{t('配送说明')}</strong><small>{t('计费 · 范围 · 交接')}</small></Link><Link to="/help"><SymbolIcon name="help"/><strong>{t('常见问题')}</strong><small>{t('使用指南与解答')}</small></Link><Link to="/rules"><SymbolIcon name="bell"/><strong>{t('常用配送')}</strong><small>{t('到点自动下单')}</small></Link></nav>
-      <ImpactBoard/>
-      <BuildingHeatBoard compact/>
+      <nav className="service-shortcuts" aria-label={t('校园服务')}><Link to="/send"><SymbolIcon name="send"/><strong>{t('代寄件')}</strong><small>{t('上门取件 · 帮你寄出')}</small></Link><Link to="/map"><SymbolIcon name="map"/><strong>{t('校园地图')}</strong><small>{t('路线 · 步行时间')}</small></Link><Link to="/report"><SymbolIcon name="star"/><strong>{t('年度报告')}</strong><small>{t('这一年的快递足迹')}</small></Link><Link to="/guide"><SymbolIcon name="order"/><strong>{t('配送说明')}</strong><small>{t('计费 · 范围 · 交接')}</small></Link><Link to="/help"><SymbolIcon name="help"/><strong>{t('常见问题')}</strong><small>{t('使用指南与解答')}</small></Link><Link to="/rules"><SymbolIcon name="bell"/><strong>{t('常用配送')}</strong><small>{t('到点自动下单')}</small></Link><Link to="/apply"><SymbolIcon name="person"/><strong>{t('当配送员')}</strong><small>{t('课余兼职 · 在线申请')}</small></Link></nav>
+      {/* v4.5: the campus numbers fold away so the home page stays short; they open with one tap. */}
+      <details className="home-extra"><summary><SymbolIcon name="map"/><span><strong>{t('校园配送数据')}</strong><small>{t('累计送达、各楼热度')}</small></span></summary><ImpactBoard/><BuildingHeatBoard compact/></details>
     </div>
   </section>;
 }
@@ -162,7 +169,7 @@ function clearDraft(){removeItem(DRAFT_KEY,'session');}
 export function NewParcel(){
   const {data,error,loading}=useResource<{stations:Station[]}>('/stations');
   const location=useLocation(),draft=location.state as {pickupCode?:unknown;packageSize?:unknown;deliveryMode?:unknown}|null;
-  const [packageSize,setPackageSize]=useState(draft?.packageSize==='LARGE'?'LARGE':'SMALL');
+  const [packageSize,setPackageSize]=useState(draft?.packageSize==='LARGE'||draft?.packageSize==='EXTRA_LARGE'?draft.packageSize:'SMALL');
   const [code,setCode]=useState(typeof draft?.pickupCode==='string'?draft.pickupCode.slice(0,20):''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false);
   // Draft survives a refresh or a detour to another page (sessionStorage, this tab only); any hand-off state (quick entry, reorder) wins.
   const saved=useRef(draft?null:readDraft());
@@ -184,7 +191,7 @@ export function NewParcel(){
     {data&&<SmsRecognizer stations={data.stations} stationCode={station} packageSize={packageSize} onStation={setStation} onFill={p=>{setCode(p.pickupCode);if(p.carrier)setCarrier(p.carrier);}} onBulkDone={()=>{clearDraft();navigate('/',{state:{bulk:true}});}}/>}
     <form onSubmit={submit}><PickupCodeInput value={code} onChange={setCode}/>
       <label htmlFor="station">{t('取件站点')}</label><select id="station" name="stationCode" required value={station} onChange={e=>setStation(e.target.value)}>{data?.stations.map(s=><option key={s.code} value={s.code}>{s.canonicalName}</option>)}</select>
-      <ChoiceSelector label={t('包裹大小')} name="packageSize" value={packageSize} onChange={setPackageSize} options={[{value:'SMALL',label:t('小件'),icon:'box',hint:t('轻便包裹')},{value:'LARGE',label:t('大件'),icon:'box',hint:t('较大包裹')}]}/>
+      <ChoiceSelector label={t('包裹大小')} name="packageSize" value={packageSize} onChange={setPackageSize} options={SIZE_OPTIONS()}/><SizeGuide/>
       <label htmlFor="carrier">{t('承运商（选填）')}</label><select id="carrier" name="carrier" value={carrier} onChange={e=>setCarrier(e.target.value)}><option value="">{t('暂不填写')}</option>{CARRIERS.map(c=><option key={c} value={c}>{t(c)}</option>)}</select>
       <label htmlFor="parcel-note">{t('备注（选填）')}</label><textarea id="parcel-note" name="note" maxLength={120} rows={3} value={note} onChange={e=>setNote(e.target.value)}/><NoteChips value={note} onChange={setNote}/><small>{t('最多 120 字，请勿填写额外取件凭证。')}</small>
       <p role="alert">{message}</p><button className={busy?'is-busy':undefined} disabled={busy||!data?.stations.length}>{busy?t('正在登记…'):t('保存包裹')}</button>
@@ -237,7 +244,7 @@ function ReorderLink({order}:{order:Order}){
 function OrderFacts({order:o}:{order:Order}){
   return <dl className="order-facts">
     <div><dt><SymbolIcon name="room"/>{o.dropPlace?t('送达地点'):t('收货寝室')}</dt><dd>{o.dropPlace?t(DROP_PLACE_LABELS[o.dropPlace]):`${o.dormSnapshot.buildingName} · ${o.dormSnapshot.roomNo}`}</dd></div>
-    <div><dt><SymbolIcon name="box"/>{t('包裹与方式')}</dt><dd>{o.packageSize==='SMALL'?t('小件'):t('大件')} · {o.dropPlace?t('送到约定地点'):o.deliveryMode==='ROOM'?t('送到寝室'):t('送到楼下')}</dd></div>
+    <div><dt><SymbolIcon name="box"/>{t('包裹与方式')}</dt><dd>{t(sizeLabel(o.packageSize))} · {o.dropPlace?t('送到约定地点'):o.deliveryMode==='ROOM'?t('送到寝室'):t('送到楼下')}</dd></div>
     {o.proxyName&&<div><dt><SymbolIcon name="person"/>{t('代收人')}</dt><dd>{o.proxyName}</dd></div>}
     <div><dt><SymbolIcon name="home"/>{t('取件站点')}</dt><dd>{o.stationSnapshot.canonicalName}</dd></div>
     {orderSlotText(o)&&<div><dt><SymbolIcon name="bell"/>{t('预约送达')}</dt><dd>{orderSlotText(o)}</dd></div>}
@@ -265,7 +272,7 @@ export function Orders(){
   return <section><div className="row"><h1>{t('我的订单')}</h1>{!unauthorized&&<button className="text-button" onClick={()=>void refresh()}>{t('刷新')}</button>}</div><Notice error={error} unauthorized={unauthorized}/>{loading&&!data&&<LoadingState/>}{data?.orders.length===0&&<p>{t('暂无订单，')}<Link to="/parcel/new">{t('添加快递')}</Link>。</p>}
     {all.length>0&&<div className="order-tabs" role="group" aria-label={t('按状态筛选本页订单')}>{(Object.keys(ORDER_TABS) as (keyof typeof ORDER_TABS)[]).map(k=>{const n=all.filter(ORDER_TABS[k][1]).length;return <button key={k} type="button" className="chip" aria-pressed={tab===k} onClick={()=>setTab(k)}>{ORDER_TABS[k][0]}<b>{n}</b></button>;})}</div>}
     {all.length>0&&!shown.length&&<p className="muted">本页没有“{ORDER_TABS[tab][0]}”的订单。</p>}
-    <div className="card-list">{shown.map(o=><article key={o.id} className="parcel-card"><div className="row"><span className="badge" data-status={o.status}>{t(STATUS_LABELS[o.status])}</span><GroupChip order={o}/><strong>{money(o.amountFen-(o.discountFen??0)-(o.bundleDiscountFen??0))}</strong></div><p className="order-place"><SymbolIcon name="room"/>{o.dropPlace?t(DROP_PLACE_LABELS[o.dropPlace]):`${o.dormSnapshot.buildingName} · ${o.dormSnapshot.roomNo}`}</p><p className="order-tags"><span>{o.packageSize==='SMALL'?t('小件'):t('大件')}</span><span>{o.deliveryMode==='ROOM'?t('送到寝室'):t('送到楼下')}</span><time dateTime={new Date(o.createdAt*1000).toISOString()}>{new Date(o.createdAt*1000).toLocaleString(locale(),{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</time></p>{(o.exceptionCode||o.exceptionNote)&&<p className="order-alert" role="note">{t('配送遇到问题，请进入详情查看处理说明')}</p>}<div className="order-primary"><Link className={o.status==='WAITING_PAYMENT'||o.status.startsWith('DELIVERED')?'button':'button secondary'} to={o.status==='WAITING_PAYMENT'?`/checkout/${o.id}`:`/orders/${o.id}`} onClick={e=>morphFrom(e,o.id)}>{o.status==='WAITING_PAYMENT'?t('继续模拟支付'):o.status.startsWith('DELIVERED')?t('确认收货'):t('查看详情')} ›</Link><ReorderLink order={o}/></div></article>)}</div>
+    <div className="card-list">{shown.map(o=><article key={o.id} className="parcel-card"><div className="row"><span className="badge" data-status={o.status}>{t(STATUS_LABELS[o.status])}</span><GroupChip order={o}/><strong>{money(paidOf(o))}</strong></div><p className="order-place"><SymbolIcon name="room"/>{o.dropPlace?t(DROP_PLACE_LABELS[o.dropPlace]):`${o.dormSnapshot.buildingName} · ${o.dormSnapshot.roomNo}`}</p><p className="order-tags"><span>{t(sizeLabel(o.packageSize))}</span><span>{o.deliveryMode==='ROOM'?t('送到寝室'):t('送到楼下')}</span><time dateTime={new Date(o.createdAt*1000).toISOString()}>{new Date(o.createdAt*1000).toLocaleString(locale(),{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</time></p>{(o.exceptionCode||o.exceptionNote)&&<p className="order-alert" role="note">{t('配送遇到问题，请进入详情查看处理说明')}</p>}<div className="order-primary"><Link className={o.status==='WAITING_PAYMENT'||o.status.startsWith('DELIVERED')?'button':'button secondary'} to={o.status==='WAITING_PAYMENT'?`/checkout/${o.id}`:`/orders/${o.id}`} onClick={e=>morphFrom(e,o.id)}>{o.status==='WAITING_PAYMENT'?t('继续模拟支付'):o.status.startsWith('DELIVERED')?t('确认收货'):t('查看详情')} ›</Link><ReorderLink order={o}/></div></article>)}</div>
     {data&&<div className="actions pager"><button className="secondary" disabled={!back.length} onClick={()=>{setCursor(back.at(-1)!);setBack(back.slice(0,-1));}}>{t('订单上一页')}</button><span>{t('第 {0} 页',{0:back.length+1})}</span><button className="secondary" disabled={!data?.nextCursor} onClick={()=>{setBack([...back,cursor]);setCursor(data!.nextCursor!);}}>{t('订单下一页')}</button></div>}
   </section>;
 }
@@ -274,23 +281,23 @@ export function OrderDetail({checkout=false}:{checkout?:boolean}){
   const params=useParams();const id=params.id??params.orderId;const {data,error,refresh,revalidate,loading,unauthorized}=useStudentResource<Details>(`/orders/${id}`);
   useLiveOrder(data?.order.status,revalidate);useStatusToast(data?.order);const {session}=useStudentSession();const baseline=useOrderBaseline(data?.order);const statusChanged=!!baseline&&!!data&&baseline.status!==data.order.status;
   const [message,setMessage]=useState(''),[busy,setBusy]=useState(false);
-  const [coupon,setCoupon]=useState<CouponChoice|null>(null),[bundleFen,setBundleFen]=useState(0);
+  const [coupon,setCoupon]=useState<CouponChoice|null>(null),[bundleFen,setBundleFen]=useState(0),[rainFen,setRainFen]=useState(0);
   async function pay(){setBusy(true);try{await api(`/orders/${id}/mock-pay`,'POST',coupon?{couponId:coupon.couponId,...(coupon.code?{code:coupon.code}:{})}:{});setMessage('');toast('模拟支付成功','success',t('订单已进入接单市场，配送员接单后会通知你'));celebrate();await refresh();}catch(e){setMessage((e as Error).message);}finally{setBusy(false);}}
   async function cancel(){setBusy(true);try{await api(`/orders/${id}/cancel`,'POST',{version:(data?.order??o)!.version,confirmed:true});setMessage(t('订单已取消'));await refresh();}catch(e){setMessage((e as Error).message);}finally{setBusy(false);}}
   const o=data?.order??(id?seenOrders.get(id):undefined);const live=!!o&&['WAITING_PICKUP','PICKED_UP','OUT_FOR_DELIVERY'].includes(o.status);
   return <section className="order-page"><div className="page-head"><Link className="back-link" to="/orders">{t('← 我的订单')}</Link><h1>{checkout&&o?.status==='WAITING_PAYMENT'?t('确认模拟支付'):t('配送进度')}</h1>{o&&<div className="status-line"><span key={o.status} data-status={o.status} className={statusChanged?'badge just-advanced':'badge'}><BounceText text={t(STATUS_LABELS[o.status])} playOnMount={statusChanged}/></span>{session==='signed-in'&&shouldWatchOrder(o.status)&&o.status!=='WAITING_PAYMENT'&&<LiveIndicator/>}</div>}</div><Notice error={error} unauthorized={unauthorized}/>{loading&&!o&&<LoadingState/>}{o&&<div className={live?'order-layout is-live':'order-layout'}>
     <div className="order-main">
       <GroupStrip order={o}/>{o.checkoutId&&<Link className="checkout-link" to={`/checkout-batch/${o.checkoutId}`}><SymbolIcon name="box"/>{t('这件属于一次多件下单，查看同一次下单的全部包裹 ›')}</Link>}{live&&!o.slotDate&&<WeatherNotice/>}
-      {o.status==='COMPLETED'&&<div className="success-panel"><SuccessMark/><p><strong><BounceText text={t('订单已完成')}/></strong><br/><small>{t('感谢使用 CampusDrop 校园配送')}</small></p></div>}{o.status==='COMPLETED'&&<RatingPanel orderId={o.id}/>}<NearBanner order={o}/>{o.handoffCode&&<HandoffCodeCard code={o.handoffCode} status={o.status}/>}{live&&<Suspense fallback={<div className="live-map-skeleton" aria-hidden="true"/>}><OrderLiveMap order={o}/></Suspense>}{o.hasAssignee&&!['COMPLETED','CANCELLED'].includes(o.status)&&<OrderChat orderId={o.id} unread={o.chatUnreadStudent??0} startOpen={(o.chatUnreadStudent??0)>0}/>}{o.hasPhoto&&<DeliveryPhotoView orderId={o.id}/>}
-      {o.status==='WAITING_PAYMENT'&&<><CouponPicker orderId={o.id} amountFen={o.amountFen} onChange={setCoupon} onBundle={setBundleFen}/><CouponTotal amountFen={o.amountFen} choice={coupon} bundleFen={bundleFen}/></>}
-      {o.status==='WAITING_PAYMENT'&&<div className="actions"><MockPaymentDialog amount={o.amountFen-bundleFen-(coupon?.discountFen??0)} busy={busy} onPay={pay}/><button className="secondary" disabled={busy} onClick={()=>void cancel()}>{t('取消订单')}</button></div>}
+      {o.status==='COMPLETED'&&<div className="success-panel"><SuccessMark/><p><strong><BounceText text={t('订单已完成')}/></strong><br/><small>{t('感谢使用 CampusDrop 校园配送')}</small></p></div>}{o.status==='COMPLETED'&&<RatingPanel orderId={o.id}/>}<NearBanner order={o}/>{o.handoffCode&&<HandoffCodeCard code={o.handoffCode} status={o.status}/>}{live&&<Suspense fallback={<div className="live-map-skeleton" aria-hidden="true"/>}><OrderLiveMap order={o}/></Suspense>}{o.hasAssignee&&!['COMPLETED','CANCELLED'].includes(o.status)&&<OrderChat orderId={o.id} unread={o.chatUnreadStudent??0} startOpen={(o.chatUnreadStudent??0)>0}/>}{o.hasPhoto&&!lostCardVisible(o)&&<DeliveryPhotoView orderId={o.id}/>}<LostParcelCard order={o}/>
+      {o.status==='WAITING_PAYMENT'&&<><CouponPicker orderId={o.id} amountFen={o.amountFen} onChange={setCoupon} onBundle={setBundleFen} onRain={setRainFen}/><CouponTotal amountFen={o.amountFen} choice={coupon} bundleFen={bundleFen} rainFen={rainFen}/></>}
+      {o.status==='WAITING_PAYMENT'&&<div className="actions"><MockPaymentDialog amount={o.amountFen-bundleFen-(coupon?.discountFen??0)+rainFen} busy={busy} onPay={pay}/><button className="secondary" disabled={busy} onClick={()=>void cancel()}>{t('取消订单')}</button></div>}
       {o.exceptionCode&&<p role="alert">异常原因：{{CODE_INVALID:t('取件码无效'),SIZE_MISMATCH:t('大小件不符'),UNREACHABLE:t('暂时无法联系'),OTHER:t('其他异常')}[o.exceptionCode]??t('其他异常')}，请联系管理员处理。</p>}
       {['DELIVERED_DOWNSTAIRS','DELIVERED_TO_ROOM'].includes(o.status)&&<ConfirmAction label={t('确认收货')} title={t('确认已经收到包裹？')} busy={busy} onConfirm={async()=>{setBusy(true);try{await api(`/orders/${id}/receive`,'POST',{version:o.version,confirmed:true});await refresh();setMessage(t('收货已确认，谢谢使用'));toast('收货已确认','success',t('顺手给这次配送打个分吧'));celebrate();}catch(e){setMessage((e as Error).message);}finally{setBusy(false);}}}><p>{t('请核对实际包裹。未收到或有问题时，请先发起售后。')}</p></ConfirmAction>}
       <h2 className="section-title">{t('配送时间线')}</h2>{data?<OrderTimeline events={data.events}/>:<LoadingState/>}
       <button className="text-button" onClick={()=>void refresh()}>{t('刷新配送进度')}</button>
     </div>
     <aside className="order-aside">
-      <div className="waybill" style={viewTransitionsEnabled?{viewTransitionName:vtName('o',o.id)}:undefined}><p className="price">{money(o.amountFen-(o.discountFen??0)-(o.bundleDiscountFen??0))}{((o.discountFen??0)>0||(o.bundleDiscountFen??0)>0)&&<small className="price-was">{[t('原价 {0}',{0:money(o.amountFen)}),(o.bundleDiscountFen??0)>0?t('多件满减 -{0}',{0:money(o.bundleDiscountFen??0)}):'',(o.discountFen??0)>0?t('优惠券 -{0}',{0:money(o.discountFen??0)}):''].filter(Boolean).join(' · ')}</small>}</p><OrderFacts order={o}/></div>
+      <div className="waybill" style={viewTransitionsEnabled?{viewTransitionName:vtName('o',o.id)}:undefined}><p className="price">{money(paidOf(o))}{((o.discountFen??0)>0||(o.bundleDiscountFen??0)>0||(o.rainFen??0)>0)&&<small className="price-was">{[t('原价 {0}',{0:money(o.amountFen)}),(o.bundleDiscountFen??0)>0?t('多件满减 -{0}',{0:money(o.bundleDiscountFen??0)}):'',(o.discountFen??0)>0?t('优惠券 -{0}',{0:money(o.discountFen??0)}):'',(o.rainFen??0)>0?t('雨天配送费 +{0}',{0:money(o.rainFen??0)}):''].filter(Boolean).join(' · ')}</small>}</p><OrderFacts order={o}/></div>
       {data?.payments.some(p=>p.type==='DELIVERY')&&<p className="success">{t('模拟支付成功，未发生真实扣款')}</p>}
       {data?.payments.filter(p=>p.type==='REFUND').map(p=><p className="success" key={p.id}>已模拟退款 {money(p.amountFen)}，未发生真实资金流转</p>)}
       <DeliveryContact order={o}/><RoommatePanel order={o} refresh={refresh}/>

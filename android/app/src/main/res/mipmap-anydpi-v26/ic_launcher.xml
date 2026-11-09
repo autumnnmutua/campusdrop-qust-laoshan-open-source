@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- © 2026 专业团队 · CampusDrop v4.5.0 -->
+<!-- v4.5 launcher icon: a parcel on its way over the Laoshan sea at dusk (graphite and amber) (adaptive: background + foreground layers). -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@mipmap/ic_launcher_background"/>
+    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+</adaptive-icon>

@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 'use strict';
 // Same-origin bridge. CampusDrop authorization is still checked by the existing Worker.
 // No Tencent credentials, SDK login token, user id or password are embedded here.

@@ -1,0 +1,189 @@
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* ---------------------------------------------------------------- v4.5 · 石与灯 (stone and lamplight)
+   A warm stone page, graphite ink and graphite primary buttons, one amber accent. Headings move to the system sans with
+   tight tracking; prices keep the Newsreader figures. Corners grow with the size of the thing: 10 px controls, 14 px cards,
+   20 px for the large panels; borders get quieter and depth comes from one soft, warm shadow. Light theme only. */
+@media screen {
+  :root:not([data-theme=dark]) {
+    --shadow-soft: 0 1px 2px #1e1b180a, 0 10px 28px -16px #1e1b1829;
+    --shadow-lift: 0 2px 4px #1e1b180d, 0 20px 44px -22px #1e1b1838;
+  }
+  h1 { font-weight: 700; letter-spacing: -.02em; }
+  .home-hero h1 { font-weight: 700; letter-spacing: -.035em; line-height: 1.06; }
+  .panel-heading h2, .information-page h2, .section-title, dialog h2 { font-weight: 700; letter-spacing: -.015em; }
+  button, .button { border-radius: 10px; }
+  input, select, textarea { border-radius: 10px; }
+  :root:not([data-theme=dark]) :is(.parcel-card, .panel, .settings-card, .kpi) { border-color: color-mix(in srgb, var(--contour) 70%, transparent); box-shadow: var(--shadow-soft); }
+  .parcel-card, .settings-card { border-radius: 14px; }
+  .home-dashboard .home-quick, .home-live > .current-order:first-child { border-radius: 20px; }
+  /* the waybill-style blocks: hairline instead of an ink frame, same card depth as the rest */
+  :root:not([data-theme=dark]) :is(.waybill, .fee-result, .group-sheet) { border-color: color-mix(in srgb, var(--contour) 80%, transparent); border-radius: 16px; box-shadow: var(--shadow-soft); }
+  :root:not([data-theme=dark]) :is(.order-facts, .group-sheet-head) { border-color: var(--color-line); }
+  .merge-banner { border-style: solid; border-color: color-mix(in srgb, var(--route) 22%, transparent); border-radius: 14px; background: color-mix(in srgb, var(--route-soft) 55%, var(--paper)); }
+  /* notices: a quiet amber note, not a block quote */
+  .rain-notice, .weather-notice { border: 0; border-radius: 12px; background: var(--route-soft); }
+  .rain-notice .weather-glyph, .weather-notice .weather-glyph { color: var(--route); }
+  .rain-notice strong { color: var(--route-strong); }
+}
+
+/* v4.5 · 超大件 and the size guide, 雨天配送费, 楼栋分配 (dispatch by building), 申请当配送员, 没找到包裹, the shorter home
+   page. Tokens only (plus the courier swatches below, which always come with a name), so the dark theme follows. */
+
+/* ---------------------------------------------------------------- size guide (order page and 配送说明) */
+.size-guide { margin: 10px 0 4px; border: 1px solid var(--color-line); border-radius: var(--radius-lg); background: var(--chart); }
+.size-guide > summary { padding: 10px 14px; color: var(--sea); font-size: var(--text-sm); font-weight: 650; cursor: pointer; }
+.size-guide[open] > summary { border-bottom: var(--hairline); }
+.size-guide table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.size-guide th, .size-guide td { padding: 8px 12px; border-bottom: var(--hairline); text-align: left; vertical-align: top; }
+.size-guide thead th { color: var(--sounding); font-size: var(--text-xs); font-weight: 650; }
+.size-guide tbody th { white-space: nowrap; }
+.size-guide p { margin: 0; padding: 8px 12px 12px; }
+.information-page .size-guide { margin: var(--space-3) 0 var(--space-4); }
+@media (max-width: 560px) { .size-guide th, .size-guide td { padding: 7px 8px; } }
+
+/* ---------------------------------------------------------------- quick order: three sizes for the chosen way */
+.quick-entry .rate-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+/* ---------------------------------------------------------------- home: shorter */
+.home-extra { border: 1px solid var(--color-line); border-radius: var(--radius-xl); background: var(--chart); }
+.home-extra > summary { display: flex; align-items: center; gap: 12px; padding: 14px 18px; cursor: pointer; list-style: none; }
+.home-extra > summary::-webkit-details-marker { display: none; }
+.home-extra > summary::after { margin-left: auto; }
+.home-extra > summary .symbol-icon { width: 22px; height: 22px; color: var(--action); }
+.home-extra > summary span { display: grid; }
+.home-extra > summary small { color: var(--sounding); font-size: var(--text-xs); }
+.home-extra[open] { padding-bottom: var(--space-4); }
+.home-extra[open] > :not(summary) { margin-inline: var(--space-4); }
+@media (max-width: 720px) {
+  .home-hero .chart-legend { display: none; }
+  .home-hero { min-height: min(64vh, 560px); }
+}
+
+/* ---------------------------------------------------------------- courier swatches (楼栋分配): always next to a name */
+[data-slot="0"] { --slot: #8f5a16; } [data-slot="1"] { --slot: #2f7d6d; } [data-slot="2"] { --slot: #7a5bb5; } [data-slot="3"] { --slot: #b8871a; }
+[data-slot="4"] { --slot: #b5731a; } [data-slot="5"] { --slot: #3f6fa8; } [data-slot="6"] { --slot: #5f8a2a; } [data-slot="7"] { --slot: #8a5a44; }
+.dispatch-dot { display: inline-block; flex: none; width: 10px; height: 10px; margin-right: 8px; border-radius: 50%; background: var(--slot, transparent); box-shadow: 0 0 0 1px var(--color-line-strong); vertical-align: 1px; }
+.dispatch-couriers { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; margin: var(--space-4) 0 var(--space-5); }
+.dispatch-courier { display: grid; gap: 2px; padding: 12px 14px; border: 1px solid var(--color-line); border-left: 4px solid var(--slot, var(--color-line-strong)); border-radius: var(--radius-lg); background: var(--paper); }
+.dispatch-courier span { font-variant-numeric: tabular-nums; }
+.dispatch-courier.is-market { border-left-style: dashed; background: var(--chart); }
+.dispatch-plan { margin-bottom: var(--space-5); }
+.dispatch-plan h2 { margin-top: 0; }
+.dispatch-plan-list { display: grid; gap: 8px; margin: var(--space-3) 0; padding-left: 1.4em; }
+.dispatch-plan-list li { padding: 8px 10px; border-left: 3px solid var(--slot, var(--color-line)); background: var(--chart); }
+.dispatch-plan-list small { color: var(--sounding); }
+.dispatch-table caption { padding: 8px 0; color: var(--sounding); font-weight: 650; text-align: left; caption-side: top; }
+.dispatch-table tr.is-changed > * { background: color-mix(in srgb, var(--action) 7%, var(--paper)); }
+.dispatch-table select { min-width: 200px; }
+.dispatch-table .table-scroll + .table-scroll { margin-top: var(--space-4); }
+.dispatch-tag { display: inline-flex; align-items: center; margin-right: 8px; padding: 1px 8px; border-radius: var(--radius-pill); background: color-mix(in srgb, var(--action) 13%, var(--paper)); color: var(--action-deep); font-size: var(--text-xs); font-weight: 700; white-space: nowrap; }
+.dispatch-note, .my-buildings { margin: 6px 0; color: var(--sounding); font-size: var(--text-sm); }
+.my-buildings { padding: 10px 14px; border: 1px solid color-mix(in srgb, var(--action) 30%, transparent); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--action) 6%, var(--paper)); color: var(--abyss); }
+
+/* ---------------------------------------------------------------- 申请当兼职配送员 */
+.courier-apply { max-width: 720px; }
+.apply-form { display: grid; gap: var(--space-4); }
+.apply-form fieldset { display: grid; gap: var(--space-3); margin: 0; padding: var(--space-4); border: 1px solid var(--color-line); border-radius: var(--radius-lg); background: var(--chart); }
+.apply-form legend { padding: 0 6px; font-weight: 700; }
+.form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+@media (max-width: 560px) { .form-row { grid-template-columns: 1fr; } }
+.chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+label.chip { cursor: pointer; margin: 0; }
+label.chip.is-on { background: var(--abyss); border-color: var(--abyss); color: var(--on-color); }
+label.chip:focus-within { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.apply-rules { padding: 10px 14px; border: 1px solid var(--color-line); border-radius: var(--radius-lg); }
+.apply-rules summary { font-weight: 650; cursor: pointer; }
+.apply-rules ul { margin: 8px 0 0; padding-left: 1.2em; color: var(--sounding); }
+.apply-status { margin: var(--space-4) 0; padding: var(--space-4); border: 1px solid var(--color-line); border-left: 4px solid var(--sea); border-radius: var(--radius-lg); background: var(--paper); }
+.apply-status.is-approved { border-left-color: var(--green-500); background: var(--green-50); }
+.apply-status.is-rejected { border-left-color: var(--red-500); background: var(--red-50); }
+.apply-status p { margin: 6px 0 10px; }
+.application-list { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); margin-top: var(--space-4); }
+.application-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 16px; margin: 10px 0; font-size: var(--text-sm); }
+.application-facts dt { color: var(--sounding); font-size: var(--text-xs); }
+.application-facts dd { margin: 0; }
+.application-intro { margin: 6px 0; padding: 8px 10px; border-left: 3px solid var(--color-line-strong); background: var(--chart); }
+.application-review { display: grid; gap: var(--space-3); margin-top: var(--space-3); padding-top: var(--space-3); border-top: var(--hairline); }
+.application-review fieldset { margin: 0; padding: 0; border: 0; }
+.application-review legend { margin-bottom: 6px; font-size: var(--text-sm); font-weight: 650; }
+.badge.app-pending { background: var(--amber-50); color: var(--amber-700); }
+.badge.app-approved { background: var(--green-50); color: var(--green-700); }
+.badge.app-rejected, .badge.app-withdrawn { background: var(--gray-100); color: var(--sounding); }
+
+/* ---------------------------------------------------------------- 没找到包裹？ */
+.lost-parcel { margin: var(--space-5) 0; padding: var(--space-4) var(--space-5); border: 1px solid color-mix(in srgb, var(--route) 28%, transparent); border-radius: var(--radius-xl); background: color-mix(in srgb, var(--route) 5%, var(--paper)); }
+.lost-parcel h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 var(--space-3); font-size: var(--text-xl); }
+.lost-parcel h2 .symbol-icon { width: 22px; height: 22px; color: var(--route); }
+.lost-parcel ol { display: grid; gap: var(--space-3); margin: 0; padding-left: 1.3em; }
+.lost-parcel li { display: grid; gap: 6px; justify-items: start; }
+.lost-parcel li::marker { color: var(--route); font-weight: 700; }
+.lost-parcel .delivery-photo { margin: 0; }
+.danger-soft { border: 1px solid color-mix(in srgb, var(--route) 45%, transparent); background: var(--paper); color: var(--route-strong); }
+.danger-soft:hover:not(:disabled) { background: var(--route-soft); color: var(--route-strong); }
+
+/* ---------------------------------------------------------------- courier: photo before "delivered" */
+.photo-required-hint { margin: 6px 0 0; padding: 8px 12px; border-radius: var(--radius-md); background: var(--amber-50); color: var(--amber-700); font-size: var(--text-sm); }
+
+/* the home rain notice sits inside the quick-order panel */
+.home-quick .rain-notice { margin: 0 0 var(--space-4); }
+/* three sizes side by side where there is room (the order form); the quick-order card keeps two columns */
+@media (min-width: 720px) { .choice-options:has(> button:nth-child(3):last-child) { grid-template-columns: repeat(3, minmax(0, 1fr)); } .quick-entry .choice-options:has(> button:nth-child(3):last-child) { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; } }
+
+/* ---------------------------------------------------------------- 楼栋分配: tidy tables, a save bar that stays in reach */
+.admin-content .dispatch-plan.panel { padding: var(--space-5) var(--space-6); border-radius: 16px; }
+.dispatch-zones { display: grid; gap: var(--space-5); }
+@media (min-width: 1180px) { .dispatch-zones { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; } }
+.dispatch-table .table-scroll { padding: 4px 12px 8px; border: 1px solid color-mix(in srgb, var(--contour) 80%, transparent); border-radius: 16px; background: var(--paper); box-shadow: var(--shadow-soft); }
+.dispatch-table .table-scroll + .table-scroll { margin-top: 0; }
+.dispatch-table .staff-table { width: 100%; min-width: 0; border-collapse: collapse; }
+.dispatch-table .staff-table caption { padding: 14px 4px 6px; color: var(--abyss); font-size: var(--text-lg); font-weight: 700; }
+.dispatch-table .staff-table :is(th, td) { display: table-cell; padding: 8px 6px; border-bottom: 1px solid var(--color-line); vertical-align: middle; white-space: nowrap; }
+.dispatch-table .staff-table tbody tr:last-child > * { border-bottom: 0; }
+.dispatch-table .staff-table tbody th { font-weight: 650; }
+.dispatch-table .staff-table td:nth-child(2), .dispatch-table .staff-table td:nth-child(3) { color: var(--sounding); font-variant-numeric: tabular-nums; text-align: right; padding-right: 14px; }
+.dispatch-table .staff-table thead th:nth-child(2), .dispatch-table .staff-table thead th:nth-child(3) { text-align: right; padding-right: 14px; }
+.dispatch-table select { width: 100%; min-width: 0; max-width: 240px; min-height: 38px; padding: 6px 30px 6px 12px; font-size: var(--text-sm); }
+.dispatch-table tr.is-changed > * { background: var(--route-soft); }
+.dispatch-save { position: sticky; bottom: 12px; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 20px; margin-top: var(--space-5); padding: 12px 16px; border: 1px solid color-mix(in srgb, var(--contour) 80%, transparent); border-radius: 14px; background: color-mix(in srgb, var(--paper) 92%, transparent); box-shadow: var(--shadow-soft); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.dispatch-save .actions { margin: 0; }
+.dispatch-save.has-changes { border-color: color-mix(in srgb, var(--route) 40%, transparent); }
+
+/* quick order: the three sizes in one row (no icon, tighter padding) */
+.quick-entry .choice-options:has(> button:nth-child(3):last-child) > button { justify-content: center; padding-inline: 8px; }
+.quick-entry .choice-options:has(> button:nth-child(3):last-child) .symbol-icon { display: none; }
+.quick-entry .choice-options:has(> button:nth-child(3):last-child) > button > span { text-align: center; }
+@media (max-width: 719px) { .quick-entry .choice-options:has(> button:nth-child(3):last-child) { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; } }
+
+/* ---------------------------------------------------------------- 申请当配送员: short link, progress like a ticket */
+.apply-link { display: flex; align-items: center; gap: 10px; margin: var(--space-4) 0; padding: 10px 14px; border: 1px solid color-mix(in srgb, var(--contour) 80%, transparent); border-radius: 12px; background: var(--paper); font-size: var(--text-sm); }
+.apply-link .symbol-icon { flex: none; width: 18px; height: 18px; color: var(--route); }
+.apply-link span { display: flex; flex-wrap: wrap; gap: 2px 8px; min-width: 0; color: var(--sounding); }
+.apply-link b { color: var(--abyss); font-weight: 650; overflow-wrap: anywhere; }
+.apply-link .text-button { margin-left: auto; flex: none; }
+.apply-card { margin: var(--space-5) 0; padding: var(--space-5) var(--space-6); border: 1px solid color-mix(in srgb, var(--contour) 80%, transparent); border-radius: 16px; background: var(--paper); box-shadow: var(--shadow-soft); }
+.apply-card > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: var(--space-4); }
+.apply-card > header h2 { margin: 0; font-size: var(--text-xl); }
+.apply-card .actions { margin-top: var(--space-4); }
+.apply-progress { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.apply-progress li { position: relative; display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 12px; padding-bottom: var(--space-5); }
+.apply-progress li:last-child { padding-bottom: 0; }
+.apply-progress li::before { content: ""; position: absolute; left: 10px; top: 20px; bottom: 0; width: 2px; background: var(--color-line); }
+.apply-progress li:last-child::before { display: none; }
+.apply-progress li.is-done::before { background: color-mix(in srgb, var(--route) 55%, var(--color-line)); }
+.apply-dot { width: 22px; height: 22px; border: 2px solid var(--color-line-strong); border-radius: 50%; background: var(--paper); }
+.apply-progress .is-done .apply-dot { border-color: var(--route); background: var(--route); box-shadow: inset 0 0 0 4px var(--paper); }
+.apply-progress .is-current .apply-dot { border-color: var(--route); box-shadow: 0 0 0 4px color-mix(in srgb, var(--route) 18%, transparent); }
+.apply-progress .is-stopped .apply-dot { border-color: var(--sounding); background: var(--gray-100); }
+.apply-progress strong { display: inline-block; margin-right: 10px; }
+.apply-progress time { color: var(--sounding); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
+.apply-progress p { margin: 2px 0 0; color: var(--sounding); font-size: var(--text-sm); }
+.apply-progress .is-todo strong { color: var(--sounding); font-weight: 600; }
+.apply-history { margin-top: var(--space-8); }
+.apply-history h2 { font-size: var(--text-lg); }
+.apply-history ul { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.apply-history li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; padding: 10px 0; border-bottom: 1px solid var(--color-line); font-size: var(--text-sm); }
+.apply-history li > span:first-child { color: var(--sounding); font-variant-numeric: tabular-nums; }
+.apply-history small { flex-basis: 100%; color: var(--sounding); }
+/* the seventh home shortcut (当配送员) takes a full row instead of leaving a hole */
+.service-shortcuts > a[href="/apply"] { grid-column: 1 / -1; padding-left: 0; border-left: 0; }
+.service-shortcuts > a[href="/apply"] .symbol-icon { color: var(--route); }

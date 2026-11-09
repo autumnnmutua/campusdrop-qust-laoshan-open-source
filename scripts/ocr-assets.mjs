@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';

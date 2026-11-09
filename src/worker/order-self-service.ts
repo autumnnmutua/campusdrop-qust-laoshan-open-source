@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import {cursorPage,cursorResult} from './pagination';
 import {taskQuerySchema} from '../shared/delivery';
 import { upgradePriceFen } from '../domain/commerce';
@@ -21,13 +21,14 @@ export async function availableOrders(env:Env,admin:Admin,request:Request){
  const parsed=taskQuerySchema.safeParse(Object.fromEntries(new URL(request.url).searchParams));if(!parsed.success)throw new ApiError(400,'INVALID_FILTER','筛选条件不正确');
  const f=parsed.data,scope=availableScope(admin),key=JSON.stringify([admin.id,'market',f.building??'',f.packageSize??'',f.deliveryMode??'']);const {limit,cursor}=cursorPage(request,key);
  const where=[available,scope.sql],params:(string|number)[]=[...scope.params];
- for(const [v,col] of [[f.building,'o.dorm_building_code'],[f.packageSize,'o.package_size'],[f.deliveryMode,"CASE WHEN o.delivery_upgrade_fen>0 THEN 'ROOM' ELSE o.delivery_mode END"]])if(v){where.push(col+'=?');params.push(v);}
+ for(const [v,col] of [[f.building,'o.dorm_building_code'],[f.packageSize,"CASE WHEN o.oversize_fen>0 THEN 'EXTRA_LARGE' ELSE o.package_size END"],[f.deliveryMode,"CASE WHEN o.delivery_upgrade_fen>0 THEN 'ROOM' ELSE o.delivery_mode END"]])if(v){where.push(col+'=?');params.push(v);}
  // Totals for the whole filtered market (not just this page): lets the workspace notice new orders that land beyond page 1.
  const totals=await env.DB.prepare(`SELECT count(*) AS total,max(o.created_at) AS newestAt FROM delivery_orders o WHERE ${where.join(' AND ')}`).bind(...params).first<{total:number;newestAt:number|null}>();
  if(cursor){where.push('(o.created_at>? OR (o.created_at=? AND o.id>?))');params.push(cursor.time,cursor.time,cursor.id);}
  const rows=(await env.DB.prepare(`SELECT o.id,o.group_id AS groupId,(SELECT count(*) FROM delivery_orders g WHERE o.group_id IS NOT NULL AND g.group_id=o.group_id AND g.status<>'CANCELLED') AS groupSize,o.created_at AS createdAt,json_extract(o.dorm_snapshot_json,'$.buildingName') AS buildingName,
- json_extract(o.station_snapshot_json,'$.canonicalName') AS stationName,o.package_size AS packageSize,o.dorm_building_code AS buildingCode,o.slot_date AS slotDate,o.slot_code AS slotCode,o.drop_place AS dropPlace,
- CASE WHEN o.delivery_upgrade_fen>0 THEN 'ROOM' ELSE o.delivery_mode END AS deliveryMode,o.amount_fen+o.delivery_upgrade_fen+o.upgrade_surcharge_fen AS amountFen
+ json_extract(o.station_snapshot_json,'$.canonicalName') AS stationName,CASE WHEN o.oversize_fen>0 THEN 'EXTRA_LARGE' ELSE o.package_size END AS packageSize,o.dorm_building_code AS buildingCode,o.slot_date AS slotDate,o.slot_code AS slotCode,o.drop_place AS dropPlace,
+ CASE WHEN o.delivery_upgrade_fen>0 THEN 'ROOM' ELSE o.delivery_mode END AS deliveryMode,o.amount_fen+o.oversize_fen+o.delivery_upgrade_fen+o.upgrade_surcharge_fen AS amountFen,o.rain_fen AS rainFen,
+ o.amount_fen+o.oversize_fen+o.delivery_upgrade_fen+o.upgrade_surcharge_fen+o.rain_fen-20-o.rain_fee_fen AS courierFen
  FROM delivery_orders o WHERE ${where.join(' AND ')} ORDER BY o.created_at,o.id LIMIT ?`).bind(...params,limit+1).all<AvailableOrder&{createdAt:number}>()).results;
  const result=cursorResult(rows,limit,key);return {orders:result.items,nextCursor:result.nextCursor,hasMore:result.hasMore,pageSize:limit,total:totals?.total??0,newestAt:totals?.newestAt??null};
 }

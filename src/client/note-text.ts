@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 // Pure helpers for note quick-chips; kept separate so they can be tested without a browser.
 /** Add a phrase after the student's own text with one separator, without touching what they typed. */
 export function appendChip(value:string,chip:string){const base=value.trimEnd();const next=base?`${base}${/[，,；;。]$/.test(base)?'':'，'}${chip}`:chip;return next.length<=120?next:value;}

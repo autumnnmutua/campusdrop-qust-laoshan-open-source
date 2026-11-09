@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import type { Env } from './types';
 import { ApiError, body, json } from './http';
 import { requireStudent, revokeSession } from './session';
@@ -40,6 +40,8 @@ export function studentDeletionStatements(env: Env, userId: string, actorType: '
     env.DB.prepare('DELETE FROM delivery_photos WHERE order_id IN (SELECT id FROM delivery_orders WHERE user_id=?)').bind(userId),
     env.DB.prepare("UPDATE parcels SET status=CASE WHEN status='ACTIVE' THEN 'CANCELLED' ELSE status END,pickup_code='已清理',note='' WHERE user_id=?").bind(userId),
     env.DB.prepare('DELETE FROM user_addresses WHERE user_id=?').bind(userId),
+    // v4.5: an application to deliver keeps its outcome (an approved courier account stays) but loses the personal details.
+    env.DB.prepare("UPDATE courier_applications SET real_name='已注销用户',phone='00000000000',college='',grade='',intro='',room_no='',status=CASE WHEN status='PENDING' THEN 'WITHDRAWN' ELSE status END WHERE user_id=?").bind(userId),
     env.DB.prepare('DELETE FROM delivery_rules WHERE user_id=?').bind(userId),
     env.DB.prepare('DELETE FROM order_messages WHERE order_id IN (SELECT id FROM delivery_orders WHERE user_id=?)').bind(userId),
     env.DB.prepare('DELETE FROM inbox_messages WHERE user_id=?').bind(userId),

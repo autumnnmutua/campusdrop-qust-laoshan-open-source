@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import { spawnSync } from 'node:child_process';
 import { requireDeployment, readConfig, commandEnvironment } from './deployment-config.mjs';
 import { readFileSync } from 'node:fs';

@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import type { Env } from './types';
 import type { Admin } from '../shared/contracts';
 import { CAMPUS_ID } from '../shared/contracts';
@@ -76,7 +76,7 @@ async function advance(env: Env, s: Session): Promise<number> {
       else if (r.status === 'WAITING_PICKUP' && r.claimedAt != null && t - since >= DEMO_STEPS.pickup) { await changeStatus(env, admin, r.id, { status: 'PICKED_UP', version: r.version }); steps++; }
       else if (r.status === 'PICKED_UP' && t - since >= DEMO_STEPS.depart) { await changeStatus(env, admin, r.id, { status: 'OUT_FOR_DELIVERY', version: r.version }); steps++; }
       else if (r.status === 'OUT_FOR_DELIVERY' && t - since >= DEMO_RIDE_SECONDS) {
-        await changeStatus(env, admin, r.id, { status: r.mode === 'ROOM' || r.upgrade > 0 ? 'DELIVERED_TO_ROOM' : 'DELIVERED_DOWNSTAIRS', version: r.version }); steps++;
+        await changeStatus(env, admin, r.id, { status: r.mode === 'ROOM' || r.upgrade > 0 ? 'DELIVERED_TO_ROOM' : 'DELIVERED_DOWNSTAIRS', version: r.version }, { skipPhoto: true }); steps++;
       }
     } catch { /* the visitor (as courier) or a group sibling moved it first: next tick looks again */ }
     // A merged delivery moves together: the rest of its group was moved by the same call.

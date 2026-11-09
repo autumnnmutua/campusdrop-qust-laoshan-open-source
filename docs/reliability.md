@@ -47,4 +47,4 @@ GET /orders、/admin/tasks、/admin/available支持pageSize与nextCursor；客�
 
 可复现业务问题已有修复和守卫；公网TLS/代理中断仍可能发生，软件重试不等于保证网络永久无故障。若再次遇到500，请提供页面问题编号，通过错误监控定位，不发送密码或完整取件码。
 
-<!-- © 2026 专业团队 · CampusDrop v4.0.0 -->
+<!-- © 2026 专业团队 · CampusDrop v4.5.0 -->

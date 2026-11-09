@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { CouponPicker, CouponTotal, type CouponChoice } from './coupons-ui';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -19,6 +19,7 @@ import { DELIVERY_SLOTS, slotByCode, type SlotCode } from '../shared/slots';
 import { DROP_PLACES, DROP_PLACE_LABELS, type DropPlace } from '../shared/campus-map';
 import { CHECKOUT_MAX_PARCELS, DEFAULT_BUNDLE, bundleDiscount, sortedTiers, tierLabel, tierLabelEn, type BundleSetting, type BundleTier, type CheckoutDetail } from '../shared/bundle';
 import type { DeliveryMode, Order, Parcel, Station } from '../shared/delivery';
+import { sizeLabel } from '../shared/delivery';
 import { RULES_PER_STUDENT, RULE_LEAD_HOURS, WEEKDAY_LABELS, weekdayText, type DeliveryRule, type OrderGroup } from '../shared/v3';
 
 /*
@@ -95,7 +96,7 @@ export function MergeOrder() {
         {stations.map(code => <fieldset key={code} className="merge-list multi-list"><legend>{stationName(code)}</legend>
           {waiting.filter(p => p.stationCode === code).map(p => { const on = chosen.includes(p.id), id = `dest-${p.id}`; return <div key={p.id} className={on ? 'merge-item multi-item is-on' : 'merge-item multi-item'}>
             <label className="multi-pick"><input type="checkbox" checked={on} onChange={e => toggle(p.id, e.target.checked)}/>
-              <span className="pickup-code">{p.pickupCode}</span><span className="badge" data-size={p.packageSize}>{p.packageSize === 'SMALL' ? t('小件') : t('大件')}</span><small>{p.carrier || t('未填写承运商')}</small></label>
+              <span className="pickup-code">{p.pickupCode}</span><span className="badge" data-size={p.packageSize}>{t(sizeLabel(p.packageSize))}</span><small>{p.carrier || t('未填写承运商')}</small></label>
             <label className="multi-dest" htmlFor={id}><span className="sr-only">{t('送到哪里')}</span>
               <select id={id} value={destOf(p.id)} disabled={!on} onChange={e => setDest({ ...dest, [p.id]: e.target.value as Dest })}>{destOptions(p.packageSize)}</select></label>
             <b>{money(priceFen(p.packageSize, destMode(destOf(p.id))))}</b>
@@ -124,7 +125,7 @@ export function MergeOrder() {
 export function BatchCheckout() {
   const { id } = useParams();
   const { data, error, loading, unauthorized, refresh } = useStudentResource<{ checkout: CheckoutDetail }>(`/checkouts/${id}`);
-  const [busy, setBusy] = useState(false), [message, setMessage] = useState(''), [coupon, setCoupon] = useState<CouponChoice | null>(null), [bundleFen, setBundleFen] = useState(0);
+  const [busy, setBusy] = useState(false), [message, setMessage] = useState(''), [coupon, setCoupon] = useState<CouponChoice | null>(null), [bundleFen, setBundleFen] = useState(0), [rainFen, setRainFen] = useState(0);
   const c = data?.checkout, live = c?.orders.filter(o => o.status !== 'CANCELLED') ?? [];
   async function pay() {
     setBusy(true); setMessage('');
@@ -146,16 +147,16 @@ export function BatchCheckout() {
         <ul className="trip-list">{c.trips.map((trip, i) => <li key={i}><span className="trip-from">{trip.stationName}</span><span className="trip-arrow" aria-hidden="true">→</span><span className="trip-to">{trip.dropPlace ? t(DROP_PLACE_LABELS[trip.dropPlace]) : `${trip.buildingName}${trip.mode === 'ROOM' ? t(' · 到寝') : t(' · 楼下')}`}</span><span className="badge">{trip.count > 1 ? t('合并 {0} 件', { 0: trip.count }) : t('1 件')}</span></li>)}</ul>
         <ol className="group-items">{c.orders.map(o => <li key={o.id} className={o.status === 'CANCELLED' ? 'is-cancelled' : undefined}>
           <span className="badge" data-status={o.status}>{t(STATUS_LABELS[o.status])}</span>
-          <span>{o.packageSize === 'SMALL' ? t('小件') : t('大件')} · {o.stationSnapshot.canonicalName} → {where(o)}{o.slotDate && o.slotCode ? ` · ${o.slotDate.slice(5)} ${t(slotByCode(o.slotCode).label)}` : ''}</span>
+          <span>{t(sizeLabel(o.packageSize))} · {o.stationSnapshot.canonicalName} → {where(o)}{o.slotDate && o.slotCode ? ` · ${o.slotDate.slice(5)} ${t(slotByCode(o.slotCode).label)}` : ''}</span>
           <b>{money(o.amountFen)}</b><Link to={`/orders/${o.id}`}>{t('详情 ›')}</Link>
         </li>)}</ol>
       </div>
       {c.handoffCode && <HandoffCodeCard code={c.handoffCode} status={live.find(o => o.status !== 'WAITING_PAYMENT')?.status ?? 'WAITING_PICKUP'}/>}
-      {c.unpaidCount > 0 && <><CouponPicker checkoutId={c.id} amountFen={c.unpaidFen} onChange={setCoupon} onBundle={setBundleFen}/><CouponTotal amountFen={c.unpaidFen} choice={coupon} bundleFen={bundleFen}/></>}
+      {c.unpaidCount > 0 && <><CouponPicker checkoutId={c.id} amountFen={c.unpaidFen} onChange={setCoupon} onBundle={setBundleFen} onRain={setRainFen}/><CouponTotal amountFen={c.unpaidFen} choice={coupon} bundleFen={bundleFen} rainFen={rainFen}/></>}
       {!c.unpaidCount && live.length > 0 && <dl className="coupon-total is-paid"><div><dt>{t('配送费')}</dt><dd>{money(c.totalFen)}</dd></div>
-        {c.bundleFen > 0 && <div><dt>{t('多件满减')}</dt><dd>-{money(c.bundleFen)}</dd></div>}{c.couponFen > 0 && <div><dt>{t('优惠券')}</dt><dd>-{money(c.couponFen)}</dd></div>}
+        {c.bundleFen > 0 && <div><dt>{t('多件满减')}</dt><dd>-{money(c.bundleFen)}</dd></div>}{c.couponFen > 0 && <div><dt>{t('优惠券')}</dt><dd>-{money(c.couponFen)}</dd></div>}{(c.rainFen ?? 0) > 0 && <div><dt>{t('雨天配送费')}</dt><dd>+{money(c.rainFen ?? 0)}</dd></div>}
         <div className="is-pay"><dt>{t('实付（模拟）')}</dt><dd>{money(c.paidFen)}</dd></div></dl>}
-      {c.unpaidCount > 0 ? <div className="actions"><MockPaymentDialog amount={c.unpaidFen - bundleFen - (coupon?.discountFen ?? 0)} busy={busy} onPay={pay}/><button type="button" className="secondary" disabled={busy} onClick={() => void cancel()}>{t('取消未支付的 {0} 件', { 0: c.unpaidCount })}</button></div>
+      {c.unpaidCount > 0 ? <div className="actions"><MockPaymentDialog amount={c.unpaidFen - bundleFen - (coupon?.discountFen ?? 0) + rainFen} busy={busy} onPay={pay}/><button type="button" className="secondary" disabled={busy} onClick={() => void cancel()}>{t('取消未支付的 {0} 件', { 0: c.unpaidCount })}</button></div>
         : live.length > 0 && <p className="success">{t('已全部支付（模拟），配送员接单后会按趟取件、送达；单件取消会退回这件实际支付的金额。')}</p>}
       <p role="alert">{message}</p>
       <WeatherNotice/>
@@ -167,7 +168,7 @@ export function BatchCheckout() {
 export function GroupCheckout() {
   const { id } = useParams();
   const { data, error, loading, unauthorized, refresh } = useStudentResource<{ group: OrderGroup }>(`/order-groups/${id}`);
-  const [busy, setBusy] = useState(false), [message, setMessage] = useState(''), [coupon, setCoupon] = useState<CouponChoice | null>(null), [bundleFen, setBundleFen] = useState(0);
+  const [busy, setBusy] = useState(false), [message, setMessage] = useState(''), [coupon, setCoupon] = useState<CouponChoice | null>(null), [bundleFen, setBundleFen] = useState(0), [rainFen, setRainFen] = useState(0);
   const g = data?.group, live = g?.orders.filter(o => o.status !== 'CANCELLED') ?? [];
   async function pay() {
     setBusy(true); setMessage('');
@@ -188,13 +189,13 @@ export function GroupCheckout() {
         <div className="group-sheet-head"><span className="merge-stack" aria-hidden="true"><i/><i/><i/></span><div><strong>{t('{0} 件包裹 · 一次送达', { 0: live.length })}</strong><small>{t('收货码相同：配送员核验一次，全部签收')}</small></div><p className="price">{money(g.totalFen)}</p></div>
         <ol className="group-items">{g.orders.map(o => <li key={o.id} className={o.status === 'CANCELLED' ? 'is-cancelled' : undefined}>
           <span className="badge" data-status={o.status}>{t(STATUS_LABELS[o.status])}</span>
-          <span>{o.packageSize === 'SMALL' ? t('小件') : t('大件')} · {o.dropPlace ? t(DROP_PLACE_LABELS[o.dropPlace]) : `${o.dormSnapshot.buildingName}${o.deliveryMode === 'ROOM' ? t(' · 到寝') : t(' · 楼下')}`}{o.slotDate && o.slotCode ? ` · ${o.slotDate.slice(5)} ${t(slotByCode(o.slotCode).label)}` : ''}</span>
+          <span>{t(sizeLabel(o.packageSize))} · {o.dropPlace ? t(DROP_PLACE_LABELS[o.dropPlace]) : `${o.dormSnapshot.buildingName}${o.deliveryMode === 'ROOM' ? t(' · 到寝') : t(' · 楼下')}`}{o.slotDate && o.slotCode ? ` · ${o.slotDate.slice(5)} ${t(slotByCode(o.slotCode).label)}` : ''}</span>
           <b>{money(o.amountFen)}</b><Link to={`/orders/${o.id}`}>{t('详情 ›')}</Link>
         </li>)}</ol>
       </div>
-      {g.unpaidCount > 0 && <><CouponPicker groupId={g.id} amountFen={g.unpaidFen} onChange={setCoupon} onBundle={setBundleFen}/><CouponTotal amountFen={g.unpaidFen} choice={coupon} bundleFen={bundleFen}/></>}
-      {!g.unpaidCount && ((g.discountFen ?? 0) > 0 || (g.bundleFen ?? 0) > 0) && <p className="muted">{t('已优惠 {0}，实付 {1}', { 0: money((g.discountFen ?? 0) + (g.bundleFen ?? 0)), 1: money(g.totalFen - (g.discountFen ?? 0) - (g.bundleFen ?? 0)) })}</p>}
-      {g.unpaidCount > 0 ? <div className="actions"><MockPaymentDialog amount={g.unpaidFen - bundleFen - (coupon?.discountFen ?? 0)} busy={busy} onPay={pay}/><button type="button" className="secondary" disabled={busy} onClick={() => void cancel()}>{t('取消未支付的 {0} 件', { 0: g.unpaidCount })}</button></div>
+      {g.unpaidCount > 0 && <><CouponPicker groupId={g.id} amountFen={g.unpaidFen} onChange={setCoupon} onBundle={setBundleFen} onRain={setRainFen}/><CouponTotal amountFen={g.unpaidFen} choice={coupon} bundleFen={bundleFen} rainFen={rainFen}/></>}
+      {!g.unpaidCount && ((g.discountFen ?? 0) > 0 || (g.bundleFen ?? 0) > 0 || (g.rainFen ?? 0) > 0) && <p className="muted">{t('已优惠 {0}，实付 {1}', { 0: money((g.discountFen ?? 0) + (g.bundleFen ?? 0)), 1: money(g.totalFen - (g.discountFen ?? 0) - (g.bundleFen ?? 0) + (g.rainFen ?? 0)) })}</p>}
+      {g.unpaidCount > 0 ? <div className="actions"><MockPaymentDialog amount={g.unpaidFen - bundleFen - (coupon?.discountFen ?? 0) + rainFen} busy={busy} onPay={pay}/><button type="button" className="secondary" disabled={busy} onClick={() => void cancel()}>{t('取消未支付的 {0} 件', { 0: g.unpaidCount })}</button></div>
         : live.length > 0 && <p className="success">{t('已全部支付（模拟），配送员接单后会一起取件、一起送达。')}</p>}
       <p role="alert">{message}</p>
       <WeatherNotice/>

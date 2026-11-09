@@ -1,4 +1,4 @@
-/*! © 2026 专业团队 · CampusDrop v4.0.0 */
+/*! © 2026 专业团队 · CampusDrop v4.5.0 */
 /* CampusDrop stylesheet entry. Order is the cascade: later files may refine earlier ones, never the other way round.
    tokens → base → layout → components → pages → motion → feature layers → chart (the sea chart and intro) → dark theme. Vite inlines these imports at build time. */
 @import './tokens.css';
@@ -19,5 +19,6 @@
 @import './v37.css';
 @import './v38.css';
 @import './v39.css';
+@import './v45.css';
 @import './theme-dark-auto.css';
 @import './theme-dark.css';

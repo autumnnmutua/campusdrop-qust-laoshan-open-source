@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import type { Env } from './types';
 import { ApiError, body, json } from './http';
 import { requireStudent } from './session';
@@ -84,7 +84,7 @@ export async function runRules(env: Env, t = now()): Promise<number> {
       .all<{ id: string; userId: string; deliveryMode: DeliveryMode; dropPlace: DropPlace | null; username: string; name: string; phone: string }>()).results;
     for (const rule of rules) {
       const user: Student = { id: rule.userId, username: rule.username, name: rule.name, phone: rule.phone } as Student;
-      const parcels = (await env.DB.prepare(`SELECT id,station_code AS stationCode,size AS packageSize,note FROM parcels p WHERE p.user_id=? AND p.status='ACTIVE' AND p.created_at<?
+      const parcels = (await env.DB.prepare(`SELECT id,station_code AS stationCode,CASE WHEN p.oversize=1 THEN 'EXTRA_LARGE' ELSE p.size END AS packageSize,note FROM parcels p WHERE p.user_id=? AND p.status='ACTIVE' AND p.created_at<?
         AND NOT EXISTS(SELECT 1 FROM delivery_orders o WHERE o.parcel_id=p.id AND o.status<>'CANCELLED') ORDER BY p.created_at LIMIT 12`).bind(rule.userId, t - 60)
         .all<Pick<Parcel, 'id' | 'stationCode' | 'packageSize' | 'note'>>()).results;
       const byStation = new Map<string, typeof parcels>();

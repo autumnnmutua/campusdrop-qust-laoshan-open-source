@@ -1,4 +1,4 @@
--- © 2026 专业团队 · CampusDrop v4.0.0
+-- © 2026 专业团队 · CampusDrop v4.5.0
 ALTER TABLE admin_users ADD COLUMN development_only INTEGER NOT NULL DEFAULT 0 CHECK (development_only IN (0,1));
 CREATE TABLE parcels (
   id TEXT PRIMARY KEY,

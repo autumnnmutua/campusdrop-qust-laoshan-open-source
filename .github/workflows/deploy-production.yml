@@ -1,4 +1,4 @@
-# © 2026 专业团队 · CampusDrop v4.0.0
+# © 2026 专业团队 · CampusDrop v4.5.0
 name: Deploy production
 # Publishes main to the campusdrop-qust-laoshan-production Worker (static assets + API).
 # One-time setup: add repository secrets CLOUDFLARE_API_TOKEN (Cloudflare token template "Edit Cloudflare Workers",

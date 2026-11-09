@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import type { Env } from './types';
 import { ApiError, body, json, optionalBody } from './http';
 import { requireAdmin, requireStudent, requireSuper } from './session';
@@ -41,7 +41,7 @@ async function checkoutDetail(env: Env, userId: string, id: string): Promise<Che
     id, createdAt: head.createdAt, orders, trips: [...trips.values()],
     totalFen: live.reduce((s, o) => s + o.amountFen, 0), unpaidFen: unpaid.reduce((s, o) => s + o.amountFen, 0), unpaidCount: unpaid.length,
     couponFen: paidRows.reduce((s, r) => s + (r.discountFen ?? 0), 0), bundleFen: paidRows.reduce((s, r) => s + (r.bundleDiscountFen ?? 0), 0),
-    paidFen: paidRows.reduce((s, r) => s + (r.paidAmount ?? 0), 0),
+    paidFen: paidRows.reduce((s, r) => s + (r.paidAmount ?? 0), 0), rainFen: paidRows.reduce((s, r) => s + (r.rainFen ?? 0), 0),
   };
 }
 
@@ -50,7 +50,7 @@ async function createCheckout(env: Env, request: Request): Promise<string> {
   const user = await requireStudent(request, env), data = await body(request, checkoutCreateSchema);
   await rateLimit(env, `checkout:${user.id}`, 30);
   const ids = data.items.map(i => i.parcelId);
-  const found = (await env.DB.prepare(`SELECT id,station_code AS stationCode,size AS packageSize,note,status FROM parcels WHERE user_id=? AND id IN (${ids.map(() => '?').join(',')})`)
+  const found = (await env.DB.prepare(`SELECT id,station_code AS stationCode,CASE WHEN oversize=1 THEN 'EXTRA_LARGE' ELSE size END AS packageSize,note,status FROM parcels WHERE user_id=? AND id IN (${ids.map(() => '?').join(',')})`)
     .bind(user.id, ...ids).all<ParcelRow>()).results;
   if (found.length !== ids.length) throw new ApiError(404, 'NOT_FOUND', '有包裹不存在，请刷新后重新选择');
   if (found.some(p => p.status !== 'ACTIVE')) throw new ApiError(409, 'PARCEL_CLOSED', '有包裹已经结束，请刷新后重新选择');

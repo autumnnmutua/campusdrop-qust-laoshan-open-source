@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 import { webcrypto } from 'node:crypto';
 /**
  * Generates a VAPID key pair for web push and prints the wrangler commands that store it as Worker secrets.

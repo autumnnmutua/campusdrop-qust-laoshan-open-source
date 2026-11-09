@@ -1,11 +1,11 @@
-/* © 2026 专业团队 · CampusDrop v4.0.0 */
+/* © 2026 专业团队 · CampusDrop v4.5.0 */
 /* v3.7 · depth. The sea chart keeps its palette, but the page is no longer a flat sheet: a soft atmospheric wash with
    faint depth contours behind everything, raised panels with a gentle shadow, a glass sidebar for the workbench and a
    deep-water control strip for the one-click demo. Screen only — prints stay on the plain light chart. */
 
 :root {
-  --shadow-soft: 0 1px 2px #0f28330f, 0 14px 34px -18px #0f283340;
-  --shadow-lift: 0 2px 4px #0f283312, 0 22px 48px -20px #0f283352;
+  --shadow-soft: 0 1px 2px #1e1b180f, 0 14px 34px -18px #1e1b1840;
+  --shadow-lift: 0 2px 4px #1e1b1812, 0 22px 48px -20px #1e1b1852;
   --surface-glass: color-mix(in srgb, var(--paper) 86%, transparent);
   --surface-glass-line: color-mix(in srgb, var(--contour) 70%, transparent);
   --backdrop-lines: .5;
@@ -44,21 +44,21 @@
 
   /* ---------------------------------------------------------------- workbench frame */
   .admin-sidebar { padding: var(--space-4) var(--space-3); border: 1px solid var(--surface-glass-line); border-radius: 16px; background: var(--surface-glass); box-shadow: var(--shadow-soft); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
-  .admin-nav a.active { background: var(--paper); box-shadow: inset 0 0 0 1px var(--color-line), 0 4px 14px -8px #0f283340; }
+  .admin-nav a.active { background: var(--paper); box-shadow: inset 0 0 0 1px var(--color-line), 0 4px 14px -8px #1e1b1840; }
   .admin-identity { padding: var(--space-3); border-radius: 12px; background: color-mix(in srgb, var(--shoal-soft) 70%, transparent); }
   .admin-content h1 { letter-spacing: .01em; }
   .stats { padding: 0 var(--space-4); border: 1px solid var(--surface-glass-line); border-radius: 14px; background: var(--surface-glass); box-shadow: var(--shadow-soft); }
 
   /* ---------------------------------------------------------------- one-click demo: a deep-water control strip */
   .demo-bar {
-    --demo-ink: #eaf4f2; --demo-muted: #b5cdca;
+    --demo-ink: #f6f3ee; --demo-muted: #cfc5b8;
     background:
       radial-gradient(600px 140px at 12% 0%, #e77aa83d, transparent 70%),
-      radial-gradient(700px 180px at 92% 120%, #5aa6c040, transparent 70%),
-      linear-gradient(115deg, #0b2430 0%, #123947 55%, #0f2f3c 100%);
+      radial-gradient(700px 180px at 92% 120%, #d9a44a40, transparent 70%),
+      linear-gradient(115deg, #1c1916 0%, #2a2521 55%, #221e1b 100%);
     border-bottom: 1px solid #ffffff1f;
     color: var(--demo-ink);
-    box-shadow: 0 10px 30px -18px #05121acc;
+    box-shadow: 0 10px 30px -18px #0e0c0acc;
     padding: 10px 16px;
   }
   .demo-bar a, .demo-bar .text-button { color: var(--demo-ink); }
@@ -69,7 +69,7 @@
   .demo-roles { border: 1px solid #ffffff33; background: #ffffff12; padding: 2px; gap: 2px; }
   .demo-roles button { color: var(--demo-ink); border-radius: 999px; min-height: 30px; }
   .demo-roles button:hover:not(:disabled):not([aria-pressed="true"]) { background: #ffffff1a; }
-  .demo-roles button[aria-pressed="true"] { background: #f4fbfa; color: #0b2430; box-shadow: 0 4px 14px -6px #000000a0; }
+  .demo-roles button[aria-pressed="true"] { background: #f8f6f2; color: #1c1916; box-shadow: 0 4px 14px -6px #000000a0; }
   .demo-auto { color: var(--demo-ink); }
   .demo-auto input { accent-color: #e77aa8; }
   .demo-steps { list-style: none; counter-reset: demo; padding: 0; margin: 10px auto 4px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; }
@@ -81,8 +81,8 @@
   .demo-steps li.muted::before { content: none; }
 
   /* The start button on the sign-in page reads as the way in for reviewers. */
-  .demo-start-button { border-color: transparent; background: linear-gradient(120deg, #0f2f3c, #1f6680); color: #f4fbfa; box-shadow: var(--shadow-soft); }
-  .demo-start-button:hover:not(:disabled) { background: linear-gradient(120deg, #123947, #2a7894); color: #fff; }
+  .demo-start-button { border-color: transparent; background: linear-gradient(120deg, #24201c, #8f5a16); color: #fffdf9; box-shadow: var(--shadow-soft); }
+  .demo-start-button:hover:not(:disabled) { background: linear-gradient(120deg, #3a342e, #8f5a16); color: #fff; }
   .demo-start-button .symbol-icon { color: #ffc2da; }
 }
 

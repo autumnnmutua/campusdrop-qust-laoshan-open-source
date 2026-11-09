@@ -1,4 +1,4 @@
--- © 2026 专业团队 · CampusDrop v4.0.0
+-- © 2026 专业团队 · CampusDrop v4.5.0
 -- v2.7: drop-off points, roommate pickup links, "almost there" notices, delivery photos, parcel reminders, send
 -- service (代寄件), courier shifts, operations settings (ordering pause, group webhook), targeted announcements,
 -- clearer inbox titles and an index for delivery-time history. Additive: no existing row is deleted.
