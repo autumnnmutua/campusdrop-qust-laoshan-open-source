@@ -9,6 +9,8 @@ import {UnreadDot} from './service-links';
 import {PaletteButton} from './extras';
 import {AmbientSwitch} from './effects-ui';
 import {useStudentSession} from './session';
+import {clearNotifyForLogout} from './notify';
+import {toast} from './effects';
 
 /**
  * The CampusDrop mark: a chart "position fix" (a ring round a point) with a short magenta route running into it.
@@ -32,7 +34,7 @@ const STUDENT_NAV=[['/',t('首页')],['/parcel/new',t('下单')],['/orders',t('�
 function SignOut(){
   const navigate=useNavigate();const {session,setSession}=useStudentSession();const [busy,setBusy]=useState(false);
   if(session!=='signed-in')return null;
-  return <button type="button" className="header-text-button" disabled={busy} onClick={async()=>{setBusy(true);try{await api('/auth/logout','POST');setSession('signed-out');navigate('/login',{replace:true});}catch{/* the profile page shows the error */}finally{setBusy(false);}}}>{t('退出登录 / 切换账号')}</button>;
+  return <button type="button" className="header-text-button" disabled={busy} onClick={async()=>{setBusy(true);try{await clearNotifyForLogout('student');await api('/auth/logout','POST');setSession('signed-out');navigate('/login',{replace:true});}catch(error){toast((error as Error).message,'warn');}finally{setBusy(false);}}}>{t('退出登录 / 切换账号')}</button>;
 }
 
 /** True while the header sits over the home page's night chart (light text, no fog behind it). */

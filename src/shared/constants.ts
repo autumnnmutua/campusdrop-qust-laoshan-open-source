@@ -1,4 +1,5 @@
 /* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* ref V00tREZFRTk0REM5MTM4NzdDRjoxMmM4YzQxZDJjMDVmNTVkNmIyN2MxZGNiOWI2NDJkMg */
 /**
  * Plain values shared by the worker and the client. This module stays free of zod so the client's first-load bundle can
  * use labels without the validation library; the schema modules re-export everything here.

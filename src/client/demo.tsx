@@ -8,6 +8,7 @@ import {getItem,removeItem,setItem} from './storage';
 import {toast} from './effects';
 import {emitLocal} from './live';
 import {useStudentSession} from './session';
+import {clearNotifyForLogout} from './notify';
 import {SymbolIcon} from './campus-design';
 import type {DemoAdminRole,DemoStatus} from '../shared/demo';
 
@@ -34,13 +35,15 @@ export function DemoStart(){
   async function start(e:FormEvent){
     e.preventDefault();if(busy)return;setBusy(true);setError('');
     try{
+      await clearNotifyForLogout('student');await clearNotifyForLogout('admin');
       await api<{status:DemoStatus}>('/demo/start','POST',{passcode:code});
       // v3.8: the reports' shared test data is prepared in its own request (quick when today's set already exists).
       void api('/demo/prepare','POST',{}).catch(()=>{});
       setItem(HINT,'1');setItem('campusdrop:onboarded-v2','1');
       // The guide starts open on wide screens; on a phone it would push the page down, so it starts folded.
       if(window.matchMedia('(min-width: 721px)').matches)setItem('campusdrop:demo-guide','1');else removeItem('campusdrop:demo-guide');
-      starting.current=true;dialog.current?.close();setSession('signed-in');
+      const me=await api<{user:{id:string}}>('/me');
+      starting.current=true;dialog.current?.close();setSession('signed-in',me.user.id);
       toast('一键体验已开始','success','你现在是“体验同学”，随时可以切换成配送员或超级管理员');
       navigate('/',{replace:true});window.setTimeout(()=>{starting.current=false;},1500);
     }catch(err){setError((err as Error).message);}finally{setBusy(false);}
@@ -93,7 +96,7 @@ const SUPER_STEPS:[string,string][]=[
 ];
 
 export function DemoBar(){
-  const location=useLocation(),navigate=useNavigate(),admin=location.pathname.startsWith('/admin');
+  const location=useLocation(),navigate=useNavigate(),admin=location.pathname.startsWith('/admin');const {setSession}=useStudentSession();
   const [status,setStatus]=useState<DemoStatus|null>(null),[guide,setGuide]=useState(()=>getItem('campusdrop:demo-guide')==='1'),[busy,setBusy]=useState(false);
   const hinted=demoHinted();
   const end=useCallback(()=>{removeItem(HINT);removeItem('campusdrop:demo-guide');setStatus(null);},[]);
@@ -128,8 +131,8 @@ export function DemoBar(){
   }
   async function finish(){
     setBusy(true);
-    try{await api('/demo/end','POST',{});}catch{/* already over */}
-    end();setBusy(false);toast('一键体验已结束','info','体验账号已退出');navigate('/login',{replace:true});
+    try{await clearNotifyForLogout('student');await clearNotifyForLogout('admin');await api('/demo/end','POST',{});}catch(error){setBusy(false);toast((error as Error).message,'warn');return;}
+    end();setSession('signed-out');setBusy(false);toast('一键体验已结束','info','体验账号已退出');navigate('/login',{replace:true});
   }
   const role:DemoAdminRole|null=admin?status.adminRole??'courier':null;
   const steps=role==='super'?SUPER_STEPS:role==='courier'?COURIER_STEPS:STUDENT_STEPS;

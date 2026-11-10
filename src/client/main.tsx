@@ -19,6 +19,7 @@ import { Link, Route, RouterProvider, Routes, createBrowserRouter, createHashRou
 import {CAMPUS_ID} from '../shared/constants';
 import type {Address,Admin,Building,Student} from '../shared/contracts';
 import { api } from './api';
+import {clearNotifyForLogout} from './notify';
 import './styles/index.css';
 import { AmbientLayer, Toaster } from './effects-ui';
 import { BounceText } from './bounce-text';
@@ -48,7 +49,7 @@ function lazyPage<M extends Record<string, unknown>, K extends keyof M & string>
   }) as unknown as M[K];
 }
 const loadAdmin = () => import('./admin-delivery');
-const AdminOrderDetail = lazyPage(loadAdmin, 'AdminOrderDetail'), AdminTasks = lazyPage(loadAdmin, 'AdminTasks'), Batches = lazyPage(loadAdmin, 'Batches'), BatchDetail = lazyPage(loadAdmin, 'BatchDetail'), AdminAccounts = lazyPage(loadAdmin, 'AdminAccounts'), Audit = lazyPage(loadAdmin, 'Audit');
+const AdminShell = lazyPage(loadAdmin, 'AdminShell'), AdminOrderDetail = lazyPage(loadAdmin, 'AdminOrderDetail'), AdminTasks = lazyPage(loadAdmin, 'AdminTasks'), Batches = lazyPage(loadAdmin, 'Batches'), BatchDetail = lazyPage(loadAdmin, 'BatchDetail'), AdminAccounts = lazyPage(loadAdmin, 'AdminAccounts'), Audit = lazyPage(loadAdmin, 'Audit');
 const loadInsights = () => import('./admin-insights');
 const AdminPilot = lazyPage(() => import('./admin-pilot'), 'AdminPilot');
 const loadWallet = () => import('./admin-wallet');
@@ -127,9 +128,10 @@ function Auth({ register = false, admin = false }: { register?: boolean; admin?:
     try {
       await api(admin ? '/admin/auth/login' : register ? '/auth/register' : '/auth/login', 'POST', parsed.data);
       // Confirm the browser retained the HttpOnly session before announcing a successful login.
-      try { await api(admin?'/admin/me':'/me'); }
+      let studentId:string|undefined;
+      try { if(admin)await api('/admin/me');else studentId=(await api<{user:Student}>('/me')).user.id; }
       catch { throw new Error(t('账号验证已成功，但登录状态未能恢复。请允许本站 Cookie 后重新登录，勿重复注册。')); }
-      if(!admin)setSession('signed-in');
+      if(!admin)setSession('signed-in',studentId);
       if(register)setRegistered(true);else navigate(admin ? '/admin/account' : '/profile',{replace:true});
     } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
@@ -189,20 +191,22 @@ function Profile() {
     catch (e) { setMessage((e as Error).message); } finally { setBusy(false); }
   }
   async function logout() {
-    try { await api('/auth/logout', 'POST'); setSession('signed-out'); navigate('/login',{replace:true}); } catch (e) { setMessage((e as Error).message); }
+    try { await clearNotifyForLogout('student'); await api('/auth/logout', 'POST'); setSession('signed-out'); navigate('/login',{replace:true}); } catch (e) { setMessage((e as Error).message); }
   }
   if (!loaded) return <section><LoadingState label={t('正在读取资料…')}/></section>;
   if (needsLogin) return <section><h1>{t('管理收货寝室')}</h1><SignInPrompt title={t('登录后设置寝室')} text={t('保存宿舍楼与房间号后，下单时会自动带入配送地址。')}/></section>;
   if (!user) return <section><h1>{t('资料暂时无法读取')}</h1><p role="alert">{message}</p><button className="secondary" onClick={()=>window.location.reload()}>{t('刷新重试')}</button></section>;
-  return <section><h1>{t('你好，{0}',{0:user.name})}</h1><p className="muted">{user.phone}</p>
-    <FootprintPanel/><CouponWallet/><p className="profile-links"><Link to="/report">{t('我的年度快递报告 ›')}</Link><Link to="/send">{t('代寄件 · 上门取件 ›')}</Link><Link to="/apply">{t('申请当兼职配送员 ›')}</Link></p><NotifyToggle/><Suspense fallback={null}><RecoveryCode/></Suspense><h2>{t('你的寝室')}</h2><p>{address ? `${address.buildingName} · ${address.roomNo}` : t('选择宿舍楼，填写房间号。')}</p>
-    <form onSubmit={save}>
+  return <section className="profile-page"><header className="profile-head"><span className="profile-avatar" aria-hidden="true">{[...user.name][0]??'·'}</span><div><h1>{t('你好，{0}',{0:user.name})}</h1><p className="muted">{user.phone}</p></div></header>
+    <section className="profile-card" aria-labelledby="profile-dorm"><div className="row"><h2 id="profile-dorm"><SymbolIcon name="room"/>{t('你的寝室')}</h2>{address&&<span className="badge">{address.zone==='SOUTH'?t('南苑'):t('北苑')}</span>}</div><p className={address?'profile-dorm':'muted'}>{address ? `${address.buildingName} · ${address.roomNo}` : t('选择宿舍楼，填写房间号。')}</p>
+    <details className="profile-edit" open={!address}><summary>{address?t('修改寝室'):t('填写寝室')}</summary><form onSubmit={save}>
       <DormSelector buildings={buildings} zone={zone} building={building} room={room} onZone={setZone} onBuilding={setBuilding} onRoom={setRoom}/>
-      <button disabled={busy}>{busy ? t('正在处理…') : t('保存寝室资料')}</button>
-    </form>
-    <p role="status">{message}</p><p><Link to="/">{t('前往我的包裹 →')}</Link></p>
-    <div className="actions">{address && <button className="secondary" disabled={busy} onClick={remove}>{t('移除当前寝室')}</button>}<button className="secondary" onClick={logout}>{t('退出登录')}</button></div>
+      <div className="actions"><button disabled={busy}>{busy ? t('正在处理…') : t('保存寝室资料')}</button>{address && <button type="button" className="text-button" disabled={busy} onClick={remove}>{t('移除当前寝室')}</button>}</div>
+    </form></details><p role="status">{message}</p></section>
+    <FootprintPanel/><CouponWallet/>
+    <nav className="profile-menu" aria-label={t('更多服务')}><Link to="/orders"><SymbolIcon name="order"/><span>{t('我的订单')}</span><b aria-hidden="true">›</b></Link><Link to="/tickets"><SymbolIcon name="help"/><span>{t('我的售后工单')}</span><b aria-hidden="true">›</b></Link><Link to="/rules"><SymbolIcon name="bell"/><span>{t('常用配送')}</span><b aria-hidden="true">›</b></Link><Link to="/send"><SymbolIcon name="send"/><span>{t('代寄件 · 上门取件')}</span><b aria-hidden="true">›</b></Link><Link to="/report"><SymbolIcon name="star"/><span>{t('我的年度快递报告')}</span><b aria-hidden="true">›</b></Link><Link to="/apply"><SymbolIcon name="person"/><span>{t('申请当兼职配送员')}</span><b aria-hidden="true">›</b></Link></nav>
+    <section className="profile-account" aria-labelledby="profile-account"><h2 id="profile-account">{t('账号与安全')}</h2><NotifyToggle/><Suspense fallback={null}><RecoveryCode/></Suspense>
     <Suspense fallback={null}><AccountDelete/></Suspense>
+    <div className="actions"><button className="secondary" onClick={logout}>{t('退出登录')}</button></div></section>
   </section>;
 }
 
@@ -218,7 +222,7 @@ function AdminHome() {
     return () => { active = false; };
   }, []);
   async function logout() {
-    try { await api('/admin/auth/logout', 'POST'); navigate('/admin/login'); } catch (e) { setMessage((e as Error).message); }
+    try { await clearNotifyForLogout('admin'); await api('/admin/auth/logout', 'POST'); navigate('/admin/login'); } catch (e) { setMessage((e as Error).message); }
   }
   return <section><h1>{admin ? admin.username : t('账号与授权范围')}</h1>
     <p role="status">{message || (!admin ? t('正在读取…') : '')}</p>
@@ -269,7 +273,7 @@ function App() {
     <main id="main-content" ref={mainRef} tabIndex={-1}>{!admin&&!['/login','/register','/privacy'].includes(location.pathname)&&<AnnouncementBanner/>}<PageErrorBoundary resetKey={location.pathname}><Suspense fallback={pageFallback}><Routes><Route path="/" element={<Home />} /><Route path="/login" element={<Auth />} /><Route path="/register" element={<Auth register />} /><Route path="/profile" element={<Profile />} /><Route path="/admin/login" element={<Auth admin />} /><Route path="/admin" element={<AdminTasks />} /><Route path="/admin/account" element={<AdminHome />} />
       <Route path="/parcel/merge" element={<MergeOrder/>}/><Route path="/checkout-group/:id" element={<GroupCheckout/>}/><Route path="/checkout-batch/:id" element={<BatchCheckout/>}/><Route path="/rules" element={<RulesPage/>}/><Route path="/admin/punctuality" element={<AdminPunctuality/>}/><Route path="/parcel/new" element={<NewParcel/>}/><Route path="/parcel/:id" element={<ParcelDetail/>}/><Route path="/orders" element={<Orders/>}/><Route path="/orders/:id" element={<OrderDetail/>}/><Route path="/orders/:id/receipt" element={<OrderReceipt/>}/><Route path="/play" element={<PlayPage/>}/><Route path="/checkout/:orderId" element={<OrderDetail checkout/>}/><Route path="/tip/:orderId" element={<TipPage/>}/>
       <Route path="/admin/orders/:id" element={<AdminOrderDetail/>}/><Route path="/admin/tasks" element={<AdminTasks/>}/><Route path="/admin/pilot" element={<AdminPilot/>}/><Route path="/admin/wallet" element={<AdminWallet/>}/><Route path="/admin/withdrawals" element={<AdminWithdrawals/>}/><Route path="/admin/accounts" element={<AdminStudentAccounts/>}/><Route path="/admin/dispatch" element={<AdminDispatch/>}/><Route path="/admin/applications" element={<AdminApplications/>}/><Route path="/apply" element={<CourierApply/>}/><Route path="/courier-apply" element={<CourierApply/>}/><Route path="/admin/batches" element={<Batches/>}/><Route path="/admin/batches/:id" element={<BatchDetail/>}/><Route path="/admin/admins" element={<AdminAccounts/>}/><Route path="/admin/audit" element={<Audit/>}/><Route path="/admin/analytics" element={<AdminAnalytics/>}/><Route path="/admin/coupons" element={<AdminCoupons/>}/><Route path="/admin/announcements" element={<AdminAnnouncements/>}/><Route path="/map" element={<CampusMapPage/>}/><Route path="/admin/map" element={<AdminLiveMap/>}/><Route path="/admin/route-sheet" element={<RouteSheet/>}/><Route path="/admin/sends" element={<AdminSends/>}/><Route path="/admin/settlement" element={<AdminSettlement/>}/><Route path="/admin/report" element={<AdminMonthReport/>}/><Route path="/admin/settings" element={<AdminSettings/>}/><Route path="/send" element={<SendPage/>}/><Route path="/send/:id" element={<SendDetail/>}/><Route path="/track/:token" element={<TrackPage/>}/><Route path="/report" element={<YearReportPage/>}/>
-      <Route path="/messages" element={<Inbox/>}/><Route path="/tickets" element={<TicketList/>}/><Route path="/tickets/new" element={<TicketNew/>}/><Route path="/tickets/:id" element={<TicketDetail/>}/><Route path="/admin/tickets" element={<TicketList admin/>}/><Route path="/admin/tickets/:id" element={<TicketDetail admin/>}/><Route path="/recover" element={<RecoveryPage/>}/><Route path="/admin/recovery" element={<RecoveryAdmin/>}/><Route path="/admin/errors" element={<ErrorMonitor/>}/><Route path="/guide" element={<ServicePages kind="guide" slot={<FeeCalculator/>}/>}/><Route path="/help" element={<ServicePages kind="help" slot={<FaqSearch/>}/>}/><Route path="/contact" element={<ServicePages kind="contact"/>}/><Route path="/handoff-rules" element={<section><h1>{t('包裹交接与退单规则')}</h1><p>{t('未取件可说明原因后退回市场。已取件的包裹由当前配送员继续妥善保管，不得随意放置或交给身份未确认的人。')}</p><p>{t('无法继续配送时，先标记配送异常，联系学生，并将包裹归还原取件站点；填写准确存放位置、包裹完整性和交接情况。另一位有权限的管理员核验实物后，才能退回接单市场或取消退款。')}</p><p>{t('不得仅凭口头承诺点击核验。遗失、损坏、站点拒收或无法联系时，保持异常状态，联系负责该区域的管理员处理；未完成交接不得停用原配送账号。')}</p><p>{t('核验记录只证明管理员作出了确认，不代表系统自动验证实物。当前资金操作为模拟，未发生真实扣款或退款。')}</p></section>}/><Route path="/privacy" element={<section><h1>{t('资料用途')}</h1><p>{t('姓名、联系电话及寝室资料用于校园配送联系与地址管理。你可以在个人页面移除当前寝室；修改前的地址与操作记录会保留用于业务追溯。')}</p><p>{t('目前为开发版本，尚未开放真实配送。正式运营前将补充数据保留期限、账号删除渠道及运营联系方式。测试请使用虚构资料。')}</p><p>{t('智能助手：你提的问题和你自己订单的状态摘要（不含姓名、电话、房间号、取件码和收货码）会发送给本站配置的大模型服务（默认为阿里云百炼的通义千问）来生成回答；本站未配置大模型时，只在本站按规则和常见问题回答。对话内容不保存。')}</p><p>{t('一句话下单与智能体：安排配送时，发送给大模型的只有你的这句话、待配送包裹的编号（P1、P2…）、站点、大小、承运商和可约时段，不含取件码和个人资料；大模型只能生成草稿，确认下单和付款由你完成。')}</p><p>{t('截图识别：默认只在你的设备上识别。只有你在某张截图上点“用大模型识别”并确认时，才会把这张截图（缩小后）发送给大模型服务识别取件码，识别后不保存；请尽量裁掉手机号等无关信息。')}</p><p>{t('本项目非青岛科技大学或菜鸟官方产品，不绑定菜鸟账号。')}</p><Link to="/register">{t('返回注册')}</Link></section>} />
+      <Route path="/messages" element={<Inbox/>}/><Route path="/tickets" element={<TicketList/>}/><Route path="/tickets/new" element={<TicketNew/>}/><Route path="/tickets/:id" element={<TicketDetail/>}/><Route path="/admin/tickets" element={<AdminShell><TicketList admin/></AdminShell>}/><Route path="/admin/tickets/:id" element={<AdminShell><TicketDetail admin/></AdminShell>}/><Route path="/recover" element={<RecoveryPage/>}/><Route path="/admin/recovery" element={<AdminShell><RecoveryAdmin/></AdminShell>}/><Route path="/admin/errors" element={<AdminShell><ErrorMonitor/></AdminShell>}/><Route path="/guide" element={<ServicePages kind="guide" slot={<FeeCalculator/>}/>}/><Route path="/help" element={<ServicePages kind="help" slot={<FaqSearch/>}/>}/><Route path="/contact" element={<ServicePages kind="contact"/>}/><Route path="/handoff-rules" element={<section><h1>{t('包裹交接与退单规则')}</h1><p>{t('未取件可说明原因后退回市场。已取件的包裹由当前配送员继续妥善保管，不得随意放置或交给身份未确认的人。')}</p><p>{t('无法继续配送时，先标记配送异常，联系学生，并将包裹归还原取件站点；填写准确存放位置、包裹完整性和交接情况。另一位有权限的管理员核验实物后，才能退回接单市场或取消退款。')}</p><p>{t('不得仅凭口头承诺点击核验。遗失、损坏、站点拒收或无法联系时，保持异常状态，联系负责该区域的管理员处理；未完成交接不得停用原配送账号。')}</p><p>{t('核验记录只证明管理员作出了确认，不代表系统自动验证实物。当前资金操作为模拟，未发生真实扣款或退款。')}</p></section>}/><Route path="/privacy" element={<section><h1>{t('资料用途')}</h1><p>{t('姓名、联系电话及寝室资料用于校园配送联系与地址管理。你可以在个人页面移除当前寝室；修改前的地址与操作记录会保留用于业务追溯。')}</p><p>{t('目前为开发版本，尚未开放真实配送。正式运营前将补充数据保留期限、账号删除渠道及运营联系方式。测试请使用虚构资料。')}</p><p>{t('智能助手：你提的问题和你自己订单的状态摘要（不含姓名、电话、房间号、取件码和收货码）会发送给本站配置的大模型服务（默认为阿里云百炼的通义千问）来生成回答；本站未配置大模型时，只在本站按规则和常见问题回答。对话内容不保存。')}</p><p>{t('一句话下单与智能体：安排配送时，发送给大模型的只有你的这句话、待配送包裹的编号（P1、P2…）、站点、大小、承运商和可约时段，不含取件码和个人资料；大模型只能生成草稿，确认下单和付款由你完成。')}</p><p>{t('截图识别：默认只在你的设备上识别。只有你在某张截图上点“用大模型识别”并确认时，才会把这张截图（缩小后）发送给大模型服务识别取件码，识别后不保存；请尽量裁掉手机号等无关信息。')}</p><p>{t('本项目非青岛科技大学或菜鸟官方产品，不绑定菜鸟账号。')}</p><Link to="/register">{t('返回注册')}</Link></section>} />
       <Route path="*" element={<section className="not-found"><p className="eyebrow">{t('404 · 页面不存在')}</p><h1><BounceText text={t('这个地址没有找到内容')} variant="wave"/></h1><p className="muted">{t('链接可能已失效，或页面已经调整。')}</p><Link className="button" to="/">{t('返回首页')}</Link><Suspense fallback={null}><ParcelGame title={t('迷路了？先玩一局接包裹')}/></Suspense></section>} /></Routes></Suspense></PageErrorBoundary></main>{!admin&&!bare&&session==='signed-in'&&ASSISTANT_PAGES.test(location.pathname)&&<AssistantLauncher/>}
     <MobileTabs unread={unread} hidden={admin}/><SiteFooter/><AmbientLayer enabled={!admin}/><Toaster/><NetworkStatus/><CommandPalette/>{!admin&&<Onboarding autoOpen={location.pathname==='/'}/>}</div>;
 }

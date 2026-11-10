@@ -1,4 +1,5 @@
 /* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* ref V00tREZFRTk0REM5MTM4NzdDRjozYzNhMmFmOThjMDgyZGY0OWQ2YjRlMjZiZGEyODZlYQ */
 package cn.campusdrop.app;
 
 import android.Manifest;

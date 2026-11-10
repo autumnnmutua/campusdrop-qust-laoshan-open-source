@@ -86,12 +86,12 @@ export function MergeOrder() {
     {data && waiting.length === 0 && <EmptyState title={t('现在没有可以下单的包裹')} icon="box"><p>{t('登记包裹后，就可以在这里一次选好几件。')}</p><Link className="button secondary" to="/parcel/new">{t('登记包裹 →')}</Link></EmptyState>}
     {data && waiting.length > 0 && <form onSubmit={order} className="multi-layout">
       <div className="multi-main">
-        <fieldset className="multi-bulk"><legend>{t('统一设置')}</legend>
+        <fieldset className="multi-bulk"><legend>{t('统一送到')}</legend>
           <div className="segmented" role="radiogroup" aria-label={t('全部送到')}>
-            {(['DOWNSTAIRS', 'ROOM'] as Dest[]).map(d => <button key={d} type="button" role="radio" aria-checked={allSame === d} onClick={() => setAll(d)}>{d === 'ROOM' ? t('全部送到寝室') : t('全部送到楼下')}</button>)}
-            <button type="button" role="radio" aria-checked={!!allSame && allSame.startsWith('PLACE:')} onClick={() => setAll('PLACE:LIBRARY')}>{t('全部送到约定地点')}</button>
+            {(['DOWNSTAIRS', 'ROOM'] as Dest[]).map(d => <button key={d} type="button" role="radio" aria-checked={allSame === d} onClick={() => setAll(d)}>{d === 'ROOM' ? t('寝室') : t('楼下')}</button>)}
+            <button type="button" role="radio" aria-checked={!!allSame && allSame.startsWith('PLACE:')} onClick={() => setAll('PLACE:LIBRARY')}>{t('约定地点')}</button>
           </div>
-          <small className="muted">{t('统一设置后，仍可以在下面逐件调整。')}</small>
+          <small className="muted">{t('一键把勾选的包裹都送到同一处，之后仍可以在下面逐件调整。')}</small>
         </fieldset>
         {stations.map(code => <fieldset key={code} className="merge-list multi-list"><legend>{stationName(code)}</legend>
           {waiting.filter(p => p.stationCode === code).map(p => { const on = chosen.includes(p.id), id = `dest-${p.id}`; return <div key={p.id} className={on ? 'merge-item multi-item is-on' : 'merge-item multi-item'}>

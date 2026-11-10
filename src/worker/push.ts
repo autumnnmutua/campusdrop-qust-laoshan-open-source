@@ -95,8 +95,8 @@ export async function pushRoutes(request: Request, env: Env): Promise<Response |
   const ownerId = owner === 'ADMIN' ? (await requireAdmin(request, env)).id : (await requireStudent(request, env)).id;
   if (match[2] === 'unsubscribe') {
     const data = await body(request, pushRemoveSchema);
-    await env.DB.prepare('DELETE FROM push_subscriptions WHERE endpoint=? AND owner_kind=? AND owner_id=?').bind(data.endpoint, owner, ownerId).run();
-    return json({ ok: true });
+    const result = await env.DB.prepare('DELETE FROM push_subscriptions WHERE endpoint=? AND owner_kind=? AND owner_id=?').bind(data.endpoint, owner, ownerId).run();
+    return json({ ok: true, removed: result.meta.changes > 0 });
   }
   if (!pushEnabled(env)) throw new ApiError(503, 'PUSH_UNAVAILABLE', '站点暂未开启推送通知');
   await rateLimit(env, `push:${owner}:${ownerId}`, 20);

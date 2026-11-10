@@ -11,7 +11,7 @@ import {api} from './api';
  * the background. When the site has web push configured (VAPID keys on the Worker), the browser also subscribes, so
  * notifications arrive even with the site closed; otherwise the open tab checks the order itself.
  */
-const KEY='campusdrop:notify',PUSH_KEY='campusdrop:push';
+const KEY='campusdrop:notify',PUSH_KEY='campusdrop:push',ADMIN_PUSH_KEY='campusdrop:push-admin';
 const listeners=new Set<()=>void>();
 const emit=()=>listeners.forEach(l=>l());
 export type NotifyState='unsupported'|'denied'|'off'|'on';
@@ -52,6 +52,22 @@ export async function subscribePush(owner:PushOwner='student'):Promise<boolean>{
 }
 export async function unsubscribePush(owner:PushOwner='student'){
   try{const sub=await (await pushRegistration())?.pushManager.getSubscription();if(!sub)return;await api(`${pushPath(owner)}/unsubscribe`,'POST',{endpoint:sub.endpoint}).catch(()=>{});await sub.unsubscribe();}catch{/* nothing to undo */}
+}
+
+/** Stop this device receiving the outgoing account's notifications before invalidating its session. */
+export async function clearNotifyForLogout(owner:PushOwner){
+  if('serviceWorker' in navigator&&'PushManager' in window){
+    const registration=await navigator.serviceWorker.getRegistration();
+    const sub=await registration?.pushManager.getSubscription();
+    if(sub){
+      let removed=false,unsubscribed=false;
+      try{const result=await api<{removed?:boolean}>(`${pushPath(owner)}/unsubscribe`,'POST',{endpoint:sub.endpoint});removed=result.removed===true;}catch{/* try the browser */}
+      try{unsubscribed=await sub.unsubscribe();}catch{/* the server may already have removed it */}
+      if(!removed&&!unsubscribed)throw new Error(t('无法关闭此设备的消息推送，请检查网络后重试退出。'));
+    }
+  }
+  // A browser has one push subscription for this origin; unsubscribing it turns off both switches.
+  removeItem(KEY);removeItem(PUSH_KEY);removeItem(ADMIN_PUSH_KEY);refresh();
 }
 
 /** Ask for permission and switch reminders on. Some mobile browsers only allow notifications from installed apps. */

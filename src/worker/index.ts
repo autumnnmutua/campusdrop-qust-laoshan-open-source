@@ -106,7 +106,7 @@ async function route(request: Request, env: Env): Promise<Response> {
     const admin = pathname.startsWith('/api/v1/admin/');
     const actor = await (admin ? requireAdmin(request, env) : requireStudent(request, env))
       .catch((error: unknown) => { if (error instanceof ApiError && error.status === 401) return null; throw error; });
-    return json({ signedIn: Boolean(actor) });
+    return json({ signedIn: Boolean(actor), ...(!admin ? { userId: actor?.id ?? null } : {}) });
   }
   if (pathname === '/api/v1/me') {
     const user = await requireStudent(request, env);

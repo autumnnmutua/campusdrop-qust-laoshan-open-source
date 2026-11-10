@@ -89,13 +89,15 @@ export function LostParcelCard({order}:{order:Order}){
     catch(e){const message=(e as Error).message;if(/已有|exists|已经/i.test(message)){toast(t('这单已经有售后工单了'),'info');navigate('/tickets');}else setError(message);}
     finally{setBusy(false);}
   }
-  return <section className="lost-parcel" aria-labelledby={`lost-${order.id}`}>
-    <h2 id={`lost-${order.id}`}><SymbolIcon name="box"/>{t('没找到包裹？')}</h2>
-    <ol>
+  const steps=<><ol>
       <li><strong>{t('看送达照片')}</strong>{order.hasPhoto?<DeliveryPhotoView orderId={order.id}/>:<p className="muted">{t('这单没有送达照片（当面核验收货码的不拍照）。')}</p>}</li>
       <li><strong>{t('联系配送员')}</strong>{order.assigneePhone?<a className="button secondary" href={`tel:${order.assigneePhone}`}><SymbolIcon name="phone"/>{t('拨打 {0}',{0:order.assigneePhone})}</a>:<p className="muted">{t('也可以用上方“和配送员沟通”发消息。')}</p>}</li>
       <li><strong>{t('还是没有？一键报给运营')}</strong><button type="button" className="danger-soft" disabled={busy} onClick={()=>void report()}>{busy?t('正在提交…'):t('提交“未收到包裹”工单')}</button><small className="muted">{t('会核对照片、定位和交接记录，确认丢失会退款。')}</small></li>
-    </ol>{error&&<p role="alert">{error}</p>}
+    </ol>{error&&<p role="alert">{error}</p>}</>;
+  // v4.6: once receipt is confirmed the card folds to one line, so a finished order is not led by a "lost parcel" block.
+  if(order.status==='COMPLETED')return <details className="lost-parcel is-folded"><summary><SymbolIcon name="box"/><span>{t('没找到包裹？')}</span><small>{t('看照片、联系配送员或报给运营')}</small></summary>{steps}</details>;
+  return <section className="lost-parcel" aria-labelledby={`lost-${order.id}`}>
+    <h2 id={`lost-${order.id}`}><SymbolIcon name="box"/>{t('没找到包裹？')}</h2>{steps}
   </section>;
 }
 

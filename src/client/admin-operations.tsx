@@ -72,7 +72,7 @@ export function AdminSettlement(){
     <p role="alert">{r.error}</p>{r.loading&&!d&&<LoadingState/>}
     {d&&<><p className="settle-week">{d.week} — {beijingDate(d.to-1)} · 合计应结 <strong>{money(total)}</strong></p>
       {d.rows.length?<div className="table-scroll" tabIndex={0}><table className="staff-table"><thead><tr><th scope="col">配送员</th><th scope="col">送达</th><th scope="col">配送费</th><th scope="col">代寄件</th><th scope="col">打赏</th><th scope="col">平台抽成</th><th scope="col">应结（模拟）</th></tr></thead>
-        <tbody>{d.rows.map(x=><tr key={x.adminId}><td>{x.username}</td><td>{x.deliveries}</td><td>{money(x.deliveryFen)}</td><td>{x.sends} · {money(x.sendFen)}</td><td>{money(x.tipFen)}</td><td>-{money(x.platformFeeFen)}</td><td><strong>{money(x.payoutFen)}</strong></td></tr>)}</tbody></table></div>
+        <tbody>{d.rows.map(x=><tr key={x.adminId}><td>{x.username.startsWith('retired_')?<span className="muted">已停用账号</span>:x.username}</td><td>{x.deliveries}</td><td>{money(x.deliveryFen)}</td><td>{x.sends} · {money(x.sendFen)}</td><td>{money(x.tipFen)}</td><td>-{money(x.platformFeeFen)}</td><td><strong>{money(x.payoutFen)}</strong></td></tr>)}</tbody></table></div>
         :<EmptyState title="这一周还没有送达记录" icon="wallet"/>}</>}
   </AdminShell>;
 }
