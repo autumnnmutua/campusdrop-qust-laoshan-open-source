@@ -27,17 +27,33 @@ export async function revokeSession(request: Request, env: Env, kind: ActorKind)
   if (token) await env.DB.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(await digest(token)).run();
   return cookie(request, env, kind, '', 0);
 }
-export async function createSession(request: Request, env: Env, kind: ActorKind, id: string): Promise<string> {
+// Keep session creation available as statements so registration can commit it with the new account.
+export async function prepareSession(request: Request, env: Env, kind: ActorKind, id: string, expectedPasswordHash?: string): Promise<{ statements: D1PreparedStatement[]; cookie: string }> {
   const token = randomToken(); const age = kind === 'admin' ? 7200 : 43200;
+  const tokenHash = await digest(token);
   const old = tokenFrom(request, env, kind);
+  // For password login, recheck the verified hash and account state inside the session INSERT. A password reset
+  // that wins the race must not be followed by a new session authenticated with the previous password.
+  const insert = expectedPasswordHash === undefined
+    ? env.DB.prepare('INSERT INTO sessions(token_hash, user_id, admin_id, expires_at) VALUES (?, ?, ?, ?)')
+      .bind(tokenHash, kind === 'student' ? id : null, kind === 'admin' ? id : null, now() + age)
+    : env.DB.prepare(`INSERT INTO sessions(token_hash, user_id, admin_id, expires_at)
+        SELECT ?, ?, ?, ? WHERE EXISTS(SELECT 1 FROM ${kind === 'admin' ? 'admin_users' : 'users'}
+        WHERE id=? AND status='ACTIVE' AND password_hash=? AND demo_group IS NULL${kind === 'admin' ? ' AND (development_only=0 OR ?=1)' : ''})`)
+      .bind(...[tokenHash, kind === 'student' ? id : null, kind === 'admin' ? id : null, now() + age, id, expectedPasswordHash,
+        ...(kind === 'admin' ? [localCookie(request, env) ? 1 : 0] : [])]);
   const statements = [
     env.DB.prepare('DELETE FROM sessions WHERE expires_at <= ?').bind(now()),
-    env.DB.prepare('INSERT INTO sessions(token_hash, user_id, admin_id, expires_at) VALUES (?, ?, ?, ?)')
-      .bind(await digest(token), kind === 'student' ? id : null, kind === 'admin' ? id : null, now() + age),
+    insert,
   ];
-  if (old) statements.push(env.DB.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(await digest(old)));
-  await env.DB.batch(statements);
-  return cookie(request, env, kind, token, age);
+  if (old) statements.push(env.DB.prepare('DELETE FROM sessions WHERE token_hash = ? AND EXISTS(SELECT 1 FROM sessions WHERE token_hash = ?)').bind(await digest(old), tokenHash));
+  return { statements, cookie: cookie(request, env, kind, token, age) };
+}
+export async function createSession(request: Request, env: Env, kind: ActorKind, id: string, expectedPasswordHash?: string): Promise<string> {
+  const { statements, cookie } = await prepareSession(request, env, kind, id, expectedPasswordHash);
+  const results = await env.DB.batch(statements);
+  if (!results[1].meta.changes) throw new ApiError(401, 'INVALID_CREDENTIALS', '用户名或密码错误');
+  return cookie;
 }
 async function sessionHash(request: Request, env: Env, kind: ActorKind): Promise<string> {
   const token = tokenFrom(request, env, kind);

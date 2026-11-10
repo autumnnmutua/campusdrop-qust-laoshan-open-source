@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { ApiError, body, checkOrigin, json } from './http';
 import { adminContactSchema, addressSchema, CAMPUS_ID, createAdminSchema, loginSchema, profileSchema, registerSchema,roleSchema,scopeSchema } from '../shared/contracts';
 import { DUMMY_HASH, hashPassword, verifyPassword } from '../domain/password';
-import { createSession, requireAdmin, requireStudent, requireSuper, requireSuperView, revokeSession, localCookie } from './session';
+import { createSession, prepareSession, requireAdmin, requireStudent, requireSuper, requireSuperView, revokeSession, localCookie } from './session';
 import { authRateLimit, rateLimit } from './rate-limit';
 import { deleteAddress, readAddress, saveAddress } from './addresses';
 import { adminBuildings, createAdmin,updateAdminScopes } from './admin';
@@ -64,17 +64,21 @@ async function route(request: Request, env: Env): Promise<Response> {
     const data = await body(request, registerSchema);
     const id = crypto.randomUUID();
     const passwordHash = await hashPassword(data.password);
+    const session = await prepareSession(request, env, 'student', id);
     try {
-      await env.DB.prepare('INSERT INTO users(id, username, password_hash, name, phone) VALUES (?, ?, ?, ?, ?)')
-        .bind(id, data.username, passwordHash, data.name, data.phone).run();
-      // v3.7.1: a new account (registered with its phone number) receives the new-user coupons, e.g. 新人五折券.
-      await grantOnRegister(env, id).run().catch(error => { if (!/no such table/i.test(String(error))) throw error; });
+      // A user, their welcome coupons, and the first session must succeed or roll back together.
+      await env.DB.batch([
+        env.DB.prepare('INSERT INTO users(id, username, password_hash, name, phone) VALUES (?, ?, ?, ?, ?)')
+          .bind(id, data.username, passwordHash, data.name, data.phone),
+        grantOnRegister(env, id),
+        ...session.statements,
+      ]);
     } catch (error) {
       if (String(error).includes('UNIQUE constraint')) throw new ApiError(409, 'USERNAME_TAKEN', '该用户名已被使用');
       throw error;
     }
     return json({ user: { id, username: data.username, name: data.name, phone: data.phone } }, 201,
-      { 'Set-Cookie': await createSession(request, env, 'student', id) });
+      { 'Set-Cookie': session.cookie });
   }
   if (method === 'POST' && ['/api/v1/auth/login', '/api/v1/admin/auth/login'].includes(pathname)) {
     const kind = pathname.includes('/admin/') ? 'admin' : 'student';
@@ -88,7 +92,7 @@ async function route(request: Request, env: Env): Promise<Response> {
       .bind(data.username).first<{ id: string; password_hash: string; status: string; development_only?: number }>();
     const valid = await verifyPassword(data.password, account?.password_hash ?? DUMMY_HASH);
     if (!valid || !account || account.status !== 'ACTIVE' || (account.development_only && !localCookie(request,env))) throw new ApiError(401, 'INVALID_CREDENTIALS', '用户名或密码错误');
-    return json({ ok: true }, 200, { 'Set-Cookie': await createSession(request, env, kind, account.id) });
+    return json({ ok: true }, 200, { 'Set-Cookie': await createSession(request, env, kind, account.id, account.password_hash) });
   }
   if (method === 'POST' && ['/api/v1/auth/logout', '/api/v1/admin/auth/logout'].includes(pathname)) {
     const kind = pathname.includes('/admin/') ? 'admin' : 'student';
@@ -168,8 +172,12 @@ async function route(request: Request, env: Env): Promise<Response> {
       if (!target) throw new ApiError(404, 'NOT_FOUND', '管理员不存在');
       // Super-admin recovery and transfer need a separate audited process.
       if (target.role === 'SUPER_ADMIN') throw new ApiError(403, 'SUPER_ADMIN_PROTECTED', '此接口不能停用超级管理员');
-      const activeTasks=await env.DB.prepare("SELECT count(*) AS n FROM delivery_batches b JOIN batch_items bi ON bi.batch_id=b.id JOIN delivery_orders o ON o.id=bi.order_id WHERE b.assignee_admin_id=? AND o.status NOT IN ('CANCELLED','COMPLETED','DELIVERED_DOWNSTAIRS','DELIVERED_TO_ROOM')").bind(id).first<number>('n');
-      if(activeTasks)throw new ApiError(409,'ADMIN_HAS_TASKS','该管理员还有未完成任务，请先完成配送或交接退单');
+      const activeTasks=await env.DB.prepare(`SELECT EXISTS(SELECT 1 FROM delivery_batches b JOIN batch_items bi ON bi.batch_id=b.id JOIN delivery_orders o ON o.id=bi.order_id
+        WHERE b.assignee_admin_id=? AND o.status NOT IN ('CANCELLED','COMPLETED','DELIVERED_DOWNSTAIRS','DELIVERED_TO_ROOM')) OR
+        EXISTS(SELECT 1 FROM send_requests WHERE assignee_admin_id=? AND status IN ('WAITING_PICKUP','PICKED_UP')) AS n`).bind(id,id).first<number>('n');
+      if(activeTasks)throw new ApiError(409,'ADMIN_HAS_TASKS','该管理员还有未完成的配送或代寄任务，请先处理完成或交接');
+      const assignedBuilding=await env.DB.prepare('SELECT 1 FROM building_couriers WHERE admin_id=? LIMIT 1').bind(id).first();
+      if(assignedBuilding)throw new ApiError(409,'ADMIN_HAS_BUILDINGS','该管理员仍负责楼栋，请先交接楼栋分配');
       await env.DB.batch([
         env.DB.prepare("UPDATE admin_users SET status = 'DISABLED' WHERE id = ?").bind(id),
         env.DB.prepare('DELETE FROM sessions WHERE admin_id = ?').bind(id),

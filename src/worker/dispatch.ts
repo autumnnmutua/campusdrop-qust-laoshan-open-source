@@ -86,38 +86,67 @@ export async function dispatchRoutes(request: Request, env: Env): Promise<Respon
   const statements: D1PreparedStatement[] = [];
   for (const a of data.assignments) {
     statements.push(a.adminId
-      ? env.DB.prepare(`INSERT INTO building_couriers(world,building_code,admin_id,assigned_by,updated_at) VALUES(?,?,?,?,unixepoch())
-          ON CONFLICT(world,building_code) DO UPDATE SET admin_id=excluded.admin_id,assigned_by=excluded.assigned_by,updated_at=excluded.updated_at`).bind(world, a.buildingCode, a.adminId, admin.id)
+      ? env.DB.prepare(`INSERT INTO building_couriers(world,building_code,admin_id,assigned_by,updated_at)
+          VALUES(?,?,(SELECT id FROM admin_users WHERE id=? AND status='ACTIVE' AND role IN ('DELIVERY_STAFF','SUPER_ADMIN')
+            AND coalesce(phone,'')<>'' AND coalesce(demo_group,'')=?),?,unixepoch())
+          ON CONFLICT(world,building_code) DO UPDATE SET admin_id=excluded.admin_id,assigned_by=excluded.assigned_by,updated_at=excluded.updated_at`).bind(world, a.buildingCode, a.adminId, world, admin.id)
       : env.DB.prepare('DELETE FROM building_couriers WHERE world=? AND building_code=?').bind(world, a.buildingCode));
   }
   const changed = data.assignments.filter(a => (before[a.buildingCode] ?? null) !== a.adminId);
   statements.push(env.DB.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,resource_id,metadata_redacted) VALUES(?,'ADMIN',?,'DISPATCH_UPDATED',?,?)")
     .bind(crypto.randomUUID(), admin.id, world || 'site', JSON.stringify({ changed: changed.map(a => ({ building: a.buildingCode, from: before[a.buildingCode] ?? null, to: a.adminId })), moveWaiting: data.moveWaiting })));
-  await env.DB.batch(statements);
+  try { await env.DB.batch(statements); }
+  catch (error) {
+    if (String(error).includes('NOT NULL constraint failed: building_couriers.admin_id'))
+      throw new ApiError(409, 'COURIER_CHANGED', '所选配送员状态已变化，请刷新后重新分配');
+    throw error;
+  }
 
   // Small orders already handed to the previous courier and not picked up yet follow the building to its new courier
   // (one batch per merged delivery). Orders already picked up, or going back to the market, stay where they are.
-  let moved = 0;
+  let moved = 0, skipped = 0;
   if (data.moveWaiting) for (const a of changed) {
     if (!a.adminId) continue;
-    const waiting = (await env.DB.prepare(`SELECT o.id,o.group_id AS groupId,o.station_code AS station,bi.batch_id AS batchId FROM delivery_orders o JOIN batch_items bi ON bi.order_id=o.id
+    const waiting = (await env.DB.prepare(`SELECT o.id,o.group_id AS groupId,o.station_code AS station,bi.batch_id AS batchId,o.version FROM delivery_orders o JOIN batch_items bi ON bi.order_id=o.id
         JOIN delivery_batches b ON b.id=bi.batch_id WHERE b.id LIKE 'auto-%' AND b.assignee_admin_id<>? AND o.dorm_building_code=? AND coalesce(o.demo_group,'')=?
         AND o.status='WAITING_PICKUP' AND o.custody_state<>'STAFF' AND o.student_deleted=0 AND o.student_cancelled=0
         AND NOT EXISTS(SELECT 1 FROM parcel_handoffs h WHERE h.order_id=o.id AND h.status='PENDING')`).bind(a.adminId, a.buildingCode, world)
-      .all<{ id: string; groupId: string | null; station: string; batchId: string }>()).results;
+      .all<{ id: string; groupId: string | null; station: string; batchId: string; version: number }>()).results;
     const byKey = new Map<string, typeof waiting>();
     for (const o of waiting) { const k = `${o.groupId ?? o.id}|${o.station}`; byKey.set(k, [...(byKey.get(k) ?? []), o]); }
     for (const list of byKey.values()) {
       const batchId = `auto-m-${crypto.randomUUID()}`;
       try {
         await env.DB.batch([
+          // Validate every old batch relation and the current building assignment inside the same transaction as the move.
+          // A stale row makes the required assignee NULL, so the NOT NULL constraint rolls the whole batch back.
+          env.DB.prepare(`INSERT INTO delivery_batches(id,station_code,assignee_admin_id,created_by)
+            VALUES(?,?,(SELECT target.id FROM admin_users target WHERE target.id=? AND target.status='ACTIVE'
+              AND target.role IN ('DELIVERY_STAFF','SUPER_ADMIN') AND coalesce(target.phone,'')<>''
+              AND coalesce(target.demo_group,'')=?
+              AND EXISTS(SELECT 1 FROM building_couriers bc WHERE bc.world=? AND bc.building_code=? AND bc.admin_id=target.id)
+              AND NOT EXISTS(SELECT 1 FROM json_each(?) selected WHERE NOT EXISTS(
+                SELECT 1 FROM delivery_orders o JOIN batch_items bi ON bi.order_id=o.id
+                JOIN delivery_batches previous ON previous.id=bi.batch_id
+                WHERE o.id=json_extract(selected.value,'$.id') AND bi.batch_id=json_extract(selected.value,'$.batchId')
+                  AND o.version=json_extract(selected.value,'$.version') AND previous.id LIKE 'auto-%' AND previous.assignee_admin_id<>target.id
+                  AND o.dorm_building_code=? AND coalesce(o.demo_group,'')=? AND o.status='WAITING_PICKUP'
+                  AND o.custody_state<>'STAFF' AND o.student_deleted=0 AND o.student_cancelled=0
+                  AND NOT EXISTS(SELECT 1 FROM parcel_handoffs h WHERE h.order_id=o.id AND h.status='PENDING')
+              ))),?)`).bind(batchId, list[0].station, a.adminId, world, world, a.buildingCode,
+                JSON.stringify(list.map(({ id, batchId: oldBatch, version }) => ({ id, batchId: oldBatch, version }))), a.buildingCode, world, admin.id),
           ...list.map(o => env.DB.prepare('DELETE FROM batch_items WHERE order_id=? AND batch_id=?').bind(o.id, o.batchId)),
-          env.DB.prepare('INSERT INTO delivery_batches(id,station_code,assignee_admin_id,created_by) VALUES(?,?,?,?)').bind(batchId, list[0].station, a.adminId, admin.id),
           ...list.map((o, i) => env.DB.prepare('INSERT INTO batch_items(batch_id,order_id,sort_order) VALUES(?,?,?)').bind(batchId, o.id, i)),
+          // Changing responsibility invalidates any old single-order screen as well as old batch actions.
+          ...list.map(o => env.DB.prepare('UPDATE delivery_orders SET version=version+1,updated_at=unixepoch() WHERE id=?').bind(o.id)),
         ]);
         moved += list.length;
-      } catch { /* the order changed meanwhile (picked up, cancelled): it stays with its courier */ }
+      } catch (error) {
+        // The assignment is already saved. Report any group that could not be moved so it can be checked.
+        skipped += list.length;
+        if (!String(error).includes('NOT NULL constraint failed: delivery_batches.assignee_admin_id')) console.error('Dispatch transfer failed; an order group was skipped.');
+      }
     }
   }
-  return json({ ...(await dispatchOverview(env, admin.id, world, true)), moved });
+  return json({ ...(await dispatchOverview(env, admin.id, world, true)), moved, skipped });
 }

@@ -16,8 +16,10 @@ const columns = `a.id,a.real_name AS realName,a.phone,a.college,a.grade,a.slots_
 type Row = Omit<CourierApplication, 'slots'> & { slotsJson: string };
 const out = ({ slotsJson, ...r }: Row): CourierApplication => ({ ...r, slots: JSON.parse(slotsJson) });
 const usernameTaken = async (env: Env, username: string, exceptId = '') =>
-  Boolean(await env.DB.prepare("SELECT 1 FROM admin_users WHERE username=? UNION ALL SELECT 1 FROM courier_applications WHERE desired_username=? AND status='PENDING' AND id<>? LIMIT 1")
+  Boolean(await env.DB.prepare("SELECT 1 FROM admin_users WHERE username=? UNION ALL SELECT 1 FROM courier_applications WHERE desired_username=? COLLATE NOCASE AND status='PENDING' AND id<>? LIMIT 1")
     .bind(username, username, exceptId).first());
+const adminUsernameTaken = async (env: Env, username: string) =>
+  Boolean(await env.DB.prepare('SELECT 1 FROM admin_users WHERE username=? LIMIT 1').bind(username).first());
 
 export async function courierApplicationRoutes(request: Request, env: Env): Promise<Response | null> {
   const path = new URL(request.url).pathname.replace(/^\/api\/v1/, ''), method = request.method;
@@ -27,7 +29,7 @@ export async function courierApplicationRoutes(request: Request, env: Env): Prom
     const user = await requireStudent(request, env);
     if (method === 'GET') {
       // The latest application drives the progress view; earlier ones are listed below it, like 我的售后工单.
-      const rows = (await env.DB.prepare(`SELECT ${columns} FROM courier_applications a WHERE a.user_id=? ORDER BY a.created_at DESC,a.id LIMIT 10`).bind(user.id).all<Row>()).results.map(out);
+      const rows = (await env.DB.prepare(`SELECT ${columns} FROM courier_applications a WHERE a.user_id=? ORDER BY a.created_at DESC,a.rowid DESC LIMIT 10`).bind(user.id).all<Row>()).results.map(out);
       const home = await env.DB.prepare('SELECT a.dorm_building_code AS buildingCode,a.zone,a.room_no AS roomNo FROM user_addresses a WHERE a.user_id=? AND a.valid_to IS NULL').bind(user.id).first<{ buildingCode: string; zone: string; roomNo: string }>();
       return json({ application: rows[0] ?? null, applications: rows, profile: { name: user.name, phone: user.phone, buildingCode: home?.buildingCode ?? '', zone: home?.zone ?? '', roomNo: home?.roomNo ?? '' } });
     }
@@ -39,9 +41,14 @@ export async function courierApplicationRoutes(request: Request, env: Env): Prom
       if (!await env.DB.prepare('SELECT 1 FROM dorm_buildings WHERE code=? AND active=1').bind(data.buildingCode).first()) throw new ApiError(400, 'BUILDING_UNKNOWN', '请选择住的楼栋');
       const id = crypto.randomUUID(), demo = await env.DB.prepare('SELECT demo_group FROM users WHERE id=?').bind(user.id).first<string | null>('demo_group');
       try {
-        await env.DB.prepare(`INSERT INTO courier_applications(id,user_id,real_name,phone,college,grade,slots_json,zone,building_code,room_no,intro,desired_username,password_hash,demo_group)
-          VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(id, user.id, data.realName, data.phone, data.college, data.grade, JSON.stringify(data.slots), data.zone, data.buildingCode, data.roomNo, data.intro,
-          data.desiredUsername, await hashPassword(data.password), demo ?? null).run();
+        // Reserve the name in the same write as the application. A separate pre-check is not
+        // sufficient when two students submit the same desired username concurrently.
+        const inserted = await env.DB.prepare(`INSERT INTO courier_applications(id,user_id,real_name,phone,college,grade,slots_json,zone,building_code,room_no,intro,desired_username,password_hash,demo_group)
+          SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM admin_users WHERE username=?)
+          AND NOT EXISTS(SELECT 1 FROM courier_applications WHERE desired_username=? COLLATE NOCASE AND status='PENDING')`)
+          .bind(id, user.id, data.realName, data.phone, data.college, data.grade, JSON.stringify(data.slots), data.zone, data.buildingCode, data.roomNo, data.intro,
+            data.desiredUsername, await hashPassword(data.password), demo ?? null, data.desiredUsername, data.desiredUsername).run();
+        if (!inserted.meta.changes) throw new ApiError(409, 'USERNAME_TAKEN', '这个配送员账号名已被使用，请换一个');
       } catch (error) {
         if (String(error).includes('UNIQUE')) throw new ApiError(409, 'APPLICATION_PENDING', '你已经有一份申请在审核中');
         throw error;
@@ -87,13 +94,15 @@ export async function courierApplicationRoutes(request: Request, env: Env): Prom
     const r = await env.DB.batch([
       env.DB.prepare("UPDATE courier_applications SET status='REJECTED',note=?,reviewed_by=?,reviewed_at=unixepoch() WHERE id=? AND status='PENDING'").bind(data.note, admin.id, app.id),
       env.DB.prepare("INSERT INTO inbox_messages(user_id,kind,title,link) SELECT ?,'COURIER_APPLICATION',?,'/apply' WHERE changes()>0").bind(app.userId, `配送员申请未通过：${data.note}`.slice(0, 120)),
-      env.DB.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,resource_id,metadata_redacted) VALUES(?,'ADMIN',?,'COURIER_APPLICATION_REJECTED',?,?)").bind(crypto.randomUUID(), admin.id, app.id, JSON.stringify({ note: data.note })),
+      env.DB.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,resource_id,metadata_redacted) SELECT ?,'ADMIN',?,'COURIER_APPLICATION_REJECTED',?,? WHERE changes()>0").bind(crypto.randomUUID(), admin.id, app.id, JSON.stringify({ note: data.note })),
     ]);
     if (!r[0].meta.changes) throw new ApiError(409, 'APPLICATION_REVIEWED', '这份申请已经处理过了，请刷新');
     return json({ status: 'REJECTED' });
   }
 
-  if (await usernameTaken(env, app.username, app.id)) throw new ApiError(409, 'USERNAME_TAKEN', `账号名 ${app.username} 已被占用，请让同学撤回后换一个重新申请`);
+  // Legacy databases can contain duplicate pending usernames created before the atomic insert.
+  // Let one be approved; the admin username UNIQUE constraint arbitrates simultaneous reviews.
+  if (await adminUsernameTaken(env, app.username)) throw new ApiError(409, 'USERNAME_TAKEN', `账号名 ${app.username} 已被占用，请让同学撤回后换一个重新申请`);
   const codes = [...new Set(data.buildings)];
   if (codes.length) {
     const known = (await env.DB.prepare(`SELECT count(*) AS n FROM dorm_buildings WHERE active=1 AND code IN (${codes.map(() => '?').join(',')})`).bind(...codes).first<number>('n')) ?? 0;
@@ -110,8 +119,8 @@ export async function courierApplicationRoutes(request: Request, env: Env): Prom
         ON CONFLICT(world,building_code) DO UPDATE SET admin_id=excluded.admin_id,assigned_by=excluded.assigned_by,updated_at=unixepoch()`).bind(world, code, adminId, admin.id, adminId)),
       env.DB.prepare("INSERT INTO inbox_messages(user_id,kind,title,link) SELECT ?,'COURIER_APPLICATION',?,'/admin/login' WHERE EXISTS(SELECT 1 FROM admin_users WHERE id=?)")
         .bind(app.userId, `配送员申请已通过：用你申请的账号 ${app.username} 登录配送员工作台${codes.length ? `，已为你分配 ${codes.length} 栋楼` : ''}`, adminId),
-      env.DB.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,resource_id,metadata_redacted) VALUES(?,'ADMIN',?,'COURIER_APPLICATION_APPROVED',?,?)")
-        .bind(crypto.randomUUID(), admin.id, app.id, JSON.stringify({ adminId, username: app.username, buildings: codes })),
+      env.DB.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,resource_id,metadata_redacted) SELECT ?,'ADMIN',?,'COURIER_APPLICATION_APPROVED',?,? WHERE EXISTS(SELECT 1 FROM courier_applications WHERE id=? AND status='APPROVED' AND admin_id=?)")
+        .bind(crypto.randomUUID(), admin.id, app.id, JSON.stringify({ adminId, username: app.username, buildings: codes }), app.id, adminId),
     ]);
     if (!r[1].meta.changes) throw new ApiError(409, 'APPLICATION_REVIEWED', '这份申请已经处理过了，请刷新');
   } catch (error) {

@@ -9,7 +9,7 @@ import type { DeliveryMode, Order, Parcel } from '../shared/delivery';
 import { groupOrderSchema, type OrderGroup } from '../shared/v3';
 import type { SlotCode } from '../shared/slots';
 import type { DropPlace } from '../shared/campus-map';
-import { activeStation, newHandoffCode, orderColumns, orderInsert, orderPrerequisites, serializeOrder, windowLoad, type OrderRow } from './orders';
+import { activeStation, commitOrderSet, newHandoffCode, orderColumns, orderInsert, orderPrerequisites, serializeOrder, type OrderRow } from './orders';
 import { cancelStudentOrder } from './order-operations';
 
 /*
@@ -29,19 +29,7 @@ export async function createOrderSet(env: Env, user: Student, parcels: Pick<Parc
   const statements: D1PreparedStatement[] = [];
   if (groupId) statements.push(env.DB.prepare('INSERT INTO order_groups(id,user_id,station_code,origin,rule_id) VALUES(?,?,?,?,?)').bind(groupId, user.id, stationCode, ruleId ? 'RULE' : 'STUDENT', ruleId ?? null));
   parcels.forEach((parcel, i) => statements.push(orderInsert(env, ids[i], { user, parcel, address, station, mode, slot, dropPlace, capacity, code, groupId: groupId ?? undefined, ruleId })));
-  let results: D1Result[];
-  try { results = await env.DB.batch(statements); }
-  catch (error) {
-    if (String(error).includes('UNIQUE constraint')) throw new ApiError(409, 'ORDER_EXISTS', '所选包裹中有已经下单的，请刷新后重新选择');
-    throw error;
-  }
-  const created = ids.filter((_, i) => results[(groupId ? 1 : 0) + i].meta.changes);
-  if (created.length !== ids.length) {
-    // A parcel closed, or the window filled up, between the checks and the insert: undo the rest, nothing half-made.
-    for (const id of created) await env.DB.prepare("UPDATE delivery_orders SET status='CANCELLED',version=version+1,updated_at=unixepoch(),last_actor_type='SYSTEM',last_actor_id='system',service_notice='合并下单未完成，已自动撤销' WHERE id=? AND status='WAITING_PAYMENT'").bind(id).run();
-    if (slot && await windowLoad(env, slot.date, slot.code) >= capacity) throw new ApiError(409, 'SLOT_FULL', '这个时段刚刚约满了，请换一个时段，或选择尽快送达');
-    throw new ApiError(409, 'PARCEL_CLOSED', '所选包裹的状态已更新，请刷新后重新选择');
-  }
+  await commitOrderSet(env, statements, ids, slot, capacity);
   return { groupId, ids };
 }
 

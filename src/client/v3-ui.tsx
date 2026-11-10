@@ -84,7 +84,7 @@ export function MergeBanner({ parcels }: { parcels: Parcel[] }) {
 /** Small label on an order card. */
 export function GroupChip({ order }: { order: Order }) {
   if (!order.groupId || (order.groupSize ?? 0) < 2) return null;
-  return <span className="group-chip" title={t('合并配送：同一位配送员一次送达')}><SymbolIcon name="box"/>{t('合并 {0} 件', { 0: order.groupSize ?? 0 })}</span>;
+  return <span className="group-chip" title={t('合并配送：通常一起送，特殊情况可能分批')}><SymbolIcon name="box"/>{t('合并 {0} 件', { 0: order.groupSize ?? 0 })}</span>;
 }
 /** On the order page: the other parcels of the same merged delivery, with the group page. */
 export function GroupStrip({ order }: { order: Order }) {
@@ -93,7 +93,7 @@ export function GroupStrip({ order }: { order: Order }) {
   if (!order.groupId || count < 2) return null;
   return <Link className="group-strip" to={`/checkout-group/${order.groupId}`}>
     <span className="merge-stack" aria-hidden="true"><i/><i/><i/></span>
-    <span><strong>{t('合并配送 · 共 {0} 件', { 0: count })}</strong><small>{order.ruleId ? t('由常用配送规则生成 · ') : ''}{t('同一位配送员一次送达，收货码相同，核验一次即全部签收')}</small></span>
+    <span><strong>{t('合并配送 · 共 {0} 件', { 0: count })}</strong><small>{order.ruleId ? t('由常用配送规则生成 · ') : ''}{t('通常一起送达；如分批配送，每批分别核验收货码')}</small></span>
     <span aria-hidden="true">›</span>
   </Link>;
 }

@@ -37,7 +37,7 @@ export async function dashboard(env:Env,admin:Admin) {
   const counts=await env.DB.prepare(`SELECT status,count(*) AS count FROM delivery_orders o WHERE ${scope.sql} GROUP BY status`).bind(...scope.params).all();
   return {counts:counts.results};
 }
-export function transitionStatement(env:Env,admin:Admin,row:OrderRow,data:z.infer<typeof transitionSchema>):D1PreparedStatement {
+export function transitionStatement(env:Env,admin:Admin,row:OrderRow,data:z.infer<typeof transitionSchema>,requirePhoto=false,expectedBatchId?:string,sameBatchAs?:string):D1PreparedStatement {
   if(row.version!==data.version||!nextStatuses(row.status,row.deliveryMode).includes(data.status)) throw new ApiError(409,'INVALID_TRANSITION','订单状态已变化，或不允许此操作');
   if(row.pendingHandoff||(row.custodyState==='RETURNED'&&row.status!=='WAITING_PICKUP'))throw new ApiError(409,'HANDOFF_PENDING','包裹交接处理中或已归还，请完成核验并退回市场');
   const exception=['FAILED_PICKUP','DELIVERY_EXCEPTION'].includes(data.status);
@@ -45,35 +45,40 @@ export function transitionStatement(env:Env,admin:Admin,row:OrderRow,data:z.infe
   const scope=orderScope(admin);
   // RETURNING is checked by the caller. Audit + parcel closure use DB triggers.
   return env.DB.prepare(`UPDATE delivery_orders AS o SET status=?,version=version+1,updated_at=unixepoch(),last_actor_type='ADMIN',last_actor_id=?,exception_code=?,exception_note=?,service_notice=''
-    WHERE id=? AND version=? AND ${scope.sql} RETURNING id`)
-    .bind(data.status,admin.id,exception?data.exceptionCode!:null,exception?(data.exceptionNote??''):'',row.id,data.version,...scope.params);
+    WHERE id=? AND version=? AND ${scope.sql}${requirePhoto?' AND EXISTS(SELECT 1 FROM delivery_photos ph WHERE ph.order_id=o.id)':''}${expectedBatchId?' AND EXISTS(SELECT 1 FROM batch_items expected WHERE expected.order_id=o.id AND expected.batch_id=?)':''}${sameBatchAs?` AND o.status=? AND o.student_deleted=0 AND o.student_cancelled=0
+      AND NOT EXISTS(SELECT 1 FROM parcel_handoffs h WHERE h.order_id=o.id AND h.status='PENDING')
+      AND EXISTS(SELECT 1 FROM batch_items si JOIN batch_items ai ON ai.batch_id=si.batch_id
+        JOIN delivery_orders anchor ON anchor.id=ai.order_id AND anchor.group_id=o.group_id
+        WHERE si.order_id=o.id AND ai.order_id=?)`:''} RETURNING id`)
+    .bind(data.status,admin.id,exception?data.exceptionCode!:null,exception?(data.exceptionNote??''):'',row.id,data.version,...scope.params,...(expectedBatchId?[expectedBatchId]:[]),...(sameBatchAs?[row.status,sameBatchAs]:[]));
 }
-export async function changeStatus(env:Env,admin:Admin,id:string,data:z.infer<typeof transitionSchema>,opts:{skipPhoto?:boolean}={}) {
+export async function changeStatus(env:Env,admin:Admin,id:string,data:z.infer<typeof transitionSchema>,opts:{skipPhoto?:boolean;expectedBatchId?:string;skipGroupAdvance?:boolean}={}) {
   await requireContact(env,admin.id);
   const row=await adminOrder(env,admin,id);
   if(data.status==='COMPLETED')throw new ApiError(409,'STUDENT_RECEIPT_REQUIRED','请等待学生确认收货');
-  if(data.status==='CANCELLED')return releaseOrder(env,admin,id,data.version,data.exceptionNote||'配送员取消接单');
+  if(data.status==='CANCELLED')return releaseOrder(env,admin,id,data.version,data.exceptionNote||'配送员取消接单',opts.expectedBatchId);
   // v4.5: marking "delivered" without the door code means nobody signed for it, so a photo of where it was left is
   // required first (one photo covers a merged delivery). Handing over with the 4-digit code needs no photo. The one-click
   // demo's simulated courier is exempt.
-  if(data.status.startsWith('DELIVERED')&&!opts.skipPhoto&&!await env.DB.prepare(`SELECT 1 FROM delivery_photos ph WHERE ph.order_id=?
-      OR ph.order_id IN (SELECT s.id FROM delivery_orders s WHERE s.group_id IS NOT NULL AND s.group_id=(SELECT group_id FROM delivery_orders WHERE id=?)) LIMIT 1`).bind(row.id,row.id).first())
+  const requirePhoto=data.status.startsWith('DELIVERED')&&!opts.skipPhoto;
+  // Upload copies the photo to eligible orders in this batch. Do not accept a photo from another batch of the group.
+  if(requirePhoto&&!await env.DB.prepare('SELECT 1 FROM delivery_photos WHERE order_id=?').bind(row.id).first())
     throw new ApiError(409,'PHOTO_REQUIRED','无人当面签收的送达需要先拍照上传送达位置，再标记送达；当面交付请核验收货码');
-  const result=await transitionStatement(env,admin,row,data).all();
+  const result=await transitionStatement(env,admin,row,data,requirePhoto,opts.expectedBatchId).all();
   if(!result.results.length) throw new ApiError(409,'STALE_ORDER','订单已更新，请刷新后重试');
-  if(row.groupId&&GROUP_STEPS.includes(data.status))await advanceGroup(env,admin,row,data.status);
+  if(!opts.skipGroupAdvance&&row.groupId&&GROUP_STEPS.includes(data.status))await advanceGroup(env,admin,row,data.status,requirePhoto);
   return serializeOrder(await adminOrder(env,admin,id));
 }
 /** Merged delivery: the regular steps of one trip move every parcel of the group in the same batch along. Exceptions stay per parcel. */
 const GROUP_STEPS:OrderStatus[]=['PICKED_UP','OUT_FOR_DELIVERY','DELIVERED_DOWNSTAIRS','DELIVERED_TO_ROOM'];
-async function advanceGroup(env:Env,admin:Admin,row:OrderRow,to:OrderStatus){
+async function advanceGroup(env:Env,admin:Admin,row:OrderRow,to:OrderStatus,requirePhoto:boolean){
   const siblings=(await env.DB.prepare(`SELECT s.id FROM delivery_orders s JOIN batch_items bi ON bi.order_id=s.id JOIN batch_items tb ON tb.order_id=? AND tb.batch_id=bi.batch_id
     WHERE s.group_id=? AND s.id<>? AND s.status=? AND s.student_deleted=0`).bind(row.id,row.groupId,row.id,row.status).all<{id:string}>()).results;
   for(const {id} of siblings){
     try{
       const sib=await adminOrder(env,admin,id);
       const status:OrderStatus=to.startsWith('DELIVERED')?(sib.deliveryMode==='ROOM'?'DELIVERED_TO_ROOM':'DELIVERED_DOWNSTAIRS'):to;
-      await transitionStatement(env,admin,sib,{status,version:sib.version}).all();
+      await transitionStatement(env,admin,sib,{status,version:sib.version},requirePhoto,undefined,row.id).all();
     }catch{/* a sibling that changed meanwhile (exception, hand-back) keeps its own state */}
   }
 }
@@ -148,7 +153,7 @@ export async function batchTransition(env:Env,admin:Admin,id:string,status:Order
   // Partial success is explicit and each individual transition is atomic + version guarded.
   const results: {id:string;ok:boolean;code?:string}[]=[];
   for(const row of rows){
-    try{await changeStatus(env,admin,row.id,{status,version:versions[row.id],exceptionCode,exceptionNote});results.push({id:row.id,ok:true});}
+    try{await changeStatus(env,admin,row.id,{status,version:versions[row.id],exceptionCode,exceptionNote},{expectedBatchId:id,skipGroupAdvance:true});results.push({id:row.id,ok:true});}
     catch(error){if(!(error instanceof ApiError)) throw error;results.push({id:row.id,ok:false,code:error.code});}
   }
   return {results};

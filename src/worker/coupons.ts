@@ -109,8 +109,11 @@ export async function couponForPayment(env: Env, user: Pick<Student, 'id'>, orde
   const statements = [
     env.DB.prepare(`INSERT INTO coupon_redemptions(id,coupon_id,user_id,discount_fen)
       SELECT ?,c.id,?,? FROM coupons c WHERE c.id=? AND c.status='ACTIVE'
+      AND (c.starts_at IS NULL OR c.starts_at<=unixepoch()) AND (c.ends_at IS NULL OR c.ends_at>unixepoch())
+      AND ((c.scope='PERSONAL' AND EXISTS(SELECT 1 FROM coupon_grants g WHERE g.coupon_id=c.id AND g.user_id=? AND (g.expires_at IS NULL OR g.expires_at>unixepoch())))
+        OR (c.scope='PUBLIC' AND (c.auto_apply=1 OR c.code=?)))
       AND NOT EXISTS(SELECT 1 FROM coupon_redemptions r WHERE r.coupon_id=c.id AND r.user_id=? AND r.status='USED')
-      AND (c.total_limit IS NULL OR ${USED_IN_WORLD}<c.total_limit)`).bind(redemptionId, user.id, option.discountFen, c.id, user.id, group),
+      AND (c.total_limit IS NULL OR ${USED_IN_WORLD}<c.total_limit)`).bind(redemptionId, user.id, option.discountFen, c.id, user.id, code, user.id, group),
     ...orders.map((o, i) => env.DB.prepare(`UPDATE delivery_orders SET discount_fen=?,coupon_redemption_id=? WHERE id=? AND user_id=? AND status='WAITING_PAYMENT'
       AND EXISTS(SELECT 1 FROM coupon_redemptions WHERE id=?)`).bind(shares[i], redemptionId, o.id, user.id, redemptionId)),
   ];

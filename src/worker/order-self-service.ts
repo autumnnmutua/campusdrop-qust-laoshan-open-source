@@ -16,7 +16,8 @@ function availableScope(admin:Admin){
     ? {sql:"o.campus_id=? AND EXISTS(SELECT 1 FROM admin_users WHERE id=? AND role='DELIVERY_STAFF' AND status='ACTIVE') AND coalesce(o.demo_group,'')=coalesce((SELECT demo_group FROM admin_users WHERE id=?),'')",params:[CAMPUS_ID,admin.id,admin.id]}
     : orderScope(admin);
 }
-const available="o.status='WAITING_PICKUP' AND o.student_deleted=0 AND NOT EXISTS(SELECT 1 FROM batch_items WHERE order_id=o.id) AND EXISTS(SELECT 1 FROM payments WHERE order_id=o.id AND type='DELIVERY')";
+const availableFor=(alias:'o'|'g'|'s')=>`${alias}.status='WAITING_PICKUP' AND ${alias}.student_deleted=0 AND NOT EXISTS(SELECT 1 FROM batch_items WHERE order_id=${alias}.id) AND EXISTS(SELECT 1 FROM payments WHERE order_id=${alias}.id AND type='DELIVERY')`;
+const available=availableFor('o');
 export async function availableOrders(env:Env,admin:Admin,request:Request){
  const parsed=taskQuerySchema.safeParse(Object.fromEntries(new URL(request.url).searchParams));if(!parsed.success)throw new ApiError(400,'INVALID_FILTER','筛选条件不正确');
  const f=parsed.data,scope=availableScope(admin),key=JSON.stringify([admin.id,'market',f.building??'',f.packageSize??'',f.deliveryMode??'']);const {limit,cursor}=cursorPage(request,key);
@@ -25,7 +26,7 @@ export async function availableOrders(env:Env,admin:Admin,request:Request){
  // Totals for the whole filtered market (not just this page): lets the workspace notice new orders that land beyond page 1.
  const totals=await env.DB.prepare(`SELECT count(*) AS total,max(o.created_at) AS newestAt FROM delivery_orders o WHERE ${where.join(' AND ')}`).bind(...params).first<{total:number;newestAt:number|null}>();
  if(cursor){where.push('(o.created_at>? OR (o.created_at=? AND o.id>?))');params.push(cursor.time,cursor.time,cursor.id);}
- const rows=(await env.DB.prepare(`SELECT o.id,o.group_id AS groupId,(SELECT count(*) FROM delivery_orders g WHERE o.group_id IS NOT NULL AND g.group_id=o.group_id AND g.status<>'CANCELLED') AS groupSize,o.created_at AS createdAt,json_extract(o.dorm_snapshot_json,'$.buildingName') AS buildingName,
+ const rows=(await env.DB.prepare(`SELECT o.id,o.group_id AS groupId,(SELECT count(*) FROM delivery_orders g WHERE o.group_id IS NOT NULL AND g.group_id=o.group_id AND ${availableFor('g')}) AS groupSize,o.created_at AS createdAt,json_extract(o.dorm_snapshot_json,'$.buildingName') AS buildingName,
  json_extract(o.station_snapshot_json,'$.canonicalName') AS stationName,CASE WHEN o.oversize_fen>0 THEN 'EXTRA_LARGE' ELSE o.package_size END AS packageSize,o.dorm_building_code AS buildingCode,o.slot_date AS slotDate,o.slot_code AS slotCode,o.drop_place AS dropPlace,
  CASE WHEN o.delivery_upgrade_fen>0 THEN 'ROOM' ELSE o.delivery_mode END AS deliveryMode,o.amount_fen+o.oversize_fen+o.delivery_upgrade_fen+o.upgrade_surcharge_fen AS amountFen,o.rain_fen AS rainFen,
  o.amount_fen+o.oversize_fen+o.delivery_upgrade_fen+o.upgrade_surcharge_fen+o.rain_fen-20-o.rain_fee_fen AS courierFen
@@ -47,7 +48,7 @@ export async function claimOrder(env:Env,admin:Admin,id:string){
       env.DB.prepare(`INSERT INTO batch_items(batch_id,order_id,sort_order)
         SELECT ?,s.id,row_number() OVER (ORDER BY s.created_at,s.id) FROM delivery_orders t JOIN delivery_orders s ON s.group_id=t.group_id AND s.id<>t.id
         WHERE t.id=? AND t.group_id IS NOT NULL AND EXISTS(SELECT 1 FROM delivery_batches WHERE id=?)
-        AND s.status='WAITING_PICKUP' AND s.student_deleted=0 AND NOT EXISTS(SELECT 1 FROM batch_items WHERE order_id=s.id) AND EXISTS(SELECT 1 FROM payments WHERE order_id=s.id AND type='DELIVERY')`).bind(batchId,id,batchId),
+        AND ${availableFor('s')}`).bind(batchId,id,batchId),
       env.DB.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,resource_id) SELECT ?,'ADMIN',?,'ORDER_CLAIMED',? WHERE EXISTS(SELECT 1 FROM delivery_batches WHERE id=?)").bind(crypto.randomUUID(),admin.id,id,batchId),
     ]);
     if(!result[0].meta.changes)throw new ApiError(409,'CLAIM_UNAVAILABLE','订单已被接走或状态已变化，请刷新待接订单');
@@ -68,7 +69,7 @@ export async function upgradeOrder(env:Env,userId:string,id:string,version:numbe
   const row=await ownOrder(env,userId,id);
   if(row.upgradeFen>0)return serializeOrder(row);
   // One trip, one door: a merged delivery keeps one delivery choice for all its parcels.
-  if(row.groupId)throw new ApiError(409,'GROUP_UPGRADE','合并配送的包裹需要一起送达，暂不支持单件升级到寝；可联系配送员沟通');
+  if(row.groupId)throw new ApiError(409,'GROUP_UPGRADE','合并配送暂不支持单件升级到寝；可联系配送员沟通');
   try {
     await env.DB.prepare(`INSERT INTO order_adjustments(id,order_id,kind,amount_fen)
       SELECT ?,o.id,'UPGRADE',CASE WHEN o.package_size='LARGE' THEN 200 ELSE 100 END FROM delivery_orders o WHERE o.id=? AND o.user_id=? AND o.version=? AND o.student_deleted=0

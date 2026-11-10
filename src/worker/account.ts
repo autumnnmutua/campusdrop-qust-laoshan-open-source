@@ -35,15 +35,26 @@ export function studentDeletionStatements(env: Env, userId: string, actorType: '
   return [
     // deleted_at first: the snapshot trigger only lets a deleted account's snapshot change.
     env.DB.prepare("UPDATE users SET deleted_at=unixepoch(),status='DISABLED',username='deleted_'||lower(hex(randomblob(12))),name='已注销用户',phone='',password_hash=? WHERE id=?").bind(DUMMY_HASH, userId),
-    env.DB.prepare(`UPDATE delivery_orders SET dorm_snapshot_json=${scrubbed},order_note='',handoff_code=NULL,proxy_name='',share_token=NULL WHERE user_id=?`).bind(userId),
-    env.DB.prepare(`UPDATE send_requests SET dorm_snapshot_json=${scrubbed},note='',tracking_no='' WHERE user_id=?`).bind(userId),
+    env.DB.prepare(`UPDATE delivery_orders SET dorm_snapshot_json=${scrubbed},order_note='',exception_note='',service_notice='',handoff_code=NULL,proxy_name='',share_token=NULL WHERE user_id=?`).bind(userId),
+    env.DB.prepare(`UPDATE send_requests SET dorm_snapshot_json=${scrubbed},note='',tracking_no='',cancel_reason='' WHERE user_id=?`).bind(userId),
+    // These operational notes are free text and can identify the student. Keep the transaction history and amounts.
+    env.DB.prepare("UPDATE order_events SET detail='' WHERE order_id IN (SELECT id FROM delivery_orders WHERE user_id=?)").bind(userId),
+    env.DB.prepare("UPDATE order_releases SET reason='已清理' WHERE order_id IN (SELECT id FROM delivery_orders WHERE user_id=?)").bind(userId),
+    env.DB.prepare("UPDATE parcel_handoffs SET location='已清理',note='已清理',rejection_reason='' WHERE order_id IN (SELECT id FROM delivery_orders WHERE user_id=?)").bind(userId),
+    env.DB.prepare("UPDATE handoff_changes SET prior_location='',prior_note='',reason='' WHERE handoff_id IN (SELECT h.id FROM parcel_handoffs h JOIN delivery_orders o ON o.id=h.order_id WHERE o.user_id=?)").bind(userId),
     env.DB.prepare('DELETE FROM delivery_photos WHERE order_id IN (SELECT id FROM delivery_orders WHERE user_id=?)').bind(userId),
+    // Preserve aggregate ratings while removing free text that can identify the student.
+    env.DB.prepare("UPDATE order_ratings SET comment='' WHERE user_id=?").bind(userId),
     env.DB.prepare("UPDATE parcels SET status=CASE WHEN status='ACTIVE' THEN 'CANCELLED' ELSE status END,pickup_code='已清理',note='' WHERE user_id=?").bind(userId),
     env.DB.prepare('DELETE FROM user_addresses WHERE user_id=?').bind(userId),
     // v4.5: an application to deliver keeps its outcome (an approved courier account stays) but loses the personal details.
-    env.DB.prepare("UPDATE courier_applications SET real_name='已注销用户',phone='00000000000',college='',grade='',intro='',room_no='',status=CASE WHEN status='PENDING' THEN 'WITHDRAWN' ELSE status END WHERE user_id=?").bind(userId),
+    env.DB.prepare("UPDATE courier_applications SET real_name='已注销用户',phone='00000000000',college='',grade='',slots_json='[]',zone=NULL,building_code=NULL,room_no='',intro='',desired_username='deleted',password_hash=?,note='',status=CASE WHEN status='PENDING' THEN 'WITHDRAWN' ELSE status END WHERE user_id=?").bind(DUMMY_HASH, userId),
+    env.DB.prepare("UPDATE audit_logs SET metadata_redacted='{}' WHERE action IN ('COURIER_APPLICATION_APPROVED','COURIER_APPLICATION_REJECTED') AND resource_id IN (SELECT id FROM courier_applications WHERE user_id=?)").bind(userId),
     env.DB.prepare('DELETE FROM delivery_rules WHERE user_id=?').bind(userId),
     env.DB.prepare('DELETE FROM order_messages WHERE order_id IN (SELECT id FROM delivery_orders WHERE user_id=?)').bind(userId),
+    // Ticket subjects and replies can contain the same identifying details as order chat.
+    env.DB.prepare('DELETE FROM ticket_messages WHERE ticket_id IN (SELECT id FROM support_tickets WHERE user_id=?)').bind(userId),
+    env.DB.prepare("UPDATE support_tickets SET subject='已清理',status='CLOSED',version=version+1,updated_at=unixepoch() WHERE user_id=?").bind(userId),
     env.DB.prepare('DELETE FROM inbox_messages WHERE user_id=?').bind(userId),
     env.DB.prepare("DELETE FROM push_subscriptions WHERE owner_kind='STUDENT' AND owner_id=?").bind(userId),
     env.DB.prepare("DELETE FROM recovery_tokens WHERE actor_kind='student' AND actor_id=?").bind(userId),

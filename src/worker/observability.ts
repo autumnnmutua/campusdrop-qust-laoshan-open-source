@@ -23,6 +23,9 @@ export async function recordError(env:Env,request:Request,id:string,category:str
 }
 export function expectedConstraint(error:unknown):ApiError|null{
  const message=error instanceof Error?error.message:'';
+ if(message.includes('ACCOUNT_HAS_ORDERS'))return new ApiError(409,'ACCOUNT_HAS_ORDERS','账号还有未完成的订单或代寄件，请先处理完再注销');
+ if(message.includes('ACCOUNT_DELETED'))return new ApiError(409,'ACCOUNT_DELETED','账号已注销，无法继续操作');
+ if(message.includes('ADMIN_HAS_BUILDINGS'))return new ApiError(409,'ADMIN_HAS_BUILDINGS','该管理员仍负责楼栋，请先交接楼栋分配');
  const mapping:Record<string,string>={OVERSIZE_INVALID:'包裹大小与订单不一致，请刷新后重新下单',RAIN_INVALID:'雨天配送费数据异常，请刷新后重试',STUDENT_RECEIPT_REQUIRED:'请等待学生确认收货',HANDOFF_REQUIRED:'包裹已取出，请先完成归还交接',HANDOFF_PENDING:'交接待核验，暂不能推进配送或取消',HANDOFF_INVALID:'交接状态已变化，请刷新后重试',RELEASE_NOT_ALLOWED:'当前订单不能退回市场，请检查交接及订单状态',ADMIN_HAS_TASKS:'管理员仍有未完成任务，请先处理交接',INVALID_TRANSITION:'订单状态已变化，请刷新',RECOVERY_INVALID:'恢复码无效或已过期',DEMO_HISTORY_READONLY:'这是一键体验的测试数据，只能查看，不能修改',DISCOUNT_FIXED:'订单已支付，优惠金额不能再改',ORDER_CHECKOUT_INVALID:'下单信息不一致，请刷新后重试',WITHDRAW_EXCEEDS_BALANCE:'提现金额超过可提现余额',WITHDRAW_ACCOUNT_INVALID:'收款账户不存在或已删除，请重新选择',WITHDRAW_ALREADY_REVIEWED:'这笔提现已经处理过了，请刷新',LEDGER_IMMUTABLE:'收支明细不能修改'};
  for(const [code,text] of Object.entries(mapping))if(message.includes(code))return new ApiError(409,code,text);
  if(message.includes('UNIQUE constraint failed: parcel_handoffs.order_id'))return new ApiError(409,'HANDOFF_PENDING','已有交接申请，请刷新查看');

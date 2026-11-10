@@ -8,7 +8,8 @@ import type { Impact, ImpactWindow } from '../shared/impact';
 /*
  * v3.6 · 成效看板 (GET /impact, public). Aggregates only — no order, student or building is identifiable. Real orders
  * only (demo orders excluded). Walking saved is an estimate: the campus-road route from the parcel's station to the
- * dorm door (or the chosen drop-off point) and back, once per trip, at the map's scale. On-time follows the on-time
+ * dorm door (or the chosen drop-off point) and back, once per order group, at the map's scale. Actual delivery may be
+ * split or occur at different times, so this is an estimate. On-time follows the on-time
  * dashboard's rule. Cached for five minutes.
  */
 const now = () => Math.floor(Date.now() / 1000);

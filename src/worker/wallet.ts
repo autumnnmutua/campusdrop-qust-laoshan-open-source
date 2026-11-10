@@ -60,19 +60,26 @@ export async function walletRoutes(request: Request, env: Env): Promise<Response
     const count = await env.DB.prepare('SELECT count(*) AS n FROM courier_payout_accounts WHERE admin_id=? AND removed_at IS NULL').bind(admin.id).first<number>('n') ?? 0;
     if (count >= PAYOUT_ACCOUNTS_MAX) throw new ApiError(409, 'PAYOUT_ACCOUNTS_FULL', `最多保存 ${PAYOUT_ACCOUNTS_MAX} 个收款账户，请先删除不用的`);
     const { masked, last4 } = maskAccount(d.method, d.account), id = crypto.randomUUID();
-    await env.DB.batch([
-      env.DB.prepare('INSERT INTO courier_payout_accounts(id,admin_id,method,account_name,account_masked,account_last4,bank_name) VALUES(?,?,?,?,?,?,?)')
-        .bind(id, admin.id, d.method, d.accountName, masked, last4, d.method === 'BANK' ? d.bankName : null),
-      env.DB.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,resource_id,metadata_redacted) VALUES(?,'ADMIN',?,'PAYOUT_ACCOUNT_ADDED',?,json_object('method',?))").bind(crypto.randomUUID(), admin.id, id, d.method),
+    const results = await env.DB.batch([
+      env.DB.prepare(`INSERT INTO courier_payout_accounts(id,admin_id,method,account_name,account_masked,account_last4,bank_name)
+        SELECT ?,?,?,?,?,?,? WHERE (SELECT count(*) FROM courier_payout_accounts WHERE admin_id=? AND removed_at IS NULL)<?`)
+        .bind(id, admin.id, d.method, d.accountName, masked, last4, d.method === 'BANK' ? d.bankName : null, admin.id, PAYOUT_ACCOUNTS_MAX),
+      env.DB.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,resource_id,metadata_redacted) SELECT ?,'ADMIN',?,'PAYOUT_ACCOUNT_ADDED',?,json_object('method',?) WHERE EXISTS(SELECT 1 FROM courier_payout_accounts WHERE id=? AND admin_id=?)")
+        .bind(crypto.randomUUID(), admin.id, id, d.method, id, admin.id),
     ]);
+    if (!results[0].meta.changes) throw new ApiError(409, 'PAYOUT_ACCOUNTS_FULL', `最多保存 ${PAYOUT_ACCOUNTS_MAX} 个收款账户，请先删除不用的`);
     return json({ wallet: await wallet(env, admin) }, 201);
   }
   const acc = /^\/admin\/wallet\/accounts\/([a-f0-9-]{36})$/.exec(path);
   if (acc && method === 'DELETE') {
-    const pending = await env.DB.prepare("SELECT 1 FROM courier_withdrawals WHERE account_id=? AND status='PENDING'").bind(acc[1]).first();
-    if (pending) throw new ApiError(409, 'PAYOUT_ACCOUNT_IN_USE', '这个账户还有审核中的提现，处理完后再删除');
-    const r = await env.DB.prepare('UPDATE courier_payout_accounts SET removed_at=unixepoch() WHERE id=? AND admin_id=? AND removed_at IS NULL').bind(acc[1], admin.id).run();
-    if (!r.meta.changes) throw new ApiError(404, 'NOT_FOUND', '收款账户不存在');
+    const r = await env.DB.prepare(`UPDATE courier_payout_accounts SET removed_at=unixepoch()
+      WHERE id=? AND admin_id=? AND removed_at IS NULL
+      AND NOT EXISTS(SELECT 1 FROM courier_withdrawals WHERE account_id=? AND status='PENDING')`).bind(acc[1], admin.id, acc[1]).run();
+    if (!r.meta.changes) {
+      const exists = await env.DB.prepare('SELECT 1 FROM courier_payout_accounts WHERE id=? AND admin_id=? AND removed_at IS NULL').bind(acc[1], admin.id).first();
+      if (exists) throw new ApiError(409, 'PAYOUT_ACCOUNT_IN_USE', '这个账户还有审核中的提现，处理完后再删除');
+      throw new ApiError(404, 'NOT_FOUND', '收款账户不存在');
+    }
     return json({ wallet: await wallet(env, admin) });
   }
   if (path === '/admin/wallet/withdrawals' && method === 'POST') {
@@ -84,10 +91,14 @@ export async function walletRoutes(request: Request, env: Env): Promise<Response
     if (!account) throw new ApiError(409, 'WITHDRAW_ACCOUNT_INVALID', '收款账户不存在或已删除，请重新选择');
     const id = crypto.randomUUID();
     try {
-      await env.DB.batch([
-        env.DB.prepare('INSERT INTO courier_withdrawals(id,admin_id,account_id,method,account_label,amount_fen) VALUES(?,?,?,?,?,?)').bind(id, admin.id, account.id, account.method, accountLabel(account), d.amountFen),
-        env.DB.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,resource_id,metadata_redacted) VALUES(?,'ADMIN',?,'WITHDRAW_REQUESTED',?,json_object('amountFen',?))").bind(crypto.randomUUID(), admin.id, id, d.amountFen),
+      const results = await env.DB.batch([
+        env.DB.prepare(`INSERT INTO courier_withdrawals(id,admin_id,account_id,method,account_label,amount_fen)
+          SELECT ?,?,?,?,?,? WHERE (SELECT count(*) FROM courier_withdrawals WHERE admin_id=? AND status='PENDING')<?`)
+          .bind(id, admin.id, account.id, account.method, accountLabel(account), d.amountFen, admin.id, WITHDRAW_MAX_PENDING),
+        env.DB.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,resource_id,metadata_redacted) SELECT ?,'ADMIN',?,'WITHDRAW_REQUESTED',?,json_object('amountFen',?) WHERE EXISTS(SELECT 1 FROM courier_withdrawals WHERE id=? AND admin_id=?)")
+          .bind(crypto.randomUUID(), admin.id, id, d.amountFen, id, admin.id),
       ]);
+      if (!results[0].meta.changes) throw new ApiError(409, 'WITHDRAW_TOO_MANY', `已有 ${WITHDRAW_MAX_PENDING} 笔提现在审核中，处理完后再申请`);
     } catch (error) { constraint(error); }
     return json({ wallet: await wallet(env, admin), message: '提现申请已提交，等待审核（模拟交易，不会产生真实转账）' }, 201);
   }

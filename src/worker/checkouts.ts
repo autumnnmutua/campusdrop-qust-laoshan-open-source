@@ -4,7 +4,7 @@ import { ApiError, body, json, optionalBody } from './http';
 import { requireAdmin, requireStudent, requireSuper } from './session';
 import { rateLimit } from './rate-limit';
 import { payOrders, payableOrders } from './payment';
-import { activeStation, newHandoffCode, orderColumns, orderInsert, orderPrerequisites, serializeOrder, windowLoad, type OrderRow } from './orders';
+import { activeStation, commitOrderSet, newHandoffCode, orderColumns, orderInsert, orderPrerequisites, serializeOrder, windowLoad, type OrderRow } from './orders';
 import { bundleSetting, writeSetting } from './settings';
 import { cancelStudentOrder } from './order-operations';
 import { payWithCouponSchema } from '../shared/coupons';
@@ -16,8 +16,9 @@ import type { DeliveryMode, PackageSize, Station } from '../shared/delivery';
 /*
  * v3.8 · 多件下单. The student picks several waiting parcels — any stations, sizes and destinations (楼下, 到寝, or a
  * campus drop-off point, chosen per parcel) — and one booked window or "as soon as possible". One checkout is created:
- * parcels of the same station going to the same place become a merged delivery (one courier trip, max 6), the rest are
- * separate trips. All orders share one door code and are paid in one payment (payment.ts: 多件满减, coupon, window
+ * parcels of the same station going to the same place form a delivery group (max 6), the rest are
+ * separate groups. Groups normally travel together but may be split when delivery arrangements change.
+ * All orders share one door code and can be paid in one payment (payment.ts: 多件满减, coupon, window
  * check, all or nothing). Cancelling a paid parcel later refunds what was actually paid for it.
  */
 const destination = (o: { dropPlace?: DropPlace | null; deliveryMode: DeliveryMode; dormSnapshot: { buildingName: string } }) =>
@@ -71,29 +72,17 @@ async function createCheckout(env: Env, request: Request): Promise<string> {
   }
   const checkoutId = crypto.randomUUID(), code = newHandoffCode(), statements: D1PreparedStatement[] = [];
   statements.push(env.DB.prepare('INSERT INTO checkouts(id,user_id) VALUES(?,?)').bind(checkoutId, user.id));
-  const orderIds: string[] = [], orderAt: number[] = [];
+  const orderIds: string[] = [];
   for (const trip of [...trips.values()].flat()) {
     const groupId = trip.parcels.length > 1 ? crypto.randomUUID() : undefined;
     if (groupId) statements.push(env.DB.prepare("INSERT INTO order_groups(id,user_id,station_code,origin) VALUES(?,?,?,'STUDENT')").bind(groupId, user.id, trip.station));
     for (const parcel of trip.parcels) {
       const id = crypto.randomUUID();
-      orderIds.push(id); orderAt.push(statements.length);
+      orderIds.push(id);
       statements.push(orderInsert(env, id, { user, parcel, address, station: stations.get(trip.station)!, mode: trip.mode, slot, dropPlace: trip.dropPlace, capacity, code, groupId, checkoutId }));
     }
   }
-  let results: D1Result[];
-  try { results = await env.DB.batch(statements); }
-  catch (error) {
-    if (String(error).includes('UNIQUE constraint')) throw new ApiError(409, 'ORDER_EXISTS', '所选包裹中有已经下单的，请刷新后重新选择');
-    throw error;
-  }
-  const created = orderIds.filter((_, i) => results[orderAt[i]].meta.changes);
-  if (created.length !== orderIds.length) {
-    // A parcel closed, or the window filled up, between the checks and the insert: undo the rest, nothing half-made.
-    for (const id of created) await env.DB.prepare("UPDATE delivery_orders SET status='CANCELLED',version=version+1,updated_at=unixepoch(),last_actor_type='SYSTEM',last_actor_id='system',service_notice='多件下单未完成，已自动撤销' WHERE id=? AND status='WAITING_PAYMENT'").bind(id).run();
-    if (slot && await windowLoad(env, slot.date, slot.code) >= capacity) throw new ApiError(409, 'SLOT_FULL', '这个时段刚刚约满了，请换一个时段，或选择尽快送达');
-    throw new ApiError(409, 'PARCEL_CLOSED', '所选包裹的状态已更新，请刷新后重新选择');
-  }
+  await commitOrderSet(env, statements, orderIds, slot, capacity);
   return checkoutId;
 }
 

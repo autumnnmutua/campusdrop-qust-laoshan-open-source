@@ -72,11 +72,12 @@ export async function payOrders(env: Env, userId: string, orders: Payable[], cho
   const coupon = await couponForPayment(env, { id: userId }, orders.map((o, i) => ({ id: o.id, amountFen: left[i] })), choice);
   const rain = await rainSurchargeNow(env), rainShares = splitSurcharge(rain.fen, amounts), rainFee = splitSurcharge(rain.platformFen, rainShares);
   const rid = coupon?.redemptionId ?? null, ids = JSON.stringify(orders.map(o => o.id));
-  await couponBatch(env, [
+  const paymentIds = orders.map(() => crypto.randomUUID()), paymentIdsJson = JSON.stringify(paymentIds);
+  try { await couponBatch(env, [
     // Fresh discounts for this attempt (a coupon, when chosen, is written by the statements that follow).
     ...orders.map((o, i) => env.DB.prepare("UPDATE delivery_orders SET bundle_discount_fen=?,discount_fen=0,coupon_redemption_id=NULL,rain_fen=?,rain_fee_fen=? WHERE id=? AND user_id=? AND status='WAITING_PAYMENT'").bind(bundle.shares[i], rainShares[i] ?? 0, rainFee[i] ?? 0, o.id, userId)),
     ...(coupon?.statements ?? []),
-    ...orders.map(o => env.DB.prepare(`INSERT INTO payments(id,order_id,type,provider,amount_fen,status,idempotency_key)
+    ...orders.map((o, i) => env.DB.prepare(`INSERT INTO payments(id,order_id,type,provider,amount_fen,status,idempotency_key)
       SELECT ?,id,'DELIVERY','MOCK',amount_fen+oversize_fen+rain_fen-discount_fen-bundle_discount_fen,'SUCCEEDED','delivery' FROM delivery_orders o
       WHERE o.id=? AND o.user_id=? AND o.status='WAITING_PAYMENT'
       AND NOT EXISTS(SELECT 1 FROM payments WHERE order_id=? AND type='DELIVERY')
@@ -84,10 +85,32 @@ export async function payOrders(env: Env, userId: string, orders: Payable[], cho
       AND (o.slot_date IS NULL OR o.demo_group IS NOT NULL OR
         (SELECT count(*) FROM delivery_orders x WHERE x.slot_date=o.slot_date AND x.slot_code=o.slot_code AND x.${SLOT_HOLDING})
         + (SELECT count(*) FROM delivery_orders y WHERE y.id IN (SELECT value FROM json_each(?)) AND y.status='WAITING_PAYMENT' AND y.slot_date=o.slot_date AND y.slot_code=o.slot_code) <= ?)`)
-      .bind(crypto.randomUUID(), o.id, userId, o.id, rid, rid, ids, capacity.get((o.slotDate ?? '') + (o.slotCode ?? '')) ?? 0)),
-  ]);
+      .bind(paymentIds[i], o.id, userId, o.id, rid, rid, ids, capacity.get((o.slotDate ?? '') + (o.slotCode ?? '')) ?? 0)),
+    // D1 batches are transactional. If any conditional INSERT was skipped, deliberately invoke the existing
+    // payment_guard with no order so it aborts the whole batch, including discounts and coupon redemption.
+    env.DB.prepare(`INSERT INTO payments(id,order_id,type,provider,amount_fen,status,idempotency_key)
+      SELECT ?,NULL,'DELIVERY','MOCK',0,'SUCCEEDED','atomicity_guard'
+      WHERE (SELECT count(*) FROM payments WHERE id IN (SELECT value FROM json_each(?)))<>?`)
+      .bind(crypto.randomUUID(), paymentIdsJson, orders.length),
+  ]); } catch (error) {
+    if (String(error).includes('PAYMENT_ORDER_INVALID')) {
+      // The transaction has rolled back. Preserve the useful coupon/slot error when the orders themselves are
+      // still payable; otherwise a concurrent order change is the only safe explanation to show.
+      const unchanged = await env.DB.prepare(`SELECT count(*) AS n FROM delivery_orders o WHERE o.user_id=? AND o.id IN (SELECT value FROM json_each(?))
+        AND o.status='WAITING_PAYMENT' AND o.student_deleted=0 AND NOT EXISTS(SELECT 1 FROM payments p WHERE p.order_id=o.id AND p.type='DELIVERY')`)
+        .bind(userId, ids).first<number>('n');
+      if (unchanged === orders.length) {
+        if (coupon) await couponForPayment(env, { id: userId }, orders.map((o, i) => ({ id: o.id, amountFen: left[i] })), choice);
+        for (const w of windows.values()) if (!orders[0].demo && await windowLoad(env, w.date, w.code) + w.n > await capacityFor(env, w.date, w.code)) {
+          throw new ApiError(409, 'SLOT_FULL', '这个时段刚刚约满了，请取消后重新下单，换一个时段或选择尽快送达');
+        }
+      }
+      throw new ApiError(409, 'PAYMENT_NOT_ALLOWED', '订单、优惠券或预约名额已变化，请刷新后重试');
+    }
+    throw error;
+  }
   if (coupon) await settleCoupon(env, coupon.redemptionId);
-  const paidIds = new Set((await env.DB.prepare(`SELECT order_id AS id FROM payments WHERE type='DELIVERY' AND order_id IN (SELECT value FROM json_each(?))`).bind(ids).all<{ id: string }>()).results.map(r => r.id));
+  const paidIds = new Set((await env.DB.prepare(`SELECT order_id AS id FROM payments WHERE type='DELIVERY' AND id IN (SELECT value FROM json_each(?))`).bind(paymentIdsJson).all<{ id: string }>()).results.map(r => r.id));
   if (!paidIds.size) {
     await env.DB.prepare("UPDATE delivery_orders SET bundle_discount_fen=0,rain_fen=0,rain_fee_fen=0 WHERE id IN (SELECT value FROM json_each(?)) AND status='WAITING_PAYMENT'").bind(ids).run();
     if (coupon && !await env.DB.prepare('SELECT 1 FROM coupon_redemptions WHERE id=?').bind(coupon.redemptionId).first()) throw new ApiError(409, 'COUPON_UNAVAILABLE', '这张优惠券刚刚被用掉了，请重新选择');

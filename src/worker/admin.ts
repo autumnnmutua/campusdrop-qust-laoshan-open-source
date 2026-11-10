@@ -53,10 +53,32 @@ export async function updateAdminScopes(env:Env,actor:Admin,id:string,role:Admin
     const found=await env.DB.prepare('SELECT zone FROM dorm_buildings WHERE code=? AND active=1 AND campus_id=?').bind(s.buildingCode,CAMPUS_ID).first<{zone:string}>();
     if(!found||(s.zone&&found.zone!==s.zone))throw new ApiError(400,'INVALID_SCOPE','授权楼栋与区域不匹配');
   }
-  try{await env.DB.batch([
-    env.DB.prepare('DELETE FROM admin_scopes WHERE admin_id=?').bind(id),
-    env.DB.prepare('UPDATE admin_users SET role=? WHERE id=?').bind(role,id),
-    ...scopes.map(s=>env.DB.prepare('INSERT INTO admin_scopes(id,admin_id,campus_id,zone,building_code) VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),id,CAMPUS_ID,s.zone,s.buildingCode)),
-    env.DB.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,resource_id) VALUES(?,'ADMIN',?,'ADMIN_SCOPE_CHANGED',?)").bind(crypto.randomUUID(),actor.id,id),
-  ]);}catch(error){if(String(error).includes('UNIQUE constraint'))throw new ApiError(400,'INVALID_SCOPE','授权范围重复');throw error;}
+  const auditId=crypto.randomUUID();
+  try{
+    // Evaluate the proposed role and scopes together with the update. An unfinished assigned task must stay visible
+    // to its assignee; doing a separate read before this transaction would race with a new claim or assignment.
+    const result=await env.DB.batch([
+      env.DB.prepare(`UPDATE admin_users SET role=? WHERE id=? AND NOT EXISTS (
+        SELECT 1 FROM (
+          SELECT o.campus_id,o.zone,o.dorm_building_code FROM delivery_batches b
+            JOIN batch_items bi ON bi.batch_id=b.id JOIN delivery_orders o ON o.id=bi.order_id
+            WHERE b.assignee_admin_id=? AND o.status NOT IN ('CANCELLED','COMPLETED','DELIVERED_DOWNSTAIRS','DELIVERED_TO_ROOM')
+          UNION ALL
+          SELECT campus_id,zone,dorm_building_code FROM send_requests
+            WHERE assignee_admin_id=? AND status IN ('WAITING_PICKUP','PICKED_UP')
+        ) task WHERE ? NOT IN ('SUPER_ADMIN','DELIVERY_STAFF') AND NOT EXISTS (
+          SELECT 1 FROM json_each(?) proposed
+          WHERE json_extract(proposed.value,'$.campusId')=task.campus_id
+            AND (json_extract(proposed.value,'$.zone') IS NULL OR json_extract(proposed.value,'$.zone')=task.zone)
+            AND (json_extract(proposed.value,'$.buildingCode') IS NULL OR json_extract(proposed.value,'$.buildingCode')=task.dorm_building_code)
+            AND (?='ZONE_ADMIN' OR json_extract(proposed.value,'$.buildingCode') IS NOT NULL)
+        )
+      )`).bind(role,id,id,id,role,JSON.stringify(scopes),role),
+      env.DB.prepare("INSERT INTO audit_logs(id,actor_type,actor_id,action,resource_id) SELECT ?,'ADMIN',?,'ADMIN_SCOPE_CHANGED',? WHERE changes()>0").bind(auditId,actor.id,id),
+      env.DB.prepare('DELETE FROM admin_scopes WHERE admin_id=? AND EXISTS(SELECT 1 FROM audit_logs WHERE id=?)').bind(id,auditId),
+      ...scopes.map(s=>env.DB.prepare('INSERT INTO admin_scopes(id,admin_id,campus_id,zone,building_code) SELECT ?,?,?,?,? WHERE EXISTS(SELECT 1 FROM audit_logs WHERE id=?)')
+        .bind(crypto.randomUUID(),id,CAMPUS_ID,s.zone,s.buildingCode,auditId)),
+    ]);
+    if(!result[0].meta.changes)throw new ApiError(409,'ADMIN_HAS_TASKS','新角色或授权范围无法处理已有任务，请先完成任务或保留相应权限');
+  }catch(error){if(String(error).includes('UNIQUE constraint'))throw new ApiError(400,'INVALID_SCOPE','授权范围重复');throw error;}
 }

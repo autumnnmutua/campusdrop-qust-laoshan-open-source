@@ -7,15 +7,15 @@ import { adminOrder,orderScope } from './order-access';
 import { ownOrder,serializeOrder } from './orders';
 import type { Handoff } from '../shared/delivery';
 
-export async function releaseOrder(env:Env,admin:Admin,id:string,version:number,reason:string){
+export async function releaseOrder(env:Env,admin:Admin,id:string,version:number,reason:string,expectedBatchId?:string){
   await requireContact(env,admin.id);
   const row=await adminOrder(env,admin,id);
   if(row.version!==version||!['WAITING_PICKUP','FAILED_PICKUP','DELIVERY_EXCEPTION'].includes(row.status))throw new ApiError(409,'INVALID_TRANSITION','订单状态已变化，无法退回市场');
   if(row.custodyState==='STAFF'||row.pendingHandoff)throw new ApiError(409,'HANDOFF_REQUIRED','已取件包裹需先归还原站点，并由另一位有权限的管理员核验');
   const scope=orderScope(admin);
   const result=await env.DB.prepare(`INSERT INTO order_releases(id,order_id,order_version,admin_id,reason)
-    SELECT ?,o.id,o.version,?,? FROM delivery_orders o WHERE o.id=? AND o.version=? AND o.student_deleted=0 AND o.student_cancelled=0 AND o.custody_state<>'STAFF' AND ${scope.sql}`)
-    .bind(crypto.randomUUID(),admin.id,reason,id,version,...scope.params).run();
+    SELECT ?,o.id,o.version,?,? FROM delivery_orders o WHERE o.id=? AND o.version=? AND o.student_deleted=0 AND o.student_cancelled=0 AND o.custody_state<>'STAFF' AND ${scope.sql}${expectedBatchId?' AND EXISTS(SELECT 1 FROM batch_items expected WHERE expected.order_id=o.id AND expected.batch_id=?)':''}`)
+    .bind(crypto.randomUUID(),admin.id,reason,id,version,...scope.params,...(expectedBatchId?[expectedBatchId]:[])).run();
   if(!result.meta.changes)throw new ApiError(409,'STALE_ORDER','订单已更新，请刷新');
   return {id,status:'WAITING_PICKUP' as const,version:row.version+1,released:true};
 }

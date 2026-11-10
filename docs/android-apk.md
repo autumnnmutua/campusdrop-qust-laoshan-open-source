@@ -5,7 +5,7 @@
 
 | 项 | 说明 |
 | --- | --- |
-| 包名 | `cn.campusdrop.app`（版本 4.5.0，versionCode 450） |
+| 包名 | `cn.campusdrop.app`（版本 4.6.0，versionCode 460） |
 | 最低系统 | Android 7.0（API 24）；按 Android 15（API 35）编译 |
 | 打开的网站 | 默认是 `wrangler.jsonc` 里的生产地址；构建时可用 `-PsiteUrl=https://你的域名` 换成别的地址 |
 | 权限 | 网络、网络状态、定位（只在配送员共享实时位置时询问） |
@@ -18,7 +18,7 @@ App 内的行为：
 - 返回键先在页面间后退，退到首页再退出。
 - 无法连接网站时显示“无法连接 CampusDrop”页，恢复网络或服务后点“重试”回到原来的页面。
 - 登录状态保存在 App 内（与手机浏览器分开），有效期与网页版相同（学生 12 小时、管理员 2 小时）。
-- 浏览器标识末尾带 `CampusDropApp/4.5.0`，以后需要时网站可以据此区分 App。
+- 浏览器标识末尾带 `CampusDropApp/4.6.0`，以后需要时网站可以据此区分 App。
 
 ## 方式一：GitHub Actions 自动构建（推荐，不需要在电脑上装 Android Studio）
 

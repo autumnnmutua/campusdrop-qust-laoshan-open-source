@@ -207,7 +207,9 @@ public class MainActivity extends Activity {
         @Override
         public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback) {
             if (!isSite(Uri.parse(origin))) { callback.invoke(origin, false, false); return; }
-            if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            // Android 12+ can grant approximate location without granting fine location.
+            if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                    || checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
                 callback.invoke(origin, true, false);
                 return;
             }

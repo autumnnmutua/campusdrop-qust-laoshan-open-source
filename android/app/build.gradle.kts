@@ -25,8 +25,8 @@ android {
         applicationId = "cn.campusdrop.app"
         minSdk = 24
         targetSdk = 35
-        versionCode = 450
-        versionName = "4.5.0"
+        versionCode = 460
+        versionName = "4.6.0"
         resValue("string", "site_url", siteUrl.trimEnd('/') + "/")
         manifestPlaceholders["siteHost"] = siteHost
     }

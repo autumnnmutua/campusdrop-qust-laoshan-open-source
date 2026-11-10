@@ -126,7 +126,7 @@ function localPlan(c: Ctx, message: string, forced: boolean): AgentPlan | null {
   if (!c.drafts.length) return { ...base, answer: `没能生成订单：${problems.join('；')}。`, drafts: [], steps: c.steps };
   const merged = c.drafts.filter(d => d.parcels.length > 1).length;
   const answer = [
-    `按“${message.trim().slice(0, 40)}”，我准备了 ${c.drafts.length} 个待确认的配送${merged ? `（同一站点的包裹已合并，一位配送员一次送达）` : ''}，合计 ${yuan(total)}。`,
+    `按“${message.trim().slice(0, 40)}”，我准备了 ${c.drafts.length} 个待确认的配送${merged ? `（同一站点的包裹已分组，通常一起送，特殊情况可能分批）` : ''}，合计 ${yuan(total)}。`,
     problems.length ? `另外：${problems.join('；')}。` : '',
     '核对后点“确认下单”，再到支付页完成模拟支付；不合适可以点“修改”。',
   ].filter(Boolean).join('\n');
@@ -206,7 +206,7 @@ async function modelPlan(c: Ctx, system: string, history: { role: 'user' | 'assi
   throw new Error('no answer after tool rounds');
 }
 export const AGENT_RULES = [
-  '你可以帮同学“安排配送”：先调用 list_waiting_parcels 和 list_open_slots 查清楚，再调用 draft_delivery 生成草稿。同一站点的多件包裹优先合并成一个配送；同学没说时间就是尽快送达，没说送到哪里就是楼下。',
+  '你可以帮同学“安排配送”：先调用 list_waiting_parcels 和 list_open_slots 查清楚，再调用 draft_delivery 生成草稿。同一站点的多件包裹优先合并配送，每组最多 6 件，超出时分组；同学没说时间就是尽快送达，没说送到哪里就是楼下。',
   '草稿不是订单：生成后告诉同学核对并点“确认下单”，然后去支付页完成模拟支付。绝不能说“已下单”“已付款”。',
   '同学只是问问题（费用、规则、进度）时直接回答，不要生成草稿。',
 ];

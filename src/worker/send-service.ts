@@ -36,13 +36,17 @@ const shape = (r: SendRequest) => ({ ...r, hasAssignee: Boolean(r.hasAssignee) }
 
 /** Which send requests an admin may see: same building/zone rules as orders; couriers see the open pool and their own. */
 function sendScope(admin: Admin): { sql: string; params: string[] } {
-  // The demo's super admin (v3.7.1) sees no send requests: demo students cannot book them, and real ones are not its business.
-  if (admin.role === 'SUPER_ADMIN') return admin.demo ? { sql: '0', params: [] } : { sql: 's.campus_id=?', params: [CAMPUS_ID] };
-  if (admin.role === 'DELIVERY_STAFF') return { sql: "s.campus_id=? AND (s.assignee_admin_id=? OR (s.assignee_admin_id IS NULL AND s.status='WAITING_PICKUP'))", params: [CAMPUS_ID, admin.id] };
+  // Demo students cannot book sends. No demo role may see or act on real requests.
+  if (admin.demo) return { sql: '0', params: [] };
+  // Recheck the current role, status and demo membership inside each read or write.
+  const current = "EXISTS(SELECT 1 FROM admin_users current_admin WHERE current_admin.id=? AND current_admin.status='ACTIVE' AND current_admin.role=? AND current_admin.demo_group IS NULL)";
+  const actor = [admin.id, admin.role];
+  if (admin.role === 'SUPER_ADMIN') return { sql: `${current} AND s.campus_id=?`, params: [...actor, CAMPUS_ID] };
+  if (admin.role === 'DELIVERY_STAFF') return { sql: `${current} AND s.campus_id=? AND (s.assignee_admin_id=? OR (s.assignee_admin_id IS NULL AND s.status='WAITING_PICKUP'))`, params: [...actor, CAMPUS_ID, admin.id] };
   return {
-    sql: `s.campus_id=? AND EXISTS(SELECT 1 FROM admin_scopes sc WHERE sc.admin_id=? AND sc.campus_id=s.campus_id AND (sc.zone IS NULL OR sc.zone=s.zone)
+    sql: `${current} AND s.campus_id=? AND EXISTS(SELECT 1 FROM admin_scopes sc WHERE sc.admin_id=? AND sc.campus_id=s.campus_id AND (sc.zone IS NULL OR sc.zone=s.zone)
       AND (sc.building_code IS NULL OR sc.building_code=s.dorm_building_code) AND (?='ZONE_ADMIN' OR sc.building_code IS NOT NULL))`,
-    params: [CAMPUS_ID, admin.id, admin.role],
+    params: [...actor, CAMPUS_ID, admin.id, admin.role],
   };
 }
 async function ownSend(env: Env, userId: string, id: string): Promise<SendRequest> {
@@ -123,7 +127,7 @@ export async function sendRoutes(request: Request, env: Env): Promise<Response |
       const rows = (await env.DB.prepare(`SELECT ${adminColumns} FROM send_requests s WHERE ${group} AND ${scope.sql} ORDER BY s.slot_date,s.slot_code,s.created_at LIMIT 100`)
         .bind(...scope.params).all<SendRequest>()).results;
       // Before a courier takes the job, the pool shows the building and window only — no name, phone or room.
-      return json({ sends: rows.map(r => (r.hasAssignee || admin.role !== 'DELIVERY_STAFF' ? shape(r) : { ...shape(r), studentName: '', studentPhone: '', roomNo: '' })) });
+      return json({ sends: rows.map(r => (r.hasAssignee || admin.role !== 'DELIVERY_STAFF' ? shape(r) : { ...shape(r), studentName: '', studentPhone: '', roomNo: '', note: '' })) });
     }
     const match = /^\/admin\/sends\/([a-f0-9-]{36})\/(claim|pickup|drop|cancel)$/.exec(path);
     if (match && method === 'POST') {
@@ -132,26 +136,26 @@ export async function sendRoutes(request: Request, env: Env): Promise<Response |
       const mine = row.assigneeId === admin.id;
       if (match[2] === 'claim') {
         const data = await body(request, sendActionSchema);
-        const result = await env.DB.prepare("UPDATE send_requests SET assignee_admin_id=?,version=version+1,updated_at=unixepoch() WHERE id=? AND version=? AND status='WAITING_PICKUP' AND assignee_admin_id IS NULL")
-          .bind(admin.id, id, data.version).run();
+        const result = await env.DB.prepare(`UPDATE send_requests AS s SET assignee_admin_id=?,version=version+1,updated_at=unixepoch() WHERE id=? AND version=? AND status='WAITING_PICKUP' AND assignee_admin_id IS NULL AND ${scope.sql}`)
+          .bind(admin.id, id, data.version, ...scope.params).run();
         if (!result.meta.changes) throw new ApiError(409, 'CLAIM_UNAVAILABLE', '这单寄件已被接走或已变化，请刷新');
       } else if (match[2] === 'pickup') {
         const data = await body(request, sendActionSchema);
         if (!mine) throw new ApiError(403, 'FORBIDDEN', '请先接单');
-        const result = await env.DB.prepare("UPDATE send_requests SET status='PICKED_UP',picked_at=unixepoch(),version=version+1,updated_at=unixepoch() WHERE id=? AND version=? AND assignee_admin_id=? AND status='WAITING_PICKUP'")
-          .bind(id, data.version, admin.id).run();
+        const result = await env.DB.prepare(`UPDATE send_requests AS s SET status='PICKED_UP',picked_at=unixepoch(),version=version+1,updated_at=unixepoch() WHERE id=? AND version=? AND assignee_admin_id=? AND status='WAITING_PICKUP' AND ${scope.sql}`)
+          .bind(id, data.version, admin.id, ...scope.params).run();
         if (!result.meta.changes) throw new ApiError(409, 'STALE_ORDER', '寄件状态已变化，请刷新');
       } else if (match[2] === 'drop') {
         const data = await body(request, sendDropSchema);
         if (!mine) throw new ApiError(403, 'FORBIDDEN', '请先接单');
-        const result = await env.DB.prepare("UPDATE send_requests SET status='DROPPED',dropped_at=unixepoch(),tracking_no=?,version=version+1,updated_at=unixepoch() WHERE id=? AND version=? AND assignee_admin_id=? AND status='PICKED_UP'")
-          .bind(data.trackingNo, id, data.version, admin.id).run();
+        const result = await env.DB.prepare(`UPDATE send_requests AS s SET status='DROPPED',dropped_at=unixepoch(),tracking_no=?,version=version+1,updated_at=unixepoch() WHERE id=? AND version=? AND assignee_admin_id=? AND status='PICKED_UP' AND ${scope.sql}`)
+          .bind(data.trackingNo, id, data.version, admin.id, ...scope.params).run();
         if (!result.meta.changes) throw new ApiError(409, 'STALE_ORDER', '寄件状态已变化，请刷新');
       } else {
         const data = await body(request, sendCancelSchema);
         if (!mine && admin.role === 'DELIVERY_STAFF') throw new ApiError(403, 'FORBIDDEN', '只能取消自己接的寄件');
-        const result = await env.DB.prepare("UPDATE send_requests SET status='CANCELLED',refunded_fen=amount_fen,cancel_reason=?,version=version+1,updated_at=unixepoch() WHERE id=? AND version=? AND status IN ('WAITING_PICKUP','PICKED_UP')")
-          .bind(data.reason, id, data.version).run();
+        const result = await env.DB.prepare(`UPDATE send_requests AS s SET status='CANCELLED',refunded_fen=amount_fen,cancel_reason=?,version=version+1,updated_at=unixepoch() WHERE id=? AND version=? AND status IN ('WAITING_PICKUP','PICKED_UP') AND ${scope.sql}`)
+          .bind(data.reason, id, data.version, ...scope.params).run();
         if (!result.meta.changes) throw new ApiError(409, 'STALE_ORDER', '寄件状态已变化，请刷新');
       }
       await announce(env, id);

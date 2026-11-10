@@ -55,6 +55,24 @@ export function orderInsert(env: Env, id: string, p: OrderPlan): D1PreparedState
       p.parcel.note, p.code, p.slot?.date ?? null, p.slot?.code ?? null, p.dropPlace ?? null, p.groupId ?? null, p.ruleId ?? null, p.checkoutId ?? null, p.user.id, p.parcel.id, p.user.id,
       p.slot?.date ?? null, p.slot?.date ?? null, p.slot?.code ?? null, p.capacity);
 }
+/** Commit a set of conditional inserts only when every order was actually created. */
+export async function commitOrderSet(env: Env, statements: D1PreparedStatement[], ids: string[], slot: { date: string; code: SlotCode } | undefined, capacity: number): Promise<void> {
+  // D1 batches are transactional. If any conditional order insert was skipped, the invalid payment
+  // invokes payment_guard and rolls back the entire batch before another request can see partial orders.
+  const guard = env.DB.prepare(`INSERT INTO payments(id,order_id,type,provider,amount_fen,status,idempotency_key)
+    SELECT ?,NULL,'DELIVERY','MOCK',0,'SUCCEEDED','order_set_guard'
+    WHERE (SELECT count(*) FROM delivery_orders WHERE id IN (SELECT value FROM json_each(?)))<>?`)
+    .bind(crypto.randomUUID(), JSON.stringify(ids), ids.length);
+  try { await env.DB.batch([...statements, guard]); }
+  catch (error) {
+    if (String(error).includes('PAYMENT_ORDER_INVALID')) {
+      if (slot && await windowLoad(env, slot.date, slot.code) >= capacity) throw new ApiError(409, 'SLOT_FULL', '这个时段刚刚约满了，请换一个时段，或选择尽快送达');
+      throw new ApiError(409, 'PARCEL_CLOSED', '所选包裹的状态已更新，请刷新后重新选择');
+    }
+    if (String(error).includes('UNIQUE constraint')) throw new ApiError(409, 'ORDER_EXISTS', '所选包裹中有已经下单的，请刷新后重新选择');
+    throw error;
+  }
+}
 /** Checks shared by every way of creating an order; returns what the INSERT needs (except the parcel). */
 export async function orderPrerequisites(env: Env, user: Student, mode: DeliveryMode, slot?: { date: string; code: SlotCode }, dropPlace?: DropPlace) {
   // A demo (v3.6) never reaches real couriers, so a paused service does not stop it.

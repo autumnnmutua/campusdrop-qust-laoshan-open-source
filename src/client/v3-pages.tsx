@@ -20,7 +20,7 @@ import { DROP_PLACES, DROP_PLACE_LABELS, type DropPlace } from '../shared/campus
 import { CHECKOUT_MAX_PARCELS, DEFAULT_BUNDLE, bundleDiscount, sortedTiers, tierLabel, tierLabelEn, type BundleSetting, type BundleTier, type CheckoutDetail } from '../shared/bundle';
 import type { DeliveryMode, Order, Parcel, Station } from '../shared/delivery';
 import { sizeLabel } from '../shared/delivery';
-import { RULES_PER_STUDENT, RULE_LEAD_HOURS, WEEKDAY_LABELS, weekdayText, type DeliveryRule, type OrderGroup } from '../shared/v3';
+import { GROUP_MAX_PARCELS, RULES_PER_STUDENT, RULE_LEAD_HOURS, WEEKDAY_LABELS, weekdayText, type DeliveryRule, type OrderGroup } from '../shared/v3';
 
 /*
  * v3.0 student pages, loaded on demand: 合并配送 (choose parcels → one order set), the merged delivery page (pay all,
@@ -80,7 +80,7 @@ export function MergeOrder() {
   </>;
   return <section className="merge-page multi-order"><Link className="back-link" to="/">{t('← 我的包裹')}</Link>
     <div className="multi-head"><div><p className="eyebrow">{t('多件下单')}</p><h1>{t('几件包裹，一次搞定')}</h1>
-      <p className="muted">{t('勾选要一起送的包裹，大件小件、不同站点都可以；每件可以单独选择送到楼下、寝室或约定地点。一次支付，同一站点送往同一处的会合并成一趟。')}</p></div>
+      <p className="muted">{t('勾选要一起送的包裹，大件小件、不同站点都可以；每件可单独选择送达地点。同一站点送往同一处的包裹按每组最多 {0} 件分组，同组通常一起送，特殊情况可能分批。', { 0: GROUP_MAX_PARCELS })}</p></div>
       <BundleTiers setting={bundle} reached={b.tier}/></div>
     <Notice error={error} unauthorized={unauthorized}/>{loading && !data && <LoadingState/>}
     {data && waiting.length === 0 && <EmptyState title={t('现在没有可以下单的包裹')} icon="box"><p>{t('登记包裹后，就可以在这里一次选好几件。')}</p><Link className="button secondary" to="/parcel/new">{t('登记包裹 →')}</Link></EmptyState>}
@@ -143,8 +143,8 @@ export function BatchCheckout() {
     <Notice error={error} unauthorized={unauthorized}/>{loading && !data && <LoadingState/>}
     {c && <>
       <div className="group-sheet">
-        <div className="group-sheet-head"><span className="merge-stack" aria-hidden="true"><i/><i/><i/></span><div><strong>{t('{0} 件包裹 · 分 {1} 趟送达', { 0: live.length, 1: c.trips.length })}</strong><small>{t('同一站点送往同一处的包裹合并成一趟；所有包裹共用一个收货码')}</small></div><p className="price">{money(c.totalFen)}</p></div>
-        <ul className="trip-list">{c.trips.map((trip, i) => <li key={i}><span className="trip-from">{trip.stationName}</span><span className="trip-arrow" aria-hidden="true">→</span><span className="trip-to">{trip.dropPlace ? t(DROP_PLACE_LABELS[trip.dropPlace]) : `${trip.buildingName}${trip.mode === 'ROOM' ? t(' · 到寝') : t(' · 楼下')}`}</span><span className="badge">{trip.count > 1 ? t('合并 {0} 件', { 0: trip.count }) : t('1 件')}</span></li>)}</ul>
+        <div className="group-sheet-head"><span className="merge-stack" aria-hidden="true"><i/><i/><i/></span><div><strong>{t('{0} 件包裹 · {1} 个配送组', { 0: live.length, 1: c.trips.length })}</strong><small>{t('同站点、同目的地的包裹通常一起送；如分批配送，每批分别核验收货码')}</small></div><p className="price">{money(c.totalFen)}</p></div>
+        <ul className="trip-list">{c.trips.map((trip, i) => <li key={i}><span className="trip-from">{trip.stationName}</span><span className="trip-arrow" aria-hidden="true">→</span><span className="trip-to">{trip.dropPlace ? t(DROP_PLACE_LABELS[trip.dropPlace]) : `${trip.buildingName}${trip.mode === 'ROOM' ? t(' · 到寝') : t(' · 楼下')}`}</span><span className="badge">{trip.count > 1 ? t('同组 {0} 件', { 0: trip.count }) : t('1 件')}</span></li>)}</ul>
         <ol className="group-items">{c.orders.map(o => <li key={o.id} className={o.status === 'CANCELLED' ? 'is-cancelled' : undefined}>
           <span className="badge" data-status={o.status}>{t(STATUS_LABELS[o.status])}</span>
           <span>{t(sizeLabel(o.packageSize))} · {o.stationSnapshot.canonicalName} → {where(o)}{o.slotDate && o.slotCode ? ` · ${o.slotDate.slice(5)} ${t(slotByCode(o.slotCode).label)}` : ''}</span>
@@ -157,7 +157,7 @@ export function BatchCheckout() {
         {c.bundleFen > 0 && <div><dt>{t('多件满减')}</dt><dd>-{money(c.bundleFen)}</dd></div>}{c.couponFen > 0 && <div><dt>{t('优惠券')}</dt><dd>-{money(c.couponFen)}</dd></div>}{(c.rainFen ?? 0) > 0 && <div><dt>{t('雨天配送费')}</dt><dd>+{money(c.rainFen ?? 0)}</dd></div>}
         <div className="is-pay"><dt>{t('实付（模拟）')}</dt><dd>{money(c.paidFen)}</dd></div></dl>}
       {c.unpaidCount > 0 ? <div className="actions"><MockPaymentDialog amount={c.unpaidFen - bundleFen - (coupon?.discountFen ?? 0) + rainFen} busy={busy} onPay={pay}/><button type="button" className="secondary" disabled={busy} onClick={() => void cancel()}>{t('取消未支付的 {0} 件', { 0: c.unpaidCount })}</button></div>
-        : live.length > 0 && <p className="success">{t('已全部支付（模拟），配送员接单后会按趟取件、送达；单件取消会退回这件实际支付的金额。')}</p>}
+        : live.length > 0 && <p className="success">{t('已全部支付（模拟）；分开付款或配送安排变化时可能分批送达。单件取消会退回这件实际支付的金额。')}</p>}
       <p role="alert">{message}</p>
       <WeatherNotice/>
     </>}
@@ -186,7 +186,7 @@ export function GroupCheckout() {
     {g && <>
       {g.origin === 'RULE' && <p className="rule-note"><SymbolIcon name="bell"/>{t('这单由“常用配送”规则自动生成；不需要的话取消即可，不影响规则。')} <Link to="/rules">{t('管理规则 ›')}</Link></p>}
       <div className="group-sheet">
-        <div className="group-sheet-head"><span className="merge-stack" aria-hidden="true"><i/><i/><i/></span><div><strong>{t('{0} 件包裹 · 一次送达', { 0: live.length })}</strong><small>{t('收货码相同：配送员核验一次，全部签收')}</small></div><p className="price">{money(g.totalFen)}</p></div>
+        <div className="group-sheet-head"><span className="merge-stack" aria-hidden="true"><i/><i/><i/></span><div><strong>{t('{0} 件包裹 · 合并配送', { 0: live.length })}</strong><small>{t('通常一起送达；如分批配送，每批分别核验收货码')}</small></div><p className="price">{money(g.totalFen)}</p></div>
         <ol className="group-items">{g.orders.map(o => <li key={o.id} className={o.status === 'CANCELLED' ? 'is-cancelled' : undefined}>
           <span className="badge" data-status={o.status}>{t(STATUS_LABELS[o.status])}</span>
           <span>{t(sizeLabel(o.packageSize))} · {o.dropPlace ? t(DROP_PLACE_LABELS[o.dropPlace]) : `${o.dormSnapshot.buildingName}${o.deliveryMode === 'ROOM' ? t(' · 到寝') : t(' · 楼下')}`}{o.slotDate && o.slotCode ? ` · ${o.slotDate.slice(5)} ${t(slotByCode(o.slotCode).label)}` : ''}</span>
@@ -196,7 +196,7 @@ export function GroupCheckout() {
       {g.unpaidCount > 0 && <><CouponPicker groupId={g.id} amountFen={g.unpaidFen} onChange={setCoupon} onBundle={setBundleFen} onRain={setRainFen}/><CouponTotal amountFen={g.unpaidFen} choice={coupon} bundleFen={bundleFen} rainFen={rainFen}/></>}
       {!g.unpaidCount && ((g.discountFen ?? 0) > 0 || (g.bundleFen ?? 0) > 0 || (g.rainFen ?? 0) > 0) && <p className="muted">{t('已优惠 {0}，实付 {1}', { 0: money((g.discountFen ?? 0) + (g.bundleFen ?? 0)), 1: money(g.totalFen - (g.discountFen ?? 0) - (g.bundleFen ?? 0) + (g.rainFen ?? 0)) })}</p>}
       {g.unpaidCount > 0 ? <div className="actions"><MockPaymentDialog amount={g.unpaidFen - bundleFen - (coupon?.discountFen ?? 0) + rainFen} busy={busy} onPay={pay}/><button type="button" className="secondary" disabled={busy} onClick={() => void cancel()}>{t('取消未支付的 {0} 件', { 0: g.unpaidCount })}</button></div>
-        : live.length > 0 && <p className="success">{t('已全部支付（模拟），配送员接单后会一起取件、一起送达。')}</p>}
+        : live.length > 0 && <p className="success">{t('已全部支付（模拟）；分开付款或配送安排变化时可能分批送达。')}</p>}
       <p role="alert">{message}</p>
       <WeatherNotice/>
     </>}

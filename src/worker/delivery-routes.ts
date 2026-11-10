@@ -117,7 +117,7 @@ export async function deliveryRoutes(request:Request,env:Env):Promise<Response|n
       const data=await body(request,batchSchema);return json(await createBatch(env,admin,data.orderIds,data.assigneeAdminId),201);
     }
     if(path==='/admin/batches'&&method==='GET')return json({batches:await listBatches(env,admin)});
-    const batchMatch=/^\/admin\/batches\/([a-f0-9-]{36})(?:\/(status))?$/.exec(path);
+    const batchMatch=/^\/admin\/batches\/((?:auto-(?:m-|p-)?)?[a-f0-9-]{36})(?:\/(status))?$/.exec(path);
     if(batchMatch&&method==='GET'&&!batchMatch[2])return json({orders:(await batchOrders(env,admin,batchMatch[1])).map(serializeOrder)});
     if(batchMatch&&method==='PATCH'&&batchMatch[2]==='status'){
       const data=await body(request,batchTransitionSchema);

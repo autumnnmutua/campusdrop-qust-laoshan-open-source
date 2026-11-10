@@ -1,6 +1,6 @@
 /* © 2026 专业团队 · CampusDrop v4.5.0 */
 import {errorText,t} from './i18n';
-export class RequestError extends Error {constructor(message:string,public requestId?:string,public status?:number){super(message);}}
+export class RequestError extends Error {constructor(message:string,public requestId?:string,public status?:number,public code?:string){super(message);}}
 export async function api<T>(path:string,method='GET',data?:unknown):Promise<T>{
  const readOnly=method==='GET'||method==='HEAD';
  for(let attempt=0;attempt<(readOnly?3:1);attempt++){
@@ -14,7 +14,7 @@ export async function api<T>(path:string,method='GET',data?:unknown):Promise<T>{
    if(!(response.headers.get('content-type')??'').includes('application/json'))throw new RequestError(response.status===404?t('业务服务尚未接通，请联系管理员检查 /api 路由。'):t('网络或业务网关暂时不可用，请稍后刷新查询操作结果。'),requestId);
    let result:{error?:{code?:string;message?:string;requestId?:string}};
    try{result=await response.json();}catch{throw new RequestError(t('服务响应不完整，请刷新查询操作结果。'),requestId);}
-   if(!response.ok){const id=result.error?.requestId??requestId;throw new RequestError(errorText(result.error?.code,result.error?.message??t('请求失败，请稍后重试'))+(id?t('（问题编号：{0}）',{0:id}):''),id,response.status);}
+   if(!response.ok){const id=result.error?.requestId??requestId;throw new RequestError(errorText(result.error?.code,result.error?.message??t('请求失败，请稍后重试'))+(id?t('（问题编号：{0}）',{0:id}):''),id,response.status,result.error?.code);}
    return result as T;
   }finally{clearTimeout(timeout);}
  }

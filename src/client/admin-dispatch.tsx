@@ -27,7 +27,7 @@ export function AdminDispatch(){
   const planChanges=data?(data.buildings.filter(b=>(data.plan.assignments[b.code]??null)!==b.adminId)):[];
   async function save(list:{buildingCode:string;adminId:string|null}[],done:string){
     if(!list.length)return;setBusy(true);
-    try{const r=await api<DispatchOverview&{moved:number}>('/admin/dispatch','PUT',{assignments:list,moveWaiting});toast(done,'success',r.moved?`已有 ${r.moved} 单待取件的小件一并转给新负责人`:'之后付款的小件按新分配派单');setPreview(false);await res.refresh();}
+    try{const r=await api<DispatchOverview&{moved:number;skipped:number}>('/admin/dispatch','PUT',{assignments:list,moveWaiting});const detail=r.moved?`已有 ${r.moved} 单待取件的小件一并转给新负责人`:'之后付款的小件按新分配派单';toast(done,r.skipped?'warn':'success',r.skipped?`${detail}；${r.skipped} 单未转交，请核对订单状态`:detail);setPreview(false);await res.refresh();}
     catch(err){toast((err as Error).message,'warn');}finally{setBusy(false);}
   }
   const counts=new Map<string,{n:number;work:number}>();
