@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-B8E195769C */
 import { DurableObject } from 'cloudflare:workers';
 import type { Env } from './types';
 import type { LiveEvent } from '../shared/live';

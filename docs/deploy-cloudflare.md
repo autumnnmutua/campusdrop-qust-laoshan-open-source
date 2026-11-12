@@ -2,8 +2,8 @@
 
 1. 使用 Node.js 22.12以上或24，执行 `npm install --include=dev`。
 2. 使用自己的Cloudflare账户登录Wrangler，创建D1数据库。
-3. 在wrangler.jsonc的production环境填入数据库ID及实际APP_ORIGIN；当前值为公开占位配置，不能直接发布。
-4. 执行 `npm run db:migrate:production` 应用迁移。首次部署初始化空库，已有数据则先备份。从 v1.x 升级到 v2.0 需要应用新增的 `0009_engagement.sql`（只新建表，不修改已有数据）。升级到 v2.6 必须应用 `0010_live_campus.sql`（新增列、表和触发器），否则新版订单查询会失败。升级到 v2.7 必须应用 `0011_campus_operations.sql`（新增列、表、索引和触发器，并重建站内消息触发器），否则下单和订单查询会失败。
+3. `wrangler.jsonc` 的 production 环境指向项目现有站点和数据库标识；部署到其他账户或站点前，须改成自己的 Worker 名称、数据库 ID 和 `APP_ORIGIN`。标识不是登录凭据，密钥需单独保密配置。
+4. 先列出并按顺序应用全部待处理迁移（`npm run db:migrate:production`）。首次部署初始化空库；已有数据须先备份，并在副本上核查迁移影响。从 v4.5 升级须执行 0020 至 0024，其中 0021 会清理已注销学生账号关联的部分自由文字和送达照片，详情见 `CHANGELOG.md`。从已完成全部迁移的 v4.6.1 升级到 v4.7.0 不需要新增迁移。
 5. 执行 `npm run deploy` 构建并部署；Worker名称必须与配置一致。
 
 使用本地环境时执行 `npm run db:migrate`、`npm run dev`。开发数据库与生产数据库隔离。

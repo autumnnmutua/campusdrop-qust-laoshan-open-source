@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-2D7E072B7D */
 import type { Env } from './types';
 import type { Admin } from '../shared/contracts';
 import { CAMPUS_ID } from '../shared/constants';

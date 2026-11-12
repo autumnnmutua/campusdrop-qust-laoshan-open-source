@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-476BDF8BEC */
 /* ref V00tREZFRTk0REM5MTM4NzdDRjoxMmM4YzQxZDJjMDVmNTVkNmIyN2MxZGNiOWI2NDJkMg */
 /**
  * Plain values shared by the worker and the client. This module stays free of zod so the client's first-load bundle can

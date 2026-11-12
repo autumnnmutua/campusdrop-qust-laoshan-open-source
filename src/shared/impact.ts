@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-D7F840D20D */
 /** v3.6 · 成效看板: what the service has done for students, from real (non-demo) delivered orders. */
 export interface ImpactWindow {
   /** Delivered orders (one per parcel). */

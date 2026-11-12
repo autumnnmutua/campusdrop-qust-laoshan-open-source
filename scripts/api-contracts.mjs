@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-B696A48CCB */
 import {ticketCreate,ticketReply,ticketState,bulkCodes} from '../src/shared/support.ts';
 import {z} from 'zod';
 import {announcementCreate,announcementArchive,ratingCreate} from '../src/shared/engagement.ts';

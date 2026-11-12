@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-B34F82C8FC */
 /*
  * v3.7 · one-click demo data plan. Pure functions (unit-tested): who lives where, and which orders the demo starts with —
  * finished deliveries of the session's own couriers (for 结算, 月报, 准时率 and the forecast) plus a realistic current

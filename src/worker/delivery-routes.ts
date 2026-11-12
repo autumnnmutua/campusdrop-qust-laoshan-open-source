@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-FD73D30557 */
 import {bulkCodes} from '../shared/support';
 import {cursorPage,cursorResult} from './pagination';
 import { handoffHistory,reviseHandoff,rejectHandoff,cancelStudentOrder,hideStudentOrder,refundStatus,releaseOrder,handoffs,requestHandoff,confirmHandoff } from './order-operations';
@@ -125,9 +125,9 @@ export async function deliveryRoutes(request:Request,env:Env):Promise<Response|n
     }
     if(path==='/admin/audit'&&method==='GET'){
       requireSuperView(admin);
-      if(admin.demo)return json({logs:(await env.DB.prepare(`SELECT id,actor_type AS actorType,actor_id AS actorId,action,resource_id AS resourceId,metadata_redacted AS metadata,created_at AS createdAt FROM audit_logs
+      if(admin.demo)return json({logs:(await env.DB.prepare(`SELECT id,actor_type AS actorType,actor_id AS actorId,CASE WHEN actor_type='ADMIN' THEN (SELECT username FROM admin_users WHERE admin_users.id=audit_logs.actor_id) END AS actorName,action,resource_id AS resourceId,metadata_redacted AS metadata,created_at AS createdAt FROM audit_logs
         WHERE actor_id IN (SELECT id FROM admin_users WHERE demo_group=?1 UNION ALL SELECT id FROM users WHERE demo_group=?1) ORDER BY created_at DESC,rowid DESC LIMIT 100`).bind(await env.DB.prepare('SELECT demo_group AS g FROM admin_users WHERE id=?').bind(admin.id).first<string>('g')).all()).results});
-      return json({logs:(await env.DB.prepare('SELECT id,actor_type AS actorType,actor_id AS actorId,action,resource_id AS resourceId,metadata_redacted AS metadata,created_at AS createdAt FROM audit_logs ORDER BY created_at DESC,rowid DESC LIMIT 100').all()).results});
+      return json({logs:(await env.DB.prepare(`SELECT id,actor_type AS actorType,actor_id AS actorId,CASE WHEN actor_type='ADMIN' THEN (SELECT username FROM admin_users WHERE admin_users.id=audit_logs.actor_id) END AS actorName,action,resource_id AS resourceId,metadata_redacted AS metadata,created_at AS createdAt FROM audit_logs ORDER BY created_at DESC,rowid DESC LIMIT 100`).all()).results});
     }
   }
   return null;

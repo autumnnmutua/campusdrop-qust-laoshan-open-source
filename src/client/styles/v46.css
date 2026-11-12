@@ -43,8 +43,8 @@ main > section > .row:first-child, .inbox-page > .row, .ticket-list > .row, .tic
   .action-bar > button:not(.text-button), .action-bar > .button { min-width: 132px; min-height: 46px; }
   .action-bar > .text-button { flex: none; padding-inline: 4px; }
   .action-bar button { white-space: nowrap; }
-  /* the assistant button steps aside when a page has an action bar */
-  body:has(.action-bar) .assistant-launcher { bottom: calc(var(--tabs-h) + 84px + env(safe-area-inset-bottom, 0px)); }
+  /* Keep the entire action bar unobstructed as it moves with the page. */
+  body:has(.action-bar) .assistant-launcher { display: none; }
 }
 
 /* ---------- home ---------- */

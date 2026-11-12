@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-4D77D489D2 */
 import { z } from 'zod';
 
 /** v3.6 one-click demo (一键体验). */

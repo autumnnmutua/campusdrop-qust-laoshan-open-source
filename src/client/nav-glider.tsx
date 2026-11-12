@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-516A91CF4F */
 import {useLayoutEffect,useRef} from 'react';
 import {useLocation} from 'react-router-dom';
 

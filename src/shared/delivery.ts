@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-88C33F2C68 */
 import { z } from 'zod';
 import { CARRIERS,ORDER_STATUSES,pickupCodeRegex } from './constants.ts';
 import { SLOT_CODES,type SlotCode } from './slots.ts';

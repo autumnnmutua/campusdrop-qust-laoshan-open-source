@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-316838669E */
 import dialogPolyfill from 'dialog-polyfill';
 import { inWeChat } from './wechat';
 import {useEffect,useId,useRef,useState} from 'react';

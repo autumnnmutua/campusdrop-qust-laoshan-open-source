@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-3827D4689F */
 import type { z } from 'zod';
 import { CAMPUS_ID, type Admin, type Building, createAdminSchema, type Scope, type AdminRole } from '../shared/contracts';
 import { hashPassword } from '../domain/password';

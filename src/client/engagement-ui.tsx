@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-B305AA7FB6 */
 import {getLang,locale,t} from './i18n';
 import {FAQ_EN} from './faq-en';
 import dialogPolyfill from 'dialog-polyfill';

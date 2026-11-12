@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-B7214D19FE */
 import {useCallback,useEffect,useId,useRef,useState,type FormEvent} from 'react';
 import {Link,useLocation,useNavigate} from 'react-router-dom';
 import dialogPolyfill from 'dialog-polyfill';

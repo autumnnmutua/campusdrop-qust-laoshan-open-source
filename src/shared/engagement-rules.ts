@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-E128A48CDB */
 /** Engagement rules and labels without zod, so the client can use them from its first-load bundle. */
 import type { OrderStatus } from './delivery';
 

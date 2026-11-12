@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-7D53F4AC22 */
 import {useEffect,useRef} from 'react';
 import {isUnauthorized,useStudentSession} from './session';
 import type {OrderStatus} from '../shared/delivery';

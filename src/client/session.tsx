@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-469FF11359 */
 import {createContext,useCallback,useContext,useEffect,useState,type ReactNode} from 'react';
 import {useLocation} from 'react-router-dom';
 import {api,RequestError} from './api';

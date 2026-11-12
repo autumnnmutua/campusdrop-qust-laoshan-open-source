@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-338ABFE2EC */
 import {useEffect,useState,type CSSProperties,type FormEvent} from 'react';
 import { WeatherPanel } from './v3-admin';
 import {Link,useSearchParams} from 'react-router-dom';

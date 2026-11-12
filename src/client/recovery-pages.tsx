@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-4B9F53D4A0 */
 import {locale,t} from './i18n';
 import {useState,type FormEvent} from 'react';
 import {Link} from 'react-router-dom';

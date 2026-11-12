@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-606A31C878 */
 import {useEffect,useRef,useState} from 'react';
 import {ChartArt} from '../chart-art';
 import {SeaChart,lookForTheme,type ChartViewport} from './renderer';

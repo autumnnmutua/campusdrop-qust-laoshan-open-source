@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-06C29E5DE5 */
 import {useEffect,useRef,useState,type FormEvent,type KeyboardEvent} from 'react';
 import {Link} from 'react-router-dom';
 import {api} from './api';

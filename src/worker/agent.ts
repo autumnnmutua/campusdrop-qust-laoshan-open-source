@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-39D76AD9C9 */
 import type { Env } from './types';
 import type { Student } from '../shared/contracts';
 import { body, json } from './http';

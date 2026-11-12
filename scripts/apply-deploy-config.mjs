@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-42CA49F56C */
 // CI-only: fill the production placeholders in wrangler.jsonc from environment variables, in the runner's working copy.
 // The committed template keeps its placeholders; release.mjs still refuses to publish if anything is left unset.
 import { readFileSync, writeFileSync } from 'node:fs';

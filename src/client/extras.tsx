@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-87AED0EC13 */
 import {THEME_LABELS,setThemeMode,type ThemeMode} from './theme';
 import { inWeChat } from './wechat';
 import {setLang,t} from './i18n';

@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-23F1F2C294 */
 /**
  * Laoshan campus on the official campus plan (官方校园平面图) plus the walking graph used for routes and ETAs.
  * Shared by the worker (ETA, GPS projection) and the client (drawing). Zod-free.

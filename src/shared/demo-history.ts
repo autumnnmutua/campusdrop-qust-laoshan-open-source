@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-E3C6A10A41 */
 /*
  * v3.8 · the one-click demo's shared test data (测试数据). A pure planner (unit-tested): given "now", the active
  * buildings and stations and a seed, it lays out a few weeks of finished test deliveries for the reports — students

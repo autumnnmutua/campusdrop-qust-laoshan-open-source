@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-E941F602AF */
 /* Dark appearance: the night chart. Applied as <html data-theme="dark"> by public/boot.js before the first paint and
    kept in sync by src/client/theme.ts ('auto' follows the system). Like a chart display in night mode the paper turns
    to deep water and the ink turns light; primary actions invert (light fill, dark text) and the route stays magenta.
@@ -89,5 +89,6 @@
 :root[data-theme=dark] .heatmap .cell[data-level="0"] { background: #18303a; }
 :root[data-theme=dark] .route-ants { stroke: #0c181dd0; }
 :root[data-theme=dark] .courier-name { stroke: #0c181d; }
+:root[data-theme=dark] .profile-head .profile-avatar { color: #1c1917; }
 }
 

@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-4D58EC9ACF */
 import {useEffect,useState} from 'react';
 import {Link,NavLink,useLocation,useNavigate} from 'react-router-dom';
 import {NavGlider} from './nav-glider';

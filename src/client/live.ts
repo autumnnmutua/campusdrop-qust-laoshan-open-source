@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-33D9669CB7 */
 import {useEffect,useRef,useSyncExternalStore} from 'react';
 import type {LiveEvent} from '../shared/live';
 

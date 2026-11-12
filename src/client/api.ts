@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-09A9A84247 */
 import {errorText,t} from './i18n';
 export class RequestError extends Error {constructor(message:string,public requestId?:string,public status?:number,public code?:string){super(message);}}
 export async function api<T>(path:string,method='GET',data?:unknown):Promise<T>{

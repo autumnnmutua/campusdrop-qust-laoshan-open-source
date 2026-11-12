@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-10F4518B62 */
 import {cursorPage,cursorResult} from './pagination';
 import {taskQuerySchema} from '../shared/delivery';
 import { upgradePriceFen } from '../domain/commerce';

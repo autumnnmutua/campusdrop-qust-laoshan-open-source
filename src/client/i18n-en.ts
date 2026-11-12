@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-89AB055FA9 */
 /** English text for the student pages, keyed by the Chinese original (see i18n.ts). Generated once from the wrapped strings; edit by hand. */
 export const EN:Record<string,string>={
  "首页":"Home",

@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-77396DAC14 */
 import {locale,t} from './i18n';
 import { copyText } from './wechat';
 import dialogPolyfill from 'dialog-polyfill';
@@ -23,8 +23,10 @@ export function ImagePlaceholder({ label, compact = false }: { label: string; co
 }
 
 export function PickupCodeInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  const id = useId(), invalid = value.length > 0 && !pickupCodeRegex.test(value.trim());
-  return <div><label htmlFor={id}>{t('取件码')}</label><input id={id} value={value} onChange={e => onChange(e.target.value)} placeholder="87-5-2739" required maxLength={20} autoComplete="off" spellCheck={false} aria-invalid={invalid} aria-describedby={`${id}-help`} className="code-input" />
+  // v4.7: a code that is still being typed (a valid beginning such as "26-4-") is not an error yet; it becomes one on blur.
+  const id = useId(), [touched, setTouched] = useState(false), v = value.trim();
+  const invalid = v.length > 0 && !pickupCodeRegex.test(v) && (touched || !/^\d{1,3}(?:-(?:\d(?:-\d{0,4})?)?)?$/.test(v));
+  return <div><label htmlFor={id}>{t('取件码')}</label><input id={id} value={value} onChange={e => { setTouched(false); onChange(e.target.value); }} onBlur={() => setTouched(true)} placeholder="87-5-2739" required maxLength={20} autoComplete="off" spellCheck={false} aria-invalid={invalid} aria-describedby={`${id}-help`} className="code-input" />
     <small id={`${id}-help`}>{t('第一段 1–3 位数字，第二段 1 位，最后一段 4 位。')}</small>{invalid && <p role="alert">{t('取件码格式不正确，例如 107-2-6382')}</p>}</div>;
 }
 
@@ -65,7 +67,7 @@ export function PriceSummary({ amount }: { amount: number | null }) {
 export function OrderTimeline({ events }: { events: OrderEvent[] }) {
   // Events present at first render are history; only ones arriving later (live refresh) animate in.
   const [initialIds] = useState(() => new Set(events.map(e => e.id)));
-  return <ol className="timeline" aria-label={t('配送时间线')}>{events.map((e, index) => <li key={e.id} className={initialIds.has(e.id) ? undefined : 'just-advanced'} aria-current={index === events.length - 1 ? 'step' : undefined}><strong>{t(STATUS_LABELS[e.toStatus])}</strong>{e.detail&&<p>{e.detail}</p>}<time dateTime={new Date(e.createdAt * 1000).toISOString()}>{new Date(e.createdAt * 1000).toLocaleString(locale())}</time></li>)}</ol>;
+  return <ol className="timeline" aria-label={t('配送时间线')}>{events.map((e, index) => <li key={e.id} className={initialIds.has(e.id) ? undefined : 'just-advanced'} aria-current={index === events.length - 1 ? 'step' : undefined}><strong>{t(e.toStatus==='WAITING_PAYMENT'&&index<events.length-1?'已下单':STATUS_LABELS[e.toStatus])}</strong>{e.detail&&<p>{e.detail}</p>}<time dateTime={new Date(e.createdAt * 1000).toISOString()}>{new Date(e.createdAt * 1000).toLocaleString(locale())}</time></li>)}</ol>;
 }
 
 export function MockPaymentDialog({ amount, busy, onPay }: { amount: number; busy: boolean; onPay: () => Promise<void> }) {

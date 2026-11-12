@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-B79B463637 */
 import {RouteProgress} from './route-progress';
 import { copyText,inWeChat } from './wechat';
 import {Suspense,lazy,useCallback,useEffect,useId,useMemo,useState} from 'react';

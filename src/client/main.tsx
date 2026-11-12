@@ -1,4 +1,4 @@
-/*! © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-6550D00026 */
 import './zod-config';
 import { CouponWallet } from './coupons-ui';
 import {DemoBar,DemoStart,demoStarting} from './demo';

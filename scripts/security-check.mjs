@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-801649DCB9 */
 import { spawnSync } from 'node:child_process';
 import { readFileSync,existsSync,readdirSync,realpathSync } from 'node:fs';
 import { join } from 'node:path';

@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-2B9DB8FCD6 */
 import { z } from 'zod';
 import { DELIVERY_SLOTS, bookableDates, slotOpen, type SlotCode } from './slots.ts';
 import { DROP_PLACES, DROP_PLACE_LABELS, type DropPlace } from './campus-map.ts';

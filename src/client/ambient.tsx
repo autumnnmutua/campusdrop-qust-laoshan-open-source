@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-8E24B25D2E */
 import {useEffect,useRef,useSyncExternalStore} from 'react';
 import {getItem,setItem} from './storage';
 

@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-A721A27493 */
 import { z } from 'zod';
 import { CALIBRATION_LANDMARKS } from './campus-map.ts';
 import { SLOT_CODES } from './slots.ts';

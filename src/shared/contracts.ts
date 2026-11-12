@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-13F800AB80 */
 import { z } from 'zod';
 import { CAMPUS_ID } from './constants.ts';
 export { CAMPUS_ID };

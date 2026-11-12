@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-7120DA8ABA */
 /* ref V00tREZFRTk0REM5MTM4NzdDRjozYzNhMmFmOThjMDgyZGY0OWQ2YjRlMjZiZGEyODZlYQ */
 package cn.campusdrop.app;
 

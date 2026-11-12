@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-53F1350CDB */
 import './zod-config';
 import {useId,useState} from 'react';
 import {AdminShell} from './admin-delivery';
@@ -22,7 +22,7 @@ function Tile({label,value,suffix,format,hint}:{label:string;value:number|null;s
 function DailyChart({daily}:{daily:PilotDay[]}){
   const id=useId(),[hover,setHover]=useState<number|null>(null);
   const max=Math.max(1,...daily.map(d=>d.orders)),w=720,h=180,pad=28,step=(w-pad*2)/Math.max(1,daily.length),bw=Math.max(2,Math.min(22,step-4));
-  const ticks=[0,Math.ceil(max/2),max];
+  const ticks=[...new Set([0,Math.ceil(max/2),max])]; // v4.7: with at most one order a day the middle tick equals the top one (duplicate key, doubled grid line)
   const shown=hover===null?null:daily[hover];
   return <figure className="chart pilot-daily"><figcaption><strong>每日订单</strong><small>已支付订单 · 悬停查看当天</small></figcaption>
     <div className="pilot-chart-wrap">

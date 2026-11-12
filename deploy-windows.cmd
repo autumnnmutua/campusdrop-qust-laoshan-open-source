@@ -1,12 +1,12 @@
 @echo off
 chcp 65001 >nul
-rem © 2026 专业团队 · CampusDrop v4.5.0
+rem © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-B6BDA0214A
 setlocal
 cd /d "%~dp0"
 title CampusDrop 生产部署
 echo.
 echo ==============================================
-echo   CampusDrop 校园快递  v4.5.0  生产部署
+echo   CampusDrop 校园快递  v4.7.0  生产部署
 echo ==============================================
 echo.
 
@@ -45,11 +45,13 @@ if errorlevel 1 goto :fail
 
 echo.
 echo [4/5] 数据库升级
-echo   v4.5.0 需要执行 0019_v45_sizes_rain_dispatch.sql（超大件、雨天配送费、小件按楼分配、配送员申请）；线上还没执行 0018（配送员钱包与提现）、0017（多件下单）、0016（优惠券）的话会一并列出，按顺序一起执行。
-echo   它只新增表、列和触发器，不删除任何账号或订单。线上还没升级到 v2.7 的话会一并列出 0011（没升级过 v2.6 还有 0010）。
+echo   从 v4.6.1 升级到 v4.7.0 无新增迁移。更早版本须按顺序执行全部待处理迁移。
+echo   从 v4.5 升级须执行 0020 至 0024；其中 0021 会清理已注销学生账号关联的部分自由文字和送达照片。
+echo   执行前先备份数据库，并在副本上核查和演练。详见 CHANGELOG.md 中的 v4.6.0 说明。
 echo   如果显示 No migrations to apply，说明已经升级过，按 N 跳过即可。
 echo   线上数据库待执行的迁移：
 call npx wrangler d1 migrations list DB --remote --env production --config wrangler.jsonc
+if errorlevel 1 goto :fail
 echo.
 choice /c YN /m "  现在执行数据库升级吗？按 Y 执行，按 N 跳过"
 if errorlevel 2 goto :skipmigrate
@@ -58,7 +60,7 @@ call npm run db:migrate:production
 if errorlevel 1 goto :fail
 goto :deploy
 :skipmigrate
-echo   已跳过。注意：列表里还有 0019（或 0018、0017、0016、0015、0014、0013、0012、0011、0010）时不能跳过，新版代码依赖它，跳过后订单页面会报错。
+echo   已跳过。注意：如果列表中还有待执行的迁移，不应继续发布，新版代码可能依赖这些迁移。
 choice /c YN /m "  确认线上已经没有待执行的迁移吗？按 Y 继续发布，按 N 退出"
 if errorlevel 2 goto :fail
 

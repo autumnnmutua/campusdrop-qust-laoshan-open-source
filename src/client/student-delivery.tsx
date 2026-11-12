@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-EA93F2C86A */
 import {getLang,locale,t} from './i18n';
 import {CouponPicker,CouponTotal,type CouponChoice} from './coupons-ui';
 import {SeaChartView} from './sea-chart/SeaChartView';

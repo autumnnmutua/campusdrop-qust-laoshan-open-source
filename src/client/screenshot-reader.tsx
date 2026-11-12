@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-C1F14223F0 */
 import {t} from './i18n';
 import {useEffect,useId,useRef,useState} from 'react';
 import {toast} from './effects';

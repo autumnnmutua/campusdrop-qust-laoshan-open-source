@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-54C672CC77 */
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 export default tseslint.config(

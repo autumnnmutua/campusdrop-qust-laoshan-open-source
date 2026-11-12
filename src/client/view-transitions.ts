@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-1586943E22 */
 /** Navigations run as View Transitions where the browser supports them and the visitor has not asked for less motion. */
 export const viewTransitionsEnabled=typeof document!=='undefined'&&'startViewTransition' in document&&!(typeof window!=='undefined'&&window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
 /** A valid view-transition-name for a record id (UUIDs may start with a digit, which a CSS ident cannot). */

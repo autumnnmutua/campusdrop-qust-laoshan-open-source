@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-DFC9EDF37D */
 import type { Env } from './types';
 import {ApiError} from './http';
 const known=new Set(['health','auth','admin','me','orders','parcels','quotes','stations','dorm-buildings','login','logout','register','address','tasks','available','dashboard','batches','status','pickup-code','claim','release','handoffs','confirm','reject','recovery','recovery-code','reset','issue','errors','admins','scopes','disable','note','upgrade','cancel','hide','refund','mock-pay','tips','contact','audit','assignees','password','tickets','messages','read','read-all','receive','bulk-pickup','announcements','archive','rating','stats','analytics','alerts','order-groups','cancel-unpaid','rules','weather','punctuality','assistant','ops-summary',

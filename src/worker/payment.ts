@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-AC38C702FB */
 import type { Env } from './types';
 import { ApiError } from './http';
 import { couponBatch, couponForPayment, settleCoupon } from './coupons';

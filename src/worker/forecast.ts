@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-F96F2FE15B */
 import type { Env } from './types';
 import { json } from './http';
 import { requireAdmin } from './session';

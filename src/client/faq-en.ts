@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-EF36B5001B */
 /**
  * English for the FAQ page (v3.5.1). Keyed by the Chinese question in shared/knowledge.ts, so an entry added there
  * without a translation simply shows in Chinese. The 智能助手 keeps using the Chinese list.

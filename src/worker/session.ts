@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-A54A92B616 */
 import { digest, randomToken } from '../domain/password';
 import type { Admin, Student, Scope } from '../shared/contracts';
 import type { Env } from './types';

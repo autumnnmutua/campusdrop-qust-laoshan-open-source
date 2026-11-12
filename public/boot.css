@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-07AB208866 */
 /* First-paint splash shown inside #root until React renders (React replaces it). External file because the CSP is
    style-src 'self'. It fades in after a short delay, so fast loads never flash it. Colours follow html[data-theme]. */
 .boot{min-height:100vh;min-height:100dvh;display:grid;place-items:center;background:#f4f2ee;color:#1e1b18;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;animation:boot-in .35s ease-out .18s both}

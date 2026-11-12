@@ -4,3 +4,4 @@
 *.woff2 binary
 *.jar binary
 *.bat text eol=crlf
+deploy-windows.cmd -text whitespace=cr-at-eol

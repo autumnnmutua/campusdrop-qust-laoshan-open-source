@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-A0273C8E5C */
 import {useEffect,useState} from 'react';
 import {api} from './api';
 import {t} from './i18n';

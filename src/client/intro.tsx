@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-D86FC53DC6 */
 import {useCallback,useEffect,useRef,useState,type CSSProperties} from 'react';
 import {inWeChat} from './wechat';
 import {getItem,setItem} from './storage';

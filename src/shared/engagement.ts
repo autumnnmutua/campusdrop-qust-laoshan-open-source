@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-5DAD2745F5 */
 import { z } from 'zod';
 import { ANNOUNCEMENT_LEVELS,RATING_TAGS } from './engagement-rules.ts';
 export * from './engagement-rules.ts';

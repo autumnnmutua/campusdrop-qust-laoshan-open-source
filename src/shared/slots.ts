@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-D5EEDC22D5 */
 /**
  * Booked delivery windows (预约配送时段), shared by the worker (validation, capacity) and the client (picker, labels).
  * All times are Beijing time; dates are YYYY-MM-DD strings so they compare and index as text. Zod-free on purpose.

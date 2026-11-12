@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-FEE1023528 */
 import java.net.URI
 
 plugins {
@@ -25,8 +25,8 @@ android {
         applicationId = "cn.campusdrop.app"
         minSdk = 24
         targetSdk = 35
-        versionCode = 461
-        versionName = "4.6.1"
+        versionCode = 470
+        versionName = "4.7.0"
         resValue("string", "site_url", siteUrl.trimEnd('/') + "/")
         manifestPlaceholders["siteHost"] = siteHost
     }

@@ -1,4 +1,4 @@
-/* © 2026 专业团队 · CampusDrop v4.5.0 */
+/* © 2026 专业团队 · CampusDrop v4.7.0 · WM-A372E4790D8B1C09-4194E01D75 */
 import type { DeliveryMode, OrderStatus, PackageSize } from '../shared/delivery';
 /** The fee the student sees for one parcel (超大件 = 大件 + 3 元: 8 元 楼下 / 10 元 送寝). */
 export function priceFen(size: PackageSize, mode: DeliveryMode): number {
